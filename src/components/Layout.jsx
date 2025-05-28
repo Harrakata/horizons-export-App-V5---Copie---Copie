@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Toaster } from '@/components/ui/toaster';
-import { Home, Briefcase, Users, Settings, BarChart3, LogIn, Sun, Moon, Menu } from 'lucide-react';
+import { Home, Briefcase, Users, Settings, BarChart3, LogIn, Sun, Moon, Menu, Wrench } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Layout = () => {
@@ -40,6 +40,7 @@ const Layout = () => {
   const dropdownLinks = [
       { to: '/espace-exploitation', label: 'Espace Exploitation', icon: <Briefcase className="mr-2 h-4 w-4" /> },
       { to: '/espace-chef-agence', label: "Espace Chef d'agence", icon: <Users className="mr-2 h-4 w-4" /> },
+      { to: '/maintenance-terminaux', label: 'Maintenance Terminaux', icon: <Wrench className="mr-2 h-4 w-4" /> },
   ];
 
   return (
