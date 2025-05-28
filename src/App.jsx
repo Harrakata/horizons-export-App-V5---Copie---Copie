@@ -10,7 +10,9 @@ import GuichetieresPageExploitation from '@/pages/exploitation/GuichetieresPage'
 import TechniciensPage from '@/pages/exploitation/TechniciensPage';
 import ParametresPage from '@/pages/exploitation/ParametresPage';
 import StatistiquesPage from '@/pages/exploitation/StatistiquesPage'; 
+
 import EspaceChefAgencePage from '@/pages/EspaceChefAgencePage';
+import EspaceMaintenancePage from '@/pages/EspaceMaintenancePage';
 import MesGuichetieresPage from '@/pages/chef_agence/MesGuichetieresPage';
 import MonPlanningPage from '@/pages/chef_agence/MonPlanningPage';
 import { Toaster } from '@/components/ui/toaster';
@@ -34,6 +36,7 @@ const App = () => {
           <Route element={<Layout />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/pointage" element={<PointagePage />} />
+            <Route path="/maintenance-terminaux" element={<EspaceMaintenancePage />} />
             
             <Route path="/espace-exploitation" element={<EspaceExploitationPage />}>
               <Route index element={<Navigate to="guichetieres" replace />} />
