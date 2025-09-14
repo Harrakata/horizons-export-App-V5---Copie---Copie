@@ -196,8 +196,8 @@ const MaintenanceTab = ({ technicien }) => {
     setIsLoading(true);
     try {
       // Préparer les données pour l'insertion
-      const terminalId = parseInt(interventionData.terminal, 10);
-      if (Number.isNaN(terminalId)) {
+      const terminalId = interventionData.terminal;
+      if (!terminalId) {
         toast({ title: 'Erreur', description: 'Terminal invalide', variant: 'destructive' });
         return false;
       }
