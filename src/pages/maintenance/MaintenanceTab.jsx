@@ -93,7 +93,7 @@ const MaintenanceTab = ({ technicien }) => {
       const { data: piecesData, error: piecesError } = await supabase
         .from('pieces_rechange')
         .select('*')
-        .eq('stock_disponible', 0, false) // Stock > 0
+        .gt('stock_disponible', 0) // Stock > 0
         .order('nom', { ascending: true });
       
       if (piecesError) {
@@ -192,6 +192,7 @@ const MaintenanceTab = ({ technicien }) => {
   }));
 
   const saveIntervention = async (interventionData) => {
+    setIsLoading(true);
     try {
       // Préparer les données pour l'insertion
       const terminalId = parseInt(interventionData.terminal, 10);
@@ -202,26 +203,31 @@ const MaintenanceTab = ({ technicien }) => {
 
       const dataToInsert = {
         terminal_id: terminalId,
-        technicien_id: technicien?.id,
+        technicien_id: technicien?.id || null,
         type_intervention: interventionData.typeIntervention,
         sous_ensemble: interventionData.sousEnsemble,
         commentaire: interventionData.commentaire,
         equipement_remplace: interventionData.remplace === 'oui',
         reference_remplacement: interventionData.remplacement || null,
-        statut: 'Terminée'
+        statut: 'Terminée',
+        date_fin: new Date().toISOString()
       };
 
       // Ajouter les références selon le type d'intervention
       if (interventionData.typeIntervention === 'curative') {
         const codePanne = codesPannes.find(p => p.code === interventionData.code);
-        if (codePanne) {
-          dataToInsert.code_panne_id = codePanne.id;
+        if (!codePanne) {
+          toast({ title: 'Erreur', description: 'Code panne invalide', variant: 'destructive' });
+          return false;
         }
+        dataToInsert.code_panne_id = codePanne.id;
       } else {
         const codeIntervention = codesInterventions.find(i => i.code === interventionData.code);
-        if (codeIntervention) {
-          dataToInsert.code_intervention_id = codeIntervention.id;
+        if (!codeIntervention) {
+          toast({ title: 'Erreur', description: "Code d'intervention invalide", variant: 'destructive' });
+          return false;
         }
+        dataToInsert.code_intervention_id = codeIntervention.id;
         const piece = piecesRechange.find(p => p.nom === interventionData.piece);
         if (piece) {
           dataToInsert.piece_remplacee_id = piece.id;
@@ -233,21 +239,23 @@ const MaintenanceTab = ({ technicien }) => {
         .insert([dataToInsert]);
 
       if (error) {
-        toast({ title: 'Erreur', description: 'Impossible d\'enregistrer l\'intervention', variant: 'destructive' });
+        toast({ title: 'Erreur', description: error.message || 'Impossible d\'enregistrer l\'intervention', variant: 'destructive' });
         console.error('Erreur sauvegarde:', error);
         return false;
       }
 
-      toast({ 
-        title: 'Succès', 
-        description: 'Intervention enregistrée avec succès', 
-        className: "bg-green-500 text-white" 
+      toast({
+        title: 'Succès',
+        description: 'Intervention enregistrée avec succès',
+        className: "bg-green-500 text-white"
       });
       return true;
     } catch (error) {
       toast({ title: 'Erreur', description: 'Erreur lors de l\'enregistrement', variant: 'destructive' });
       console.error('Erreur:', error);
       return false;
+    } finally {
+      setIsLoading(false);
     }
   };
 
