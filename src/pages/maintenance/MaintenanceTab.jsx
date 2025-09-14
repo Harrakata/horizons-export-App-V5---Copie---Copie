@@ -177,12 +177,13 @@ const MaintenanceTab = ({ technicien }) => {
   const sousEnsemblesOptions = getSousEnsembles();
 
   const codesPannesOptions = codesPannes.map(c => ({
-    value: c.code,
+    // Assurer que la valeur est une chaîne pour éviter les problèmes de comparaison
+    value: String(c.code),
     label: `${c.code} - ${c.libelle}`
   }));
 
   const codesInterventionsOptions = codesInterventions.map(c => ({
-    value: c.code,
+    value: String(c.code),
     label: `${c.code} - ${c.libelle}`
   }));
 
@@ -215,14 +216,18 @@ const MaintenanceTab = ({ technicien }) => {
 
       // Ajouter les références selon le type d'intervention
       if (interventionData.typeIntervention === 'curative') {
-        const codePanne = codesPannes.find(p => p.code === interventionData.code);
+        const codePanne = codesPannes.find(
+          (p) => String(p.code).toLowerCase() === String(interventionData.code).trim().toLowerCase()
+        );
         if (!codePanne) {
           toast({ title: 'Erreur', description: 'Code panne invalide', variant: 'destructive' });
           return false;
         }
         dataToInsert.code_panne_id = codePanne.id;
       } else {
-        const codeIntervention = codesInterventions.find(i => i.code === interventionData.code);
+        const codeIntervention = codesInterventions.find(
+          (i) => String(i.code).toLowerCase() === String(interventionData.code).trim().toLowerCase()
+        );
         if (!codeIntervention) {
           toast({ title: 'Erreur', description: "Code d'intervention invalide", variant: 'destructive' });
           return false;
