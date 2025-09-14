@@ -150,7 +150,17 @@ const MaintenanceTab = ({ technicien }) => {
   };
 
   const handleChange = (field) => (value) => {
-    setForm((p) => ({ ...p, [field]: value }));
+    setForm((p) => {
+      const updated = { ...p, [field]: value };
+      if (field === 'agence') {
+        updated.terminal = '';
+        updated.sousEnsemble = '';
+      }
+      if (field === 'terminal') {
+        updated.sousEnsemble = '';
+      }
+      return updated;
+    });
   };
 
   // Préparer les options pour les Combobox
@@ -184,8 +194,14 @@ const MaintenanceTab = ({ technicien }) => {
   const saveIntervention = async (interventionData) => {
     try {
       // Préparer les données pour l'insertion
+      const terminalId = parseInt(interventionData.terminal, 10);
+      if (Number.isNaN(terminalId)) {
+        toast({ title: 'Erreur', description: 'Terminal invalide', variant: 'destructive' });
+        return false;
+      }
+
       const dataToInsert = {
-        terminal_id: parseInt(interventionData.terminal),
+        terminal_id: terminalId,
         technicien_id: technicien?.id,
         type_intervention: interventionData.typeIntervention,
         sous_ensemble: interventionData.sousEnsemble,
@@ -515,9 +531,9 @@ const MaintenanceTab = ({ technicien }) => {
           )}
           
           {step === 1 && (
-            <Button 
-              onClick={() => setStep(2)} 
-              disabled={!form.sousEnsemble || isLoading}
+            <Button
+              onClick={() => setStep(2)}
+              disabled={!form.agence || !form.terminal || !form.sousEnsemble || isLoading}
               className="ml-auto bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90"
             >
               Suivant →
