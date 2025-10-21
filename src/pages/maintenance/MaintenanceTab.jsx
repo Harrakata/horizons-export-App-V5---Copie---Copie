@@ -203,6 +203,7 @@ const MaintenanceTab = ({ technicien }) => {
       }
 
       const dataToInsert = {
+        id: crypto.randomUUID(),
         terminal_id: terminalId,
         technicien_id: technicien?.id || null,
         type_intervention: interventionData.typeIntervention,
