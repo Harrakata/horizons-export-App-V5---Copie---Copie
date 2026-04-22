@@ -18,12 +18,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
+const normalizeValue = (value) => String(value ?? "").trim().toLowerCase();
 
 const Combobox = ({ options, value, onSelect, placeholder, searchPlaceholder, emptyText, disabled }) => {
   const [open, setOpen] = useState(false)
 
   const selectedOption = options.find(
-    (option) => option.value.toLowerCase() === value?.toLowerCase()
+    (option) => normalizeValue(option.value) === normalizeValue(value)
   );
 
   return (
@@ -50,15 +51,15 @@ const Combobox = ({ options, value, onSelect, placeholder, searchPlaceholder, em
                 <CommandItem
                   key={option.value}
                   value={option.value}
-                  onSelect={(currentValue) => {
-                    onSelect(currentValue === value ? "" : currentValue)
+                  onSelect={() => {
+                    onSelect(normalizeValue(option.value) === normalizeValue(value) ? "" : option.value)
                     setOpen(false)
                   }}
                 >
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      value === option.value ? "opacity-100" : "opacity-0"
+                      normalizeValue(value) === normalizeValue(option.value) ? "opacity-100" : "opacity-0"
                     )}
                   />
                   {option.label}

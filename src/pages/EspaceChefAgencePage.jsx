@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { UserCog, CalendarDays, ShieldCheck, LogOut, Loader2, Camera, RotateCcw, Timer } from 'lucide-react';
+import { UserCog, CalendarDays, ShieldCheck, LogOut, Loader2, Camera, RotateCcw, Timer, Wallet, Wrench, MapPin } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -597,7 +597,13 @@ const EspaceChefAgencePage = () => {
   const menuItems = [
     { path: 'mon-planning', label: 'Mon Planning', icon: <CalendarDays className="h-5 w-5" /> },
     { path: 'mes-guichetieres', label: 'Mes Guichetières', icon: <UserCog className="h-5 w-5" /> },
+    { path: 'maintenance-terminaux', label: 'Maintenance Terminaux', icon: <Wrench className="h-5 w-5" /> },
+    { path: 'points-vente-mobi', label: 'Point de Vente Mobi', icon: <MapPin className="h-5 w-5" /> },
+    { path: 'paiement-gros-gain', label: 'Paiement Gros Gain', icon: <Wallet className="h-5 w-5" /> },
   ];
+
+  const normalizedPathname = location.pathname.replace(/\/+$/, '');
+  const isMenuItemActive = (itemPath) => normalizedPathname === `/espace-chef-agence/${itemPath}`;
 
   if (!isAuthenticated) {
     return <LoginPageChef onLogin={handleLogin} />;
@@ -639,8 +645,8 @@ const EspaceChefAgencePage = () => {
                 <Button
                   key={item.path}
                   asChild
-                  variant={location.pathname.endsWith(item.path) ? 'default' : 'ghost'}
-                  className={`justify-start text-base py-3 ${location.pathname.endsWith(item.path) ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'hover:bg-muted/50'}`}
+                  variant={isMenuItemActive(item.path) ? 'default' : 'ghost'}
+                  className={`justify-start text-base py-3 ${isMenuItemActive(item.path) ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'hover:bg-muted/50'}`}
                 >
                   <Link to={item.path}>
                     {item.icon && React.cloneElement(item.icon, { className: 'mr-3 h-5 w-5' })}

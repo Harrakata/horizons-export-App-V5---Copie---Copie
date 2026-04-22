@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +9,15 @@ import { Combobox } from '@/components/ui/Combobox';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import EquipmentManager from './EquipmentManager';
+
+const normalizeText = (value) =>
+  String(value ?? '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+const isEquipmentAvailableStatus = (status) => normalizeText(status) === 'disponible';
 
 const ConfigurationTab = () => {
   const { toast } = useToast();
@@ -33,55 +42,84 @@ const ConfigurationTab = () => {
 
   const ipPool = ['192.168.1.10', '192.168.1.11', '192.168.1.12', '192.168.1.13'];
 
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [
+        agencesResponse,
+        terminauxResponse,
+        imprimantesResponse,
+        ecransResponse,
+        lecteursResponse,
+      ] = await Promise.all([
+        supabase.from('agences').select('id, nom, nbreTerminaux').order('nom', { ascending: true }),
+        supabase
+          .from('terminaux')
+          .select('id, reference, type_terminal, position, adresse_ip, agence_id, imprimante_reference, lecteur_reference, ecran_reference, statut')
+          .order('reference', { ascending: true }),
+        supabase.from('equipments_imprimantes').select('*').order('reference', { ascending: true }),
+        supabase.from('equipments_ecrans').select('*').order('reference', { ascending: true }),
+        supabase.from('equipments_lecteurs').select('*').order('reference', { ascending: true }),
+      ]);
+
+      if (agencesResponse.error) {
+        toast({ title: 'Erreur chargement agences', description: agencesResponse.error.message, variant: 'destructive' });
+      } else {
+        setAgences(agencesResponse.data || []);
+      }
+
+      if (terminauxResponse.error) {
+        toast({ title: 'Erreur chargement terminaux', description: terminauxResponse.error.message, variant: 'destructive' });
+      } else {
+        const groupedTerminaux = (terminauxResponse.data || []).reduce((accumulator, terminal) => {
+          const agencyKey = String(terminal.agence_id ?? '');
+          if (!accumulator[agencyKey]) {
+            accumulator[agencyKey] = [];
+          }
+          accumulator[agencyKey].push({
+            id: terminal.id,
+            ref: terminal.reference,
+            type: terminal.type_terminal,
+            position: terminal.position,
+            ip: terminal.adresse_ip,
+            imprimante: terminal.imprimante_reference,
+            lecteur: terminal.lecteur_reference,
+            ecran: terminal.ecran_reference,
+            statut: terminal.statut,
+          });
+          return accumulator;
+        }, {});
+        setTerminaux(groupedTerminaux);
+      }
+
+      const equipmentResponses = [
+        { key: 'imprimantes', response: imprimantesResponse },
+        { key: 'ecrans', response: ecransResponse },
+        { key: 'lecteurs', response: lecteursResponse },
+      ];
+
+      const equipmentData = {};
+      equipmentResponses.forEach(({ key, response }) => {
+        if (response.error) {
+          toast({ title: `Erreur chargement ${key}`, description: response.error.message, variant: 'destructive' });
+          equipmentData[key] = [];
+        } else {
+          equipmentData[key] = response.data || [];
+        }
+      });
+
+      setEquipments(equipmentData);
+    } catch (error) {
+      console.error('Erreur chargement configuration terminaux:', error);
+      toast({ title: 'Erreur de chargement', description: 'Impossible de charger les données', variant: 'destructive' });
+    }
+    setIsLoading(false);
+  }, [toast]);
+
   // Charger les données depuis Supabase
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        // Charger les agences
-        const { data: agencesData, error: agencesError } = await supabase
-          .from('agences')
-          .select('id, nom, nbreTerminaux')
-          .order('nom', { ascending: true });
-        
-        if (agencesError) {
-          toast({ title: 'Erreur chargement agences', description: agencesError.message, variant: 'destructive' });
-        } else {
-          setAgences(agencesData || []);
-        }
-
-        // Charger les équipements
-        const equipmentTypes = [
-          { key: 'imprimantes', table: 'equipments_imprimantes' },
-          { key: 'ecrans', table: 'equipments_ecrans' },
-          { key: 'lecteurs', table: 'equipments_lecteurs' }
-        ];
-
-        const equipmentData = {};
-        for (const { key, table } of equipmentTypes) {
-          const { data, error } = await supabase
-            .from(table)
-            .select('*')
-            .eq('statut', 'Disponible')
-            .order('reference', { ascending: true });
-          
-          if (error) {
-            toast({ title: `Erreur chargement ${key}`, description: error.message, variant: 'destructive' });
-            equipmentData[key] = [];
-          } else {
-            equipmentData[key] = data || [];
-          }
-        }
-        setEquipments(equipmentData);
-
-      } catch (error) {
-        toast({ title: 'Erreur de chargement', description: 'Impossible de charger les données', variant: 'destructive' });
-      }
-      setIsLoading(false);
-    };
-
     loadData();
-  }, [toast]);
+  }, [loadData]);
 
   const handleAddTerminal = () => {
     if (!agenceId) return;
@@ -109,22 +147,46 @@ const ConfigurationTab = () => {
     label: ip
   }));
 
-  const imprimantesOptions = equipments.imprimantes.map(i => ({
-    value: i.reference,
-    label: `${i.reference} - ${i.marque} ${i.modele}`
-  }));
-
-  const lecteursOptions = equipments.lecteurs.map(l => ({
-    value: l.reference,
-    label: `${l.reference} - ${l.marque} ${l.modele}`
-  }));
-
-  const ecransOptions = equipments.ecrans.map(e => ({
-    value: e.reference,
-    label: `${e.reference} - ${e.marque} ${e.modele}`
-  }));
-
   const selectedTerminaux = terminaux[agenceId] || [];
+
+  const assignedEquipmentReferences = useMemo(() => {
+    return Object.values(terminaux).flat().reduce(
+      (accumulator, terminal) => {
+        if (terminal.imprimante) {
+          accumulator.imprimantes.add(normalizeText(terminal.imprimante));
+        }
+        if (terminal.lecteur) {
+          accumulator.lecteurs.add(normalizeText(terminal.lecteur));
+        }
+        if (terminal.ecran) {
+          accumulator.ecrans.add(normalizeText(terminal.ecran));
+        }
+        return accumulator;
+      },
+      {
+        imprimantes: new Set(),
+        lecteurs: new Set(),
+        ecrans: new Set(),
+      }
+    );
+  }, [terminaux]);
+
+  const buildEquipmentOptions = (equipmentList, equipmentType, selectedReference) =>
+    equipmentList
+      .filter((equipment) => {
+        const normalizedReference = normalizeText(equipment.reference);
+        const isSelectedEquipment = normalizeText(selectedReference) === normalizedReference;
+        const isAssigned = assignedEquipmentReferences[equipmentType].has(normalizedReference);
+        return isSelectedEquipment || (!isAssigned && isEquipmentAvailableStatus(equipment.statut));
+      })
+      .map((equipment) => ({
+        value: equipment.reference,
+        label: `${equipment.reference} - ${equipment.marque || 'Marque N/A'} ${equipment.modele || ''}`.trim(),
+      }));
+
+  const imprimantesOptions = buildEquipmentOptions(equipments.imprimantes, 'imprimantes', formData.imprimante);
+  const lecteursOptions = buildEquipmentOptions(equipments.lecteurs, 'lecteurs', formData.lecteur);
+  const ecransOptions = buildEquipmentOptions(equipments.ecrans, 'ecrans', formData.ecran);
 
   return (
     <div className="space-y-6">

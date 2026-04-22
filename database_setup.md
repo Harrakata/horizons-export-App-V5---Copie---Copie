@@ -64,6 +64,76 @@ COMMENT ON COLUMN public.techniciens.motDePasse IS 'Mot de passe du technicien';
 COMMENT ON COLUMN public.techniciens.photo_url IS 'URL de la photo du technicien stockée dans Supabase Storage';
 ```
 
+## Table Régions
+
+La gestion des régions est désormais centralisée dans la table `regions`.  
+Les écrans `Agences`, `Point de Vente Mobi` et `Validateur Paiement Gain` utilisent cette table pour renseigner les champs région.
+
+### Script SQL à exécuter dans l'éditeur SQL de Supabase :
+
+```sql
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = timezone('utc'::text, now());
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TABLE IF NOT EXISTS public.regions (
+  id BIGSERIAL PRIMARY KEY,
+  "codeRegion" TEXT UNIQUE NOT NULL,
+  nom TEXT UNIQUE NOT NULL,
+  description TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.regions
+ADD COLUMN IF NOT EXISTS "codeRegion" TEXT;
+
+UPDATE public.regions
+SET "codeRegion" = CONCAT('REG-', id)
+WHERE "codeRegion" IS NULL OR trim("codeRegion") = '';
+
+ALTER TABLE public.regions
+ALTER COLUMN "codeRegion" SET NOT NULL;
+
+ALTER TABLE public.regions
+DROP CONSTRAINT IF EXISTS regions_statut_check;
+
+ALTER TABLE public.regions
+DROP COLUMN IF EXISTS statut;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_regions_code_region_unique ON public.regions("codeRegion");
+CREATE INDEX IF NOT EXISTS idx_regions_nom ON public.regions(nom);
+
+ALTER TABLE public.regions ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'regions'
+      AND policyname = 'Enable all operations for authenticated users on regions'
+  ) THEN
+    CREATE POLICY "Enable all operations for authenticated users on regions"
+      ON public.regions
+      FOR ALL
+      USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
+
+DROP TRIGGER IF EXISTS handle_regions_updated_at ON public.regions;
+
+CREATE TRIGGER handle_regions_updated_at
+  BEFORE UPDATE ON public.regions
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+```
+
 ## Mise à jour de la table Agences
 
 Pour ajouter le champ "Région" à la table agences existante, exécutez le script suivant :
@@ -79,6 +149,8 @@ CREATE INDEX IF NOT EXISTS idx_agences_region ON public.agences(region);
 -- Commentaire sur la nouvelle colonne
 COMMENT ON COLUMN public.agences.region IS 'Région géographique de l\'agence';
 ```
+
+Les valeurs du champ `agences.region` doivent maintenant être choisies parmi les régions enregistrées dans `public.regions`.
 
 ## Tables pour les Terminaux et Maintenance
 
@@ -463,3 +535,639 @@ Toutes les tables sont configurées avec Row Level Security (RLS) activé et des
 ### Storage :
 
 Les photos des techniciens seront stockées dans le bucket `pmu-mali-storage` sous le dossier `photos_techniciens/`. 
+
+## Table Terminaux Mobi
+
+Pour ajouter l'onglet `Terminaux Mobi` dans l'espace Exploitation, créez la table `terminaux_mobi` dans Supabase avec les colonnes affichées dans l'application.
+
+### Script SQL à exécuter dans l'éditeur SQL de Supabase :
+
+```sql
+CREATE TABLE IF NOT EXISTS public.terminaux_mobi (
+    id BIGSERIAL PRIMARY KEY,
+    reference TEXT UNIQUE NOT NULL,
+    modele TEXT NOT NULL,
+    imei1 TEXT UNIQUE NOT NULL,
+    imei2 TEXT,
+    "dateMiseEnService" DATE NOT NULL,
+    statut TEXT NOT NULL DEFAULT 'Actif',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.terminaux_mobi
+ADD CONSTRAINT terminaux_mobi_statut_check
+CHECK (statut IN ('Actif', 'Inactif'));
+
+CREATE INDEX IF NOT EXISTS idx_terminaux_mobi_reference ON public.terminaux_mobi(reference);
+CREATE INDEX IF NOT EXISTS idx_terminaux_mobi_imei1 ON public.terminaux_mobi(imei1);
+CREATE INDEX IF NOT EXISTS idx_terminaux_mobi_imei2 ON public.terminaux_mobi(imei2);
+CREATE INDEX IF NOT EXISTS idx_terminaux_mobi_date_mise_service ON public.terminaux_mobi("dateMiseEnService");
+CREATE INDEX IF NOT EXISTS idx_terminaux_mobi_statut ON public.terminaux_mobi(statut);
+
+ALTER TABLE public.terminaux_mobi ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Enable all operations for authenticated users on terminaux_mobi" ON public.terminaux_mobi
+    FOR ALL USING (auth.role() = 'authenticated');
+
+CREATE TRIGGER handle_terminaux_mobi_updated_at
+    BEFORE UPDATE ON public.terminaux_mobi
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_updated_at();
+
+COMMENT ON TABLE public.terminaux_mobi IS 'Table des terminaux mobi en exploitation';
+COMMENT ON COLUMN public.terminaux_mobi.reference IS 'Référence unique du terminal mobi';
+COMMENT ON COLUMN public.terminaux_mobi.modele IS 'Modèle du terminal mobi';
+COMMENT ON COLUMN public.terminaux_mobi.imei1 IS 'Premier IMEI du terminal mobi';
+COMMENT ON COLUMN public.terminaux_mobi.imei2 IS 'Second IMEI du terminal mobi';
+COMMENT ON COLUMN public.terminaux_mobi."dateMiseEnService" IS 'Date de mise en service du terminal mobi';
+COMMENT ON COLUMN public.terminaux_mobi.statut IS 'État du terminal mobi : Actif ou Inactif';
+```
+
+### Structure de la table Terminaux Mobi :
+
+| Colonne | Type | Contraintes | Description |
+|---------|------|-------------|-------------|
+| id | BIGSERIAL | PRIMARY KEY | Identifiant unique auto-incrémenté |
+| reference | TEXT | UNIQUE, NOT NULL | Référence unique du terminal |
+| modele | TEXT | NOT NULL | Modèle |
+| imei1 | TEXT | UNIQUE, NOT NULL | IMEI principal |
+| imei2 | TEXT | NULL | IMEI secondaire |
+| dateMiseEnService | DATE | NOT NULL | Date de mise en service |
+| statut | TEXT | NOT NULL, CHECK | Statut du terminal : Actif ou Inactif |
+| created_at | TIMESTAMP | DEFAULT NOW() | Date de création |
+| updated_at | TIMESTAMP | DEFAULT NOW() | Date de dernière modification |
+
+## Table Points de Vente Mobi
+
+Pour ajouter l'onglet `Point de Vente Mobi` dans l'espace Exploitation, créez la table `points_vente_mobi` pour stocker la version active et l'historique des associations.
+
+### Script SQL à exécuter dans l'éditeur SQL de Supabase :
+
+```sql
+CREATE TABLE IF NOT EXISTS public.points_vente_mobi (
+    id BIGSERIAL PRIMARY KEY,
+    "pointVenteUid" TEXT NOT NULL,
+    "codePointVente" TEXT NOT NULL,
+    region TEXT NOT NULL,
+    "agenceNom" TEXT NOT NULL,
+    "agenceCodePDV" TEXT,
+    "terminalReference" TEXT NOT NULL,
+    "terminalModele" TEXT,
+    "guichetiereMatricule" TEXT NOT NULL,
+    "guichetiereNom" TEXT,
+    "dateDebutValidite" DATE NOT NULL,
+    "dateFinValidite" DATE,
+    statut TEXT NOT NULL DEFAULT 'Actif',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.points_vente_mobi
+ADD CONSTRAINT points_vente_mobi_statut_check
+CHECK (statut IN ('Actif', 'Inactif'));
+
+CREATE INDEX IF NOT EXISTS idx_points_vente_mobi_uid ON public.points_vente_mobi("pointVenteUid");
+CREATE INDEX IF NOT EXISTS idx_points_vente_mobi_code ON public.points_vente_mobi("codePointVente");
+CREATE INDEX IF NOT EXISTS idx_points_vente_mobi_agence ON public.points_vente_mobi("agenceNom");
+CREATE INDEX IF NOT EXISTS idx_points_vente_mobi_terminal ON public.points_vente_mobi("terminalReference");
+CREATE INDEX IF NOT EXISTS idx_points_vente_mobi_guichetiere ON public.points_vente_mobi("guichetiereMatricule");
+CREATE INDEX IF NOT EXISTS idx_points_vente_mobi_region ON public.points_vente_mobi(region);
+CREATE INDEX IF NOT EXISTS idx_points_vente_mobi_dates ON public.points_vente_mobi("dateDebutValidite", "dateFinValidite");
+
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_points_vente_mobi_actif_code
+ON public.points_vente_mobi("codePointVente")
+WHERE statut = 'Actif';
+
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_points_vente_mobi_actif_terminal
+ON public.points_vente_mobi("terminalReference")
+WHERE statut = 'Actif';
+
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_points_vente_mobi_actif_guichetiere
+ON public.points_vente_mobi("guichetiereMatricule")
+WHERE statut = 'Actif';
+
+ALTER TABLE public.points_vente_mobi ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Enable all operations for authenticated users on points_vente_mobi" ON public.points_vente_mobi
+    FOR ALL USING (auth.role() = 'authenticated');
+
+CREATE TRIGGER handle_points_vente_mobi_updated_at
+    BEFORE UPDATE ON public.points_vente_mobi
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_updated_at();
+
+COMMENT ON TABLE public.points_vente_mobi IS 'Historique des associations des points de vente mobi';
+COMMENT ON COLUMN public.points_vente_mobi."pointVenteUid" IS 'Identifiant logique stable pour regrouper toutes les versions historiques d un même point de vente mobi';
+COMMENT ON COLUMN public.points_vente_mobi."codePointVente" IS 'Code métier affiché du point de vente mobi';
+COMMENT ON COLUMN public.points_vente_mobi.region IS 'Région associée au point de vente mobi';
+COMMENT ON COLUMN public.points_vente_mobi."agenceNom" IS 'Nom de l agence associée';
+COMMENT ON COLUMN public.points_vente_mobi."agenceCodePDV" IS 'Code PDV de l agence associée';
+COMMENT ON COLUMN public.points_vente_mobi."terminalReference" IS 'Référence du terminal mobi associé';
+COMMENT ON COLUMN public.points_vente_mobi."terminalModele" IS 'Modèle du terminal mobi associé';
+COMMENT ON COLUMN public.points_vente_mobi."guichetiereMatricule" IS 'Matricule de la guichetière associée';
+COMMENT ON COLUMN public.points_vente_mobi."guichetiereNom" IS 'Nom complet de la guichetière au moment de l association';
+COMMENT ON COLUMN public.points_vente_mobi."dateDebutValidite" IS 'Date de début de validité de la version';
+COMMENT ON COLUMN public.points_vente_mobi."dateFinValidite" IS 'Date de fin de validité de la version';
+COMMENT ON COLUMN public.points_vente_mobi.statut IS 'Statut de la version : Actif ou Inactif';
+```
+
+### Structure de la table Points de Vente Mobi :
+
+| Colonne | Type | Contraintes | Description |
+|---------|------|-------------|-------------|
+| id | BIGSERIAL | PRIMARY KEY | Identifiant unique auto-incrémenté |
+| pointVenteUid | TEXT | NOT NULL | Identifiant logique du point de vente à travers ses versions |
+| codePointVente | TEXT | NOT NULL | Code métier du point de vente mobi |
+| region | TEXT | NOT NULL | Région associée |
+| agenceNom | TEXT | NOT NULL | Agence associée |
+| agenceCodePDV | TEXT | NULL | Code PDV de l’agence |
+| terminalReference | TEXT | NOT NULL | Référence du terminal mobi associé |
+| terminalModele | TEXT | NULL | Modèle du terminal mobi |
+| guichetiereMatricule | TEXT | NOT NULL | Matricule de la guichetière associée |
+| guichetiereNom | TEXT | NULL | Nom complet de la guichetière |
+| dateDebutValidite | DATE | NOT NULL | Date de début de validité |
+| dateFinValidite | DATE | NULL | Date de fin de validité |
+| statut | TEXT | NOT NULL, CHECK | Statut de la version : Actif ou Inactif |
+| created_at | TIMESTAMP | DEFAULT NOW() | Date de création |
+| updated_at | TIMESTAMP | DEFAULT NOW() | Date de dernière modification |
+
+## Table Profils Exploitation
+
+Pour ajouter l'onglet `Profils Exploitation` dans l'espace Exploitation, créez la table `profils_exploitation` afin de gérer les comptes internes et leurs permissions de lecture ou d'écriture sur les onglets du menu Exploitation.
+
+### Script SQL à exécuter dans l'éditeur SQL de Supabase :
+
+```sql
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = timezone('utc'::text, now());
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TABLE IF NOT EXISTS public.profils_exploitation (
+  id BIGSERIAL PRIMARY KEY,
+  nom TEXT NOT NULL,
+  prenom TEXT NOT NULL,
+  email TEXT NOT NULL,
+  telephone TEXT,
+  "motDePasse" TEXT NOT NULL,
+  statut TEXT NOT NULL DEFAULT 'Actif',
+  permissions JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'profils_exploitation_statut_check'
+  ) THEN
+    ALTER TABLE public.profils_exploitation
+    ADD CONSTRAINT profils_exploitation_statut_check
+    CHECK (statut IN ('Actif', 'Inactif'));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'profils_exploitation_email_unique'
+  ) THEN
+    ALTER TABLE public.profils_exploitation
+    ADD CONSTRAINT profils_exploitation_email_unique UNIQUE (email);
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_profils_exploitation_email
+ON public.profils_exploitation(email);
+
+CREATE INDEX IF NOT EXISTS idx_profils_exploitation_statut
+ON public.profils_exploitation(statut);
+
+ALTER TABLE public.profils_exploitation ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'profils_exploitation'
+      AND policyname = 'Enable all operations for authenticated users on profils_exploitation'
+  ) THEN
+    CREATE POLICY "Enable all operations for authenticated users on profils_exploitation"
+      ON public.profils_exploitation
+      FOR ALL
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+  END IF;
+END $$;
+
+DROP TRIGGER IF EXISTS handle_profils_exploitation_updated_at
+ON public.profils_exploitation;
+
+CREATE TRIGGER handle_profils_exploitation_updated_at
+  BEFORE UPDATE ON public.profils_exploitation
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+```
+
+### Structure de la table Profils Exploitation :
+
+| Colonne | Type | Contraintes | Description |
+|---------|------|-------------|-------------|
+| id | BIGSERIAL | PRIMARY KEY | Identifiant unique auto-incrémenté |
+| nom | TEXT | NOT NULL | Nom de famille du profil Exploitation |
+| prenom | TEXT | NOT NULL | Prénom du profil Exploitation |
+| email | TEXT | NOT NULL, UNIQUE | Identifiant de connexion |
+| telephone | TEXT | NULL | Numéro de téléphone |
+| motDePasse | TEXT | NOT NULL | Mot de passe de connexion |
+| statut | TEXT | NOT NULL, CHECK | Statut du profil : Actif ou Inactif |
+| permissions | JSONB | NOT NULL | Permissions par onglet avec niveaux `none`, `read` ou `write` |
+| created_at | TIMESTAMP | DEFAULT NOW() | Date de création |
+| updated_at | TIMESTAMP | DEFAULT NOW() | Date de dernière modification |
+
+## Tables Paiement Gros Gain
+
+Pour activer le module de `Paiement Gros Gain`, il faut créer :
+
+- `validateurs_paiement_gain` : profils de validation Directeur régional / Directeur général
+- `demandes_paiement_gain` : demandes de paiement, état global et routage
+- `paiement_gain_workflow_events` : journal de toutes les actions du workflow
+
+### Script SQL à exécuter dans l'éditeur SQL de Supabase :
+
+```sql
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = timezone('utc'::text, now());
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TABLE IF NOT EXISTS public.validateurs_paiement_gain (
+  id BIGSERIAL PRIMARY KEY,
+  fonction TEXT NOT NULL,
+  nom TEXT NOT NULL,
+  prenom TEXT NOT NULL,
+  email TEXT NOT NULL,
+  telephone TEXT NOT NULL,
+  "regionAssignee" TEXT,
+  "motDePasse" TEXT NOT NULL,
+  statut TEXT NOT NULL DEFAULT 'Actif',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'validateurs_paiement_gain_fonction_check'
+  ) THEN
+    ALTER TABLE public.validateurs_paiement_gain
+    ADD CONSTRAINT validateurs_paiement_gain_fonction_check
+    CHECK (fonction IN ('Directeur régional', 'Directeur général'));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'validateurs_paiement_gain_statut_check'
+  ) THEN
+    ALTER TABLE public.validateurs_paiement_gain
+    ADD CONSTRAINT validateurs_paiement_gain_statut_check
+    CHECK (statut IN ('Actif', 'Inactif'));
+  END IF;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_validateurs_paiement_gain_email
+ON public.validateurs_paiement_gain(email);
+
+CREATE INDEX IF NOT EXISTS idx_validateurs_paiement_gain_fonction
+ON public.validateurs_paiement_gain(fonction);
+
+CREATE INDEX IF NOT EXISTS idx_validateurs_paiement_gain_region
+ON public.validateurs_paiement_gain("regionAssignee");
+
+ALTER TABLE public.validateurs_paiement_gain ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'validateurs_paiement_gain'
+      AND policyname = 'Enable all operations for authenticated users on validateurs_paiement_gain'
+  ) THEN
+    CREATE POLICY "Enable all operations for authenticated users on validateurs_paiement_gain"
+      ON public.validateurs_paiement_gain
+      FOR ALL
+      USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
+
+DROP TRIGGER IF EXISTS handle_validateurs_paiement_gain_updated_at
+ON public.validateurs_paiement_gain;
+
+CREATE TRIGGER handle_validateurs_paiement_gain_updated_at
+  BEFORE UPDATE ON public.validateurs_paiement_gain
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TABLE IF NOT EXISTS public.demandes_paiement_gain (
+  id BIGSERIAL PRIMARY KEY,
+  "codeDemande" TEXT NOT NULL,
+  "montantGain" NUMERIC(18,2) NOT NULL,
+  "montantTranche" TEXT NOT NULL,
+  "procedureResume" TEXT,
+  "modePaiement" TEXT,
+  "lieuPaiement" TEXT,
+  "identificationRequise" BOOLEAN NOT NULL DEFAULT false,
+  "numeroCourse" TEXT,
+  "typePari" TEXT,
+  "localitePaiementSouhaitee" TEXT,
+  "directeurRegionalId" BIGINT,
+  "directeurRegionalName" TEXT,
+  "directeurRegionalRegion" TEXT,
+  "directeurGeneralId" BIGINT,
+  "directeurGeneralName" TEXT,
+  "dateReunionCourse" DATE,
+  "dateCourse" DATE,
+  "nomGagnant" TEXT,
+  "prenomGagnant" TEXT,
+  "secteurResidence" TEXT,
+  "provinceResidence" TEXT,
+  "numeroPieceIdentite" TEXT,
+  "dateEtablissementPiece" DATE,
+  "autoritePieceIdentite" TEXT,
+  "numeroTicketGagnant" TEXT,
+  "photoPieceUrl" TEXT,
+  "chefAgenceId" BIGINT,
+  "chefAgenceMatricule" TEXT,
+  "chefAgenceNom" TEXT,
+  "agenceOrigineNom" TEXT,
+  "agenceOrigineCodePDV" TEXT,
+  "regionOrigine" TEXT,
+  "agencePaiementNom" TEXT,
+  "agencePaiementCodePDV" TEXT,
+  "statutGlobal" TEXT NOT NULL,
+  "niveauValidationCourant" TEXT NOT NULL,
+  "circuitValidation" TEXT,
+  "dateValidationChef" TIMESTAMP WITH TIME ZONE,
+  "dateValidationDirecteurRegional" TIMESTAMP WITH TIME ZONE,
+  "dateValidationDirecteurGeneral" TIMESTAMP WITH TIME ZONE,
+  "dateAutorisationExploitation" TIMESTAMP WITH TIME ZONE,
+  "datePaiementFinal" TIMESTAMP WITH TIME ZONE,
+  "commentaireDerniereAction" TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'demandes_paiement_gain_statut_check'
+  ) THEN
+    ALTER TABLE public.demandes_paiement_gain
+    ADD CONSTRAINT demandes_paiement_gain_statut_check
+    CHECK ("statutGlobal" IN (
+      'En attente directeur régional',
+      'En attente directeur général',
+      'En attente exploitation',
+      'Autorisée pour paiement',
+      'Payée',
+      'Refusée'
+    ));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'demandes_paiement_gain_niveau_check'
+  ) THEN
+    ALTER TABLE public.demandes_paiement_gain
+    ADD CONSTRAINT demandes_paiement_gain_niveau_check
+    CHECK ("niveauValidationCourant" IN (
+      'directeur_regional',
+      'directeur_general',
+      'exploitation',
+      'agence_paiement',
+      'terminee'
+    ));
+  END IF;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_demandes_paiement_gain_code
+ON public.demandes_paiement_gain("codeDemande");
+
+CREATE INDEX IF NOT EXISTS idx_demandes_paiement_gain_statut
+ON public.demandes_paiement_gain("statutGlobal");
+
+CREATE INDEX IF NOT EXISTS idx_demandes_paiement_gain_niveau
+ON public.demandes_paiement_gain("niveauValidationCourant");
+
+CREATE INDEX IF NOT EXISTS idx_demandes_paiement_gain_agence_origine
+ON public.demandes_paiement_gain("agenceOrigineNom");
+
+CREATE INDEX IF NOT EXISTS idx_demandes_paiement_gain_agence_paiement
+ON public.demandes_paiement_gain("agencePaiementNom");
+
+CREATE INDEX IF NOT EXISTS idx_demandes_paiement_gain_directeur_regional
+ON public.demandes_paiement_gain("directeurRegionalId");
+
+CREATE INDEX IF NOT EXISTS idx_demandes_paiement_gain_directeur_general
+ON public.demandes_paiement_gain("directeurGeneralId");
+
+ALTER TABLE public.demandes_paiement_gain ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'demandes_paiement_gain'
+      AND policyname = 'Enable all operations for authenticated users on demandes_paiement_gain'
+  ) THEN
+    CREATE POLICY "Enable all operations for authenticated users on demandes_paiement_gain"
+      ON public.demandes_paiement_gain
+      FOR ALL
+      USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
+
+DROP TRIGGER IF EXISTS handle_demandes_paiement_gain_updated_at
+ON public.demandes_paiement_gain;
+
+CREATE TRIGGER handle_demandes_paiement_gain_updated_at
+  BEFORE UPDATE ON public.demandes_paiement_gain
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TABLE IF NOT EXISTS public.paiement_gain_workflow_events (
+  id BIGSERIAL PRIMARY KEY,
+  "demandeId" BIGINT NOT NULL REFERENCES public.demandes_paiement_gain(id) ON DELETE CASCADE,
+  "codeDemande" TEXT NOT NULL,
+  "actionType" TEXT NOT NULL,
+  "actorType" TEXT NOT NULL,
+  "actorId" BIGINT,
+  "actorName" TEXT NOT NULL,
+  "actorFunction" TEXT,
+  "statusBefore" TEXT,
+  "statusAfter" TEXT,
+  commentaire TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_paiement_gain_workflow_events_demande
+ON public.paiement_gain_workflow_events("demandeId");
+
+CREATE INDEX IF NOT EXISTS idx_paiement_gain_workflow_events_code
+ON public.paiement_gain_workflow_events("codeDemande");
+
+CREATE INDEX IF NOT EXISTS idx_paiement_gain_workflow_events_actor
+ON public.paiement_gain_workflow_events("actorType", "actorId");
+
+CREATE INDEX IF NOT EXISTS idx_paiement_gain_workflow_events_created_at
+ON public.paiement_gain_workflow_events(created_at);
+
+ALTER TABLE public.paiement_gain_workflow_events ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'paiement_gain_workflow_events'
+      AND policyname = 'Enable all operations for authenticated users on paiement_gain_workflow_events'
+  ) THEN
+    CREATE POLICY "Enable all operations for authenticated users on paiement_gain_workflow_events"
+      ON public.paiement_gain_workflow_events
+      FOR ALL
+      USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
+```
+
+## Table Référentiel Paramètres
+
+Pour ajouter l'onglet `Référentiel Paramètres` dans l'espace Exploitation, créez la table `referentiel_parametres` afin de conserver la version active et l'historique des modifications de chaque paramètre.
+
+### Script SQL à exécuter dans l'éditeur SQL de Supabase :
+
+```sql
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = timezone('utc'::text, now());
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TABLE IF NOT EXISTS public.referentiel_parametres (
+  id BIGSERIAL PRIMARY KEY,
+  "parametreUid" TEXT NOT NULL,
+  "codeParametre" TEXT NOT NULL,
+  categorie TEXT NOT NULL,
+  libelle TEXT NOT NULL,
+  valeur TEXT NOT NULL,
+  description TEXT,
+  "dateDebutValidite" DATE NOT NULL,
+  "dateFinValidite" DATE,
+  statut TEXT NOT NULL DEFAULT 'Actif',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'referentiel_parametres_statut_check'
+  ) THEN
+    ALTER TABLE public.referentiel_parametres
+    ADD CONSTRAINT referentiel_parametres_statut_check
+    CHECK (statut IN ('Actif', 'Inactif'));
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_referentiel_parametres_uid
+ON public.referentiel_parametres("parametreUid");
+
+CREATE INDEX IF NOT EXISTS idx_referentiel_parametres_code
+ON public.referentiel_parametres("codeParametre");
+
+CREATE INDEX IF NOT EXISTS idx_referentiel_parametres_categorie
+ON public.referentiel_parametres(categorie);
+
+CREATE INDEX IF NOT EXISTS idx_referentiel_parametres_statut
+ON public.referentiel_parametres(statut);
+
+CREATE INDEX IF NOT EXISTS idx_referentiel_parametres_dates
+ON public.referentiel_parametres("dateDebutValidite", "dateFinValidite");
+
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_referentiel_parametres_actif_code
+ON public.referentiel_parametres("codeParametre")
+WHERE statut = 'Actif';
+
+ALTER TABLE public.referentiel_parametres ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'referentiel_parametres'
+      AND policyname = 'Enable all operations for authenticated users on referentiel_parametres'
+  ) THEN
+    CREATE POLICY "Enable all operations for authenticated users on referentiel_parametres"
+      ON public.referentiel_parametres
+      FOR ALL
+      USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
+
+DROP TRIGGER IF EXISTS handle_referentiel_parametres_updated_at
+ON public.referentiel_parametres;
+
+CREATE TRIGGER handle_referentiel_parametres_updated_at
+  BEFORE UPDATE ON public.referentiel_parametres
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+
+COMMENT ON TABLE public.referentiel_parametres IS 'Historique des versions des paramètres de référentiel';
+COMMENT ON COLUMN public.referentiel_parametres."parametreUid" IS 'Identifiant logique stable pour regrouper toutes les versions historiques d un même paramètre';
+COMMENT ON COLUMN public.referentiel_parametres."codeParametre" IS 'Code métier unique du paramètre';
+COMMENT ON COLUMN public.referentiel_parametres.categorie IS 'Catégorie fonctionnelle du paramètre';
+COMMENT ON COLUMN public.referentiel_parametres.libelle IS 'Libellé affiché du paramètre';
+COMMENT ON COLUMN public.referentiel_parametres.valeur IS 'Valeur active ou historique du paramètre';
+COMMENT ON COLUMN public.referentiel_parametres.description IS 'Description fonctionnelle du paramètre';
+COMMENT ON COLUMN public.referentiel_parametres."dateDebutValidite" IS 'Date de début de validité de la version';
+COMMENT ON COLUMN public.referentiel_parametres."dateFinValidite" IS 'Date de fin de validité de la version';
+COMMENT ON COLUMN public.referentiel_parametres.statut IS 'Statut de la version : Actif ou Inactif';
+```
+
+### Structure de la table Référentiel Paramètres :
+
+| Colonne | Type | Contraintes | Description |
+|---------|------|-------------|-------------|
+| id | BIGSERIAL | PRIMARY KEY | Identifiant unique auto-incrémenté |
+| parametreUid | TEXT | NOT NULL | Identifiant logique du paramètre à travers ses versions |
+| codeParametre | TEXT | NOT NULL | Code métier du paramètre |
+| categorie | TEXT | NOT NULL | Catégorie fonctionnelle |
+| libelle | TEXT | NOT NULL | Libellé du paramètre |
+| valeur | TEXT | NOT NULL | Valeur du paramètre |
+| description | TEXT | NULL | Description fonctionnelle |
+| dateDebutValidite | DATE | NOT NULL | Date de début de validité |
+| dateFinValidite | DATE | NULL | Date de fin de validité |
+| statut | TEXT | NOT NULL, CHECK | Statut de la version : Actif ou Inactif |
+| created_at | TIMESTAMP | DEFAULT NOW() | Date de création |
+| updated_at | TIMESTAMP | DEFAULT NOW() | Date de dernière modification |

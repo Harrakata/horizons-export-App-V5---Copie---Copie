@@ -75,7 +75,7 @@ const SelectItem = React.forwardRef(({ className, children, ...props }, ref) => 
         <Check className="h-4 w-4" />
       </SelectPrimitive.ItemIndicator>
     </span>
-    {children}
+    <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
   </SelectPrimitive.Item>
 ));
 SelectItem.displayName = SelectPrimitive.Item.displayName;

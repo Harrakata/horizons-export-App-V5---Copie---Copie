@@ -6,3 +6,4 @@ node_modules
 *.gz
 *.bz2
 *.wim
+src/lib/supabaseClient.jsx

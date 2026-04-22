@@ -29,10 +29,10 @@ const HomePage = () => {
         transition={{ duration: 0.7, ease: "backOut" }}
         className="text-center mb-12 md:mb-16"
       >
-        <img   class="w-32 h-32 mx-auto mb-6 rounded-full shadow-lg border-4 border-primary" alt="Logo PMU Mali" src="https://pzmapmxjkkqhuiamdvjd.supabase.co/storage/v1/object/public/pmu-mali-storage//326291198_1368954473860231_6856823940381691525_n.jpg" />
+        <img   class="w-32 h-32 mx-auto mb-6 rounded-full shadow-lg border-4 border-primary" alt="Logo Star3000+" src="https://pzmapmxjkkqhuiamdvjd.supabase.co/storage/v1/object/public/pmu-mali-storage//326291198_1368954473860231_6856823940381691525_n.jpg" />
         <h1 className="text-5xl md:text-6xl font-extrabold mb-4">
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-green-400">
-            PMU Mali
+            Star3000+
           </span>
         </h1>
         <p className="text-2xl md:text-3xl font-semibold text-foreground mb-2">
@@ -96,7 +96,7 @@ const HomePage = () => {
         transition={{ duration: 0.5, delay: 1.2 }}
         className="mt-16 text-center text-muted-foreground"
       >
-        <p>&copy; {new Date().getFullYear()} PMU Mali. Tous droits réservés.</p>
+        <p>&copy; {new Date().getFullYear()} Star3000+ by PMC. Tous droits réservés.</p>
       </motion.footer>
     </div>
   );

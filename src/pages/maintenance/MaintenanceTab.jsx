@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,9 +7,180 @@ import { Textarea } from '@/components/ui/textarea';
 import { Combobox } from '@/components/ui/Combobox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { motion } from 'framer-motion';
+import SignatureCanvas from 'react-signature-canvas';
+
+const isMissingInterventionIdError = (error) => {
+  const message = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
+  return (
+    message.includes('null value in column "id"') &&
+    message.includes('interventions_maintenance')
+  );
+};
+
+const isInvalidIntegerIdError = (error) => {
+  const message = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
+  return (
+    message.includes('invalid input syntax for type bigint') ||
+    message.includes('invalid input syntax for type integer') ||
+    message.includes('invalid input syntax for type smallint')
+  );
+};
+
+const generateInterventionUuid = () => {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = char === 'x' ? random : (random & 0x3) | 0x8;
+    return value.toString(16);
+  });
+};
+
+const generateInterventionNumericId = () => Date.now() * 1000 + Math.floor(Math.random() * 1000);
+
+const slugify = (value = '') =>
+  String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+
+const escapeHtml = (value = '') =>
+  String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const downloadTextFile = (fileName, content, mimeType) => {
+  const blob = new Blob([content], { type: mimeType });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', fileName);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+const printHtmlContent = (htmlContent) => {
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '1px';
+  iframe.style.height = '1px';
+  iframe.style.opacity = '0';
+  iframe.style.pointerEvents = 'none';
+  iframe.style.border = '0';
+  document.body.appendChild(iframe);
+
+  const iframeWindow = iframe.contentWindow;
+  const iframeDocument = iframeWindow?.document;
+
+  if (!iframeWindow || !iframeDocument) {
+    iframe.remove();
+    throw new Error("Impossible de préparer l'impression du document.");
+  }
+
+  const cleanup = () => {
+    window.setTimeout(() => {
+      iframe.remove();
+    }, 300);
+  };
+
+  iframeWindow.onafterprint = cleanup;
+
+  iframeDocument.open();
+  iframeDocument.write(htmlContent);
+  iframeDocument.close();
+
+  window.setTimeout(() => {
+    iframeWindow.focus();
+    iframeWindow.print();
+  }, 500);
+};
+
+const ValidationSignatureField = ({
+  title,
+  signerName,
+  signatureRef,
+  signatureValue,
+  onValidate,
+  onClear,
+  disabled,
+  statusLabel,
+  helperText,
+}) => (
+  <div className="space-y-4 rounded-2xl border bg-white p-5 shadow-sm">
+    <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <h4 className="font-medium text-primary">{title}</h4>
+        <p className="text-sm text-muted-foreground">{signerName}</p>
+      </div>
+      <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-medium ${signatureValue ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+        {statusLabel}
+      </span>
+    </div>
+
+    <div className="rounded-xl border bg-slate-50 p-3">
+      <SignatureCanvas
+        ref={signatureRef}
+        penColor="#111827"
+        canvasProps={{
+          className: 'h-44 w-full rounded-lg bg-white',
+        }}
+      />
+    </div>
+
+    <p className="text-sm text-muted-foreground">
+      {helperText}
+    </p>
+
+    {signatureValue && (
+      <div className="rounded-xl border bg-emerald-50/60 p-3">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-emerald-700">Apercu de la signature</p>
+        <img src={signatureValue} alt={`Signature de ${signerName}`} className="h-24 w-full object-contain" />
+      </div>
+    )}
+
+    <div className="flex flex-wrap justify-end gap-2">
+      <Button type="button" variant="outline" onClick={onClear} disabled={disabled}>
+        Effacer
+      </Button>
+      <Button type="button" onClick={onValidate} disabled={disabled}>
+        Valider la signature
+      </Button>
+    </div>
+  </div>
+);
+
+const ValidationInfoBlock = ({ label, value, tone = 'default', fullWidth = false }) => {
+  const toneClassName = {
+    default: 'border-slate-200 bg-slate-50/70',
+    accent: 'border-blue-200 bg-blue-50/70',
+    success: 'border-emerald-200 bg-emerald-50/70',
+    warning: 'border-amber-200 bg-amber-50/70',
+  }[tone];
+
+  return (
+    <div className={`${fullWidth ? 'md:col-span-2' : ''} rounded-xl border p-4 ${toneClassName}`}>
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <div className="mt-1 text-sm font-medium text-slate-900">{value}</div>
+    </div>
+  );
+};
 
 const MaintenanceTab = ({ technicien }) => {
   const { toast } = useToast();
@@ -35,6 +206,15 @@ const MaintenanceTab = ({ technicien }) => {
   const [codesPannes, setCodesPannes] = useState([]);
   const [codesInterventions, setCodesInterventions] = useState([]);
   const [piecesRechange, setPiecesRechange] = useState([]);
+  const [recentInterventions, setRecentInterventions] = useState([]);
+  const [isRecentInterventionsLoading, setIsRecentInterventionsLoading] = useState(false);
+  const [chefAgence, setChefAgence] = useState(null);
+  const [technicienSignature, setTechnicienSignature] = useState(null);
+  const [chefAgenceSignature, setChefAgenceSignature] = useState(null);
+  const [savedInterventionId, setSavedInterventionId] = useState(null);
+  const [savedValidationFile, setSavedValidationFile] = useState(null);
+  const technicienSignatureRef = useRef(null);
+  const chefAgenceSignatureRef = useRef(null);
 
   // Charger les données initiales
   useEffect(() => {
@@ -50,13 +230,30 @@ const MaintenanceTab = ({ technicien }) => {
     }
   }, [form.agence]);
 
+  useEffect(() => {
+    if (form.agence) {
+      loadRecentInterventions();
+    } else {
+      setRecentInterventions([]);
+      setIsRecentInterventionsLoading(false);
+    }
+  }, [form.agence, form.terminal, form.sousEnsemble]);
+
+  useEffect(() => {
+    if (form.agence) {
+      loadChefAgence(form.agence);
+    } else {
+      setChefAgence(null);
+    }
+  }, [form.agence, agences]);
+
   const loadInitialData = async () => {
     setIsLoading(true);
     try {
       // Charger les agences
       const { data: agencesData, error: agencesError } = await supabase
         .from('agences')
-        .select('id, nom, nbreTerminaux')
+        .select('id, nom, nbreTerminaux, codePDV')
         .order('nom', { ascending: true });
       
       if (agencesError) {
@@ -130,6 +327,142 @@ const MaintenanceTab = ({ technicien }) => {
     }
   };
 
+  const loadRecentInterventions = async () => {
+    if (!form.agence) {
+      setRecentInterventions([]);
+      return;
+    }
+
+    setIsRecentInterventionsLoading(true);
+
+    try {
+      let terminalRecords = [];
+
+      if (form.terminal) {
+        const selectedTerminal = terminaux.find((terminal) => String(terminal.id) === String(form.terminal));
+
+        if (selectedTerminal) {
+          terminalRecords = [selectedTerminal];
+        } else {
+          const { data: terminalData, error: terminalError } = await supabase
+            .from('terminaux')
+            .select('id, reference')
+            .eq('id', form.terminal);
+
+          if (terminalError) {
+            throw terminalError;
+          }
+
+          terminalRecords = terminalData || [];
+        }
+      } else {
+        const { data: terminalData, error: terminalError } = await supabase
+          .from('terminaux')
+          .select('id, reference')
+          .eq('agence_id', form.agence);
+
+        if (terminalError) {
+          throw terminalError;
+        }
+
+        terminalRecords = terminalData || [];
+      }
+
+      const terminalIds = terminalRecords.map((terminal) => terminal.id);
+
+      if (terminalIds.length === 0) {
+        setRecentInterventions([]);
+        return;
+      }
+
+      let query = supabase
+        .from('interventions_maintenance')
+        .select('id, terminal_id, type_intervention, sous_ensemble, code_panne_id, code_intervention_id, commentaire, statut, date_intervention, date_fin')
+        .in('terminal_id', terminalIds)
+        .order('date_intervention', { ascending: false })
+        .limit(10);
+
+      if (form.sousEnsemble) {
+        query = query.eq('sous_ensemble', form.sousEnsemble);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      const terminalReferenceById = terminalRecords.reduce((acc, terminal) => {
+        acc[String(terminal.id)] = terminal.reference;
+        return acc;
+      }, {});
+
+      setRecentInterventions(
+        (data || []).map((intervention) => ({
+          ...intervention,
+          terminal_reference: terminalReferenceById[String(intervention.terminal_id)] || `Terminal #${intervention.terminal_id}`,
+        }))
+      );
+    } catch (error) {
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de charger les dernières interventions',
+        variant: 'destructive',
+      });
+      console.error('Erreur chargement interventions récentes:', error);
+      setRecentInterventions([]);
+    } finally {
+      setIsRecentInterventionsLoading(false);
+    }
+  };
+
+  const loadChefAgence = async (agenceId) => {
+    const agence = agences.find((item) => String(item.id) === String(agenceId));
+
+    if (!agence) {
+      setChefAgence(null);
+      return;
+    }
+
+    try {
+      let { data, error } = await supabase
+        .from('chefs_agence')
+        .select('id, matricule, nom, prenom, agenceEnCharge, codePDV')
+        .eq('agenceEnCharge', agence.nom)
+        .limit(1);
+
+      if (error) {
+        throw error;
+      }
+
+      let chef = data?.[0] || null;
+
+      if (!chef && agence.codePDV) {
+        const chefByCodePdv = await supabase
+          .from('chefs_agence')
+          .select('id, matricule, nom, prenom, agenceEnCharge, codePDV')
+          .eq('codePDV', agence.codePDV)
+          .limit(1);
+
+        if (chefByCodePdv.error) {
+          throw chefByCodePdv.error;
+        }
+
+        chef = chefByCodePdv.data?.[0] || null;
+      }
+
+      setChefAgence(chef);
+    } catch (error) {
+      console.error('Erreur chargement chef d’agence:', error);
+      setChefAgence(null);
+      toast({
+        title: 'Erreur',
+        description: "Impossible de charger le chef d'agence associé",
+        variant: 'destructive',
+      });
+    }
+  };
+
   // Obtenir les sous-ensembles du terminal sélectionné
   const getSousEnsembles = () => {
     const terminal = terminaux.find(t => String(t.id) === form.terminal);
@@ -149,7 +482,20 @@ const MaintenanceTab = ({ technicien }) => {
     return sousEnsembles;
   };
 
+  const clearValidationDraft = () => {
+    setTechnicienSignature(null);
+    setChefAgenceSignature(null);
+    setSavedInterventionId(null);
+    setSavedValidationFile(null);
+    technicienSignatureRef.current?.clear();
+    chefAgenceSignatureRef.current?.clear();
+  };
+
   const handleChange = (field) => (value) => {
+    if (form[field] !== value) {
+      clearValidationDraft();
+    }
+
     setForm((p) => {
       const updated = { ...p, [field]: value };
       if (field === 'agence') {
@@ -192,6 +538,598 @@ const MaintenanceTab = ({ technicien }) => {
     label: `${p.nom} - Stock: ${p.stock_disponible}`
   }));
 
+  const formatInterventionDate = (dateValue) => {
+    if (!dateValue) {
+      return 'N/A';
+    }
+
+    return new Intl.DateTimeFormat('fr-FR', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(new Date(dateValue));
+  };
+
+  const getInterventionCodeLabel = (intervention) => {
+    if (intervention.type_intervention === 'curative') {
+      const codePanne = codesPannes.find((item) => String(item.id) === String(intervention.code_panne_id));
+      return codePanne ? `${codePanne.code} - ${codePanne.libelle}` : 'N/A';
+    }
+
+    const codeIntervention = codesInterventions.find((item) => String(item.id) === String(intervention.code_intervention_id));
+    return codeIntervention ? `${codeIntervention.code} - ${codeIntervention.libelle}` : 'N/A';
+  };
+
+  const getInterventionTypeLabel = (type) => (
+    type === 'curative' ? 'Curative' : 'Préventive'
+  );
+
+  const selectedAgence = agences.find(a => String(a.id) === form.agence);
+  const selectedTerminal = terminaux.find(t => String(t.id) === form.terminal);
+  const chefAgenceNomComplet = chefAgence ? `${chefAgence.prenom} ${chefAgence.nom}` : '';
+  const currentDetailLabel = form.typeIntervention === 'curative' ? 'Description panne' : 'Pièce utilisée';
+  const currentDetailValue = form.typeIntervention === 'curative' ? (form.panne || 'N/A') : (form.piece || 'Aucune');
+  const remplacementValue = form.remplace === 'oui' ? (form.remplacement || 'N/A') : 'Aucun remplacement';
+  const validationReadyCount = [technicienSignature, chefAgenceSignature].filter(Boolean).length;
+  const validationStatusText = chefAgence
+    ? `${validationReadyCount}/2 signatures validées`
+    : "Chef d'agence non associé";
+
+  const formatValidationDate = (dateValue = new Date()) =>
+    new Intl.DateTimeFormat('fr-FR', {
+      dateStyle: 'full',
+      timeStyle: 'short',
+    }).format(new Date(dateValue));
+
+  const getCurrentInterventionCodeLabel = () => {
+    if (form.typeIntervention === 'curative') {
+      const codePanne = codesPannes.find(
+        (item) => String(item.code).toLowerCase() === String(form.code).trim().toLowerCase()
+      );
+      return codePanne ? `${codePanne.code} - ${codePanne.libelle}` : form.code || 'N/A';
+    }
+
+    const codeIntervention = codesInterventions.find(
+      (item) => String(item.code).toLowerCase() === String(form.code).trim().toLowerCase()
+    );
+    return codeIntervention ? `${codeIntervention.code} - ${codeIntervention.libelle}` : form.code || 'N/A';
+  };
+
+  const getValidationFileBaseName = () => {
+    const agencySlug = slugify(selectedAgence?.nom || 'agence');
+    const technicienSlug = slugify(`${technicien?.prenom || ''}-${technicien?.nom || ''}`) || 'technicien';
+    const chefSlug = slugify(chefAgenceNomComplet) || 'chef-agence';
+    return `validation_intervention_${agencySlug}_${technicienSlug}_${chefSlug}_${Date.now()}`;
+  };
+
+  const buildValidationHtml = (interventionId) => {
+    const typeLabel = getInterventionTypeLabel(form.typeIntervention);
+    const codeLabel = getCurrentInterventionCodeLabel();
+    const validationDate = formatValidationDate();
+    const detailLabel = form.typeIntervention === 'curative' ? 'Description panne' : 'Pièce utilisée';
+    const detailValue = form.typeIntervention === 'curative' ? (form.panne || 'N/A') : (form.piece || 'Aucune');
+    const remplacementValue = form.remplace === 'oui' ? (form.remplacement || 'N/A') : 'Aucun remplacement';
+    const commentValue = form.commentaire || 'Aucun commentaire';
+    const validationState = validationReadyCount === 2 ? 'Validation complete' : 'Validation en cours';
+    const technicienName = `${technicien?.prenom || ''} ${technicien?.nom || ''}`.trim() || 'N/A';
+    const chefAgenceName = chefAgenceNomComplet || 'N/A';
+
+    return `<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Validation intervention maintenance</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 16mm;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #eef3f8;
+        color: #0f172a;
+        font-family: "Segoe UI", Arial, sans-serif;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      body {
+        padding: 24px;
+      }
+
+      .page {
+        max-width: 930px;
+        margin: 0 auto;
+        background: #ffffff;
+        border: 1px solid #d7e0ea;
+        border-radius: 24px;
+        overflow: hidden;
+        box-shadow: 0 22px 55px rgba(15, 23, 42, 0.12);
+      }
+
+      .hero {
+        padding: 28px 32px;
+        background:
+          radial-gradient(circle at top right, rgba(14, 165, 233, 0.20), transparent 26%),
+          linear-gradient(135deg, #0f766e 0%, #14532d 100%);
+        color: #ffffff;
+      }
+
+      .hero-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+
+      .brand {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        opacity: 0.92;
+      }
+
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 12px;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.14);
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 1.4fr 0.95fr;
+        gap: 24px;
+      }
+
+      .eyebrow {
+        margin: 0 0 8px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        opacity: 0.82;
+      }
+
+      .hero-title {
+        margin: 0;
+        font-size: 32px;
+        line-height: 1.12;
+        letter-spacing: -0.02em;
+      }
+
+      .hero-subtitle {
+        margin: 14px 0 0;
+        max-width: 560px;
+        font-size: 14px;
+        line-height: 1.65;
+        color: rgba(255, 255, 255, 0.88);
+      }
+
+      .hero-meta {
+        display: grid;
+        gap: 12px;
+      }
+
+      .hero-meta-card {
+        border-radius: 18px;
+        padding: 14px 16px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+      }
+
+      .hero-meta-label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: rgba(255, 255, 255, 0.78);
+      }
+
+      .hero-meta-value {
+        font-size: 15px;
+        font-weight: 700;
+        color: #ffffff;
+      }
+
+      .content {
+        padding: 28px 32px 32px;
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-bottom: 22px;
+      }
+
+      .summary-card {
+        border: 1px solid #dbe5ef;
+        border-radius: 18px;
+        padding: 16px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+      }
+
+      .summary-label {
+        margin: 0 0 8px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #64748b;
+      }
+
+      .summary-value {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+        line-height: 1.4;
+        color: #0f172a;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 1.42fr 0.98fr;
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+
+      .panel {
+        border: 1px solid #dbe5ef;
+        border-radius: 22px;
+        padding: 20px;
+        background: #ffffff;
+      }
+
+      .panel-title {
+        margin: 0 0 4px;
+        font-size: 18px;
+        font-weight: 700;
+        color: #0f766e;
+      }
+
+      .panel-subtitle {
+        margin: 0 0 18px;
+        font-size: 13px;
+        line-height: 1.6;
+        color: #64748b;
+      }
+
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .info-card {
+        border: 1px solid #dbe5ef;
+        border-radius: 16px;
+        padding: 14px;
+        background: #f8fafc;
+      }
+
+      .info-card.wide {
+        grid-column: 1 / -1;
+      }
+
+      .info-label {
+        margin: 0 0 6px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #64748b;
+      }
+
+      .info-value {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 1.55;
+        color: #0f172a;
+      }
+
+      .participants {
+        display: grid;
+        gap: 12px;
+      }
+
+      .participant {
+        border: 1px solid #dbe5ef;
+        border-radius: 16px;
+        padding: 14px 16px;
+        background: #f8fafc;
+      }
+
+      .participant-role {
+        margin: 0 0 6px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #64748b;
+      }
+
+      .participant-name {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+        color: #0f172a;
+      }
+
+      .participant-meta {
+        margin: 4px 0 0;
+        font-size: 13px;
+        color: #64748b;
+      }
+
+      .participant-state {
+        margin-top: 10px;
+        display: inline-flex;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        background: #dcfce7;
+        color: #166534;
+      }
+
+      .participant-state.pending {
+        background: #fef3c7;
+        color: #92400e;
+      }
+
+      .detail-panel {
+        margin-bottom: 18px;
+      }
+
+      .signatures {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .signature-box {
+        border: 1px solid #dbe5ef;
+        border-radius: 22px;
+        padding: 18px;
+        background: linear-gradient(180deg, #ffffff 0%, #f9fbfd 100%);
+        min-height: 220px;
+      }
+
+      .signature-title {
+        margin: 0 0 4px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #0f766e;
+      }
+
+      .signature-subtitle {
+        margin: 0 0 14px;
+        font-size: 13px;
+        color: #64748b;
+      }
+
+      .signature-visual {
+        height: 118px;
+        border: 1px dashed #cbd5e1;
+        border-radius: 16px;
+        background: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+      }
+
+      .signature-visual img {
+        max-width: 100%;
+        max-height: 92px;
+        object-fit: contain;
+      }
+
+      .signature-line {
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid #cbd5e1;
+      }
+
+      .signature-line .name {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 700;
+        color: #0f172a;
+      }
+
+      .signature-line .role {
+        margin: 4px 0 0;
+        font-size: 12px;
+        color: #64748b;
+      }
+
+      .footer {
+        margin-top: 18px;
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 14px;
+        font-size: 12px;
+        color: #64748b;
+      }
+
+      @media print {
+        body {
+          padding: 0;
+          background: #ffffff;
+        }
+
+        .page {
+          border: none;
+          border-radius: 0;
+          box-shadow: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="hero">
+        <div class="hero-top">
+          <div class="brand">Star3000+</div>
+          <div class="status-badge">${escapeHtml(validationState)}</div>
+        </div>
+
+        <div class="hero-grid">
+          <div>
+            <p class="eyebrow">Maintenance Terminaux</p>
+            <h1 class="hero-title">Fiche de Validation d'Intervention</h1>
+            <p class="hero-subtitle">
+              Document de cloture et de validation croisee entre le technicien de maintenance
+              et le chef d'agence pour confirmer l'intervention realisee.
+            </p>
+          </div>
+
+          <div class="hero-meta">
+            <div class="hero-meta-card">
+              <span class="hero-meta-label">Reference</span>
+              <div class="hero-meta-value">${escapeHtml(interventionId || 'Brouillon')}</div>
+            </div>
+            <div class="hero-meta-card">
+              <span class="hero-meta-label">Date de generation</span>
+              <div class="hero-meta-value">${escapeHtml(validationDate)}</div>
+            </div>
+            <div class="hero-meta-card">
+              <span class="hero-meta-label">Agence / Terminal</span>
+              <div class="hero-meta-value">${escapeHtml(selectedAgence?.nom || 'N/A')} / ${escapeHtml(selectedTerminal?.reference || 'N/A')}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="summary-grid">
+          <div class="summary-card">
+            <p class="summary-label">Type</p>
+            <p class="summary-value">${escapeHtml(typeLabel)}</p>
+          </div>
+          <div class="summary-card">
+            <p class="summary-label">Sous-ensemble</p>
+            <p class="summary-value">${escapeHtml(form.sousEnsemble || 'N/A')}</p>
+          </div>
+          <div class="summary-card">
+            <p class="summary-label">Code</p>
+            <p class="summary-value">${escapeHtml(codeLabel)}</p>
+          </div>
+          <div class="summary-card">
+            <p class="summary-label">Remplacement</p>
+            <p class="summary-value">${escapeHtml(remplacementValue)}</p>
+          </div>
+        </div>
+
+        <div class="layout">
+          <div class="panel">
+            <h2 class="panel-title">Contexte technique</h2>
+            <p class="panel-subtitle">Synthese de l'intervention effectuee sur le terminal et le sous-ensemble concernes.</p>
+
+            <div class="info-grid">
+              <div class="info-card">
+                <p class="info-label">Agence</p>
+                <p class="info-value">${escapeHtml(selectedAgence?.nom || 'N/A')}</p>
+              </div>
+              <div class="info-card">
+                <p class="info-label">Terminal</p>
+                <p class="info-value">${escapeHtml(selectedTerminal?.reference || 'N/A')}</p>
+              </div>
+              <div class="info-card">
+                <p class="info-label">${escapeHtml(detailLabel)}</p>
+                <p class="info-value">${escapeHtml(detailValue)}</p>
+              </div>
+              <div class="info-card">
+                <p class="info-label">Date de validation</p>
+                <p class="info-value">${escapeHtml(validationDate)}</p>
+              </div>
+              <div class="info-card wide">
+                <p class="info-label">Commentaire</p>
+                <p class="info-value">${escapeHtml(commentValue)}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2 class="panel-title">Acteurs de validation</h2>
+            <p class="panel-subtitle">Responsables identifies pour la cloture et l'approbation de la fiche.</p>
+
+            <div class="participants">
+              <div class="participant">
+                <p class="participant-role">Technicien</p>
+                <p class="participant-name">${escapeHtml(technicienName)}</p>
+                <p class="participant-meta">${escapeHtml(technicien?.matricule || 'Sans matricule')}</p>
+                <div class="participant-state">Signature recueillie</div>
+              </div>
+
+              <div class="participant">
+                <p class="participant-role">Chef d'agence</p>
+                <p class="participant-name">${escapeHtml(chefAgenceName)}</p>
+                <p class="participant-meta">${escapeHtml(chefAgence?.matricule || chefAgence?.codePDV || 'Aucune reference')}</p>
+                <div class="participant-state">Signature recueillie</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel detail-panel">
+          <h2 class="panel-title">Validation et signatures</h2>
+          <p class="panel-subtitle">Les deux parties ci-dessous confirment la conformite des informations portees sur cette fiche.</p>
+
+          <div class="signatures">
+            <div class="signature-box">
+              <h3 class="signature-title">Signature du technicien</h3>
+              <p class="signature-subtitle">Confirmation de la realisation de l'intervention</p>
+              <div class="signature-visual">
+                ${technicienSignature ? `<img src="${technicienSignature}" alt="Signature technicien" />` : '<span style="font-size:12px;color:#94a3b8;">Signature non disponible</span>'}
+              </div>
+              <div class="signature-line">
+                <p class="name">${escapeHtml(technicienName)}</p>
+                <p class="role">Technicien de maintenance</p>
+              </div>
+            </div>
+
+            <div class="signature-box">
+              <h3 class="signature-title">Signature du chef d'agence</h3>
+              <p class="signature-subtitle">Approbation de la cloture et validation terrain</p>
+              <div class="signature-visual">
+                ${chefAgenceSignature ? `<img src="${chefAgenceSignature}" alt="Signature chef d'agence" />` : '<span style="font-size:12px;color:#94a3b8;">Signature non disponible</span>'}
+              </div>
+              <div class="signature-line">
+                <p class="name">${escapeHtml(chefAgenceName)}</p>
+                <p class="role">Chef d'agence</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <span>Star3000+ - Maintenance Terminaux</span>
+          <span>Fiche de validation generee automatiquement</span>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>`;
+  };
+
   const saveIntervention = async (interventionData) => {
     setIsLoading(true);
     try {
@@ -199,7 +1137,7 @@ const MaintenanceTab = ({ technicien }) => {
       const terminalId = interventionData.terminal;
       if (!terminalId) {
         toast({ title: 'Erreur', description: 'Terminal invalide', variant: 'destructive' });
-        return false;
+        return null;
       }
 
       const dataToInsert = {
@@ -221,7 +1159,7 @@ const MaintenanceTab = ({ technicien }) => {
         );
         if (!codePanne) {
           toast({ title: 'Erreur', description: 'Code panne invalide', variant: 'destructive' });
-          return false;
+          return null;
         }
         dataToInsert.code_panne_id = codePanne.id;
       } else {
@@ -230,7 +1168,7 @@ const MaintenanceTab = ({ technicien }) => {
         );
         if (!codeIntervention) {
           toast({ title: 'Erreur', description: "Code d'intervention invalide", variant: 'destructive' });
-          return false;
+          return null;
         }
         dataToInsert.code_intervention_id = codeIntervention.id;
         const piece = piecesRechange.find(p => p.nom === interventionData.piece);
@@ -239,14 +1177,43 @@ const MaintenanceTab = ({ technicien }) => {
         }
       }
 
-      const { error } = await supabase
+      let insertResult = await supabase
         .from('interventions_maintenance')
-        .insert([dataToInsert]);
+        .insert([dataToInsert])
+        .select('id')
+        .single();
+
+      let insertedIntervention = insertResult.data;
+      let error = insertResult.error;
+
+      // Some existing databases were created without an automatic default on id.
+      // Retry with a UUID first, then fall back to a numeric id for bigint schemas.
+      if (isMissingInterventionIdError(error)) {
+        let retryResult = await supabase
+          .from('interventions_maintenance')
+          .insert([{ id: generateInterventionUuid(), ...dataToInsert }])
+          .select('id')
+          .single();
+
+        insertedIntervention = retryResult.data;
+        error = retryResult.error;
+
+        if (isInvalidIntegerIdError(error)) {
+          retryResult = await supabase
+            .from('interventions_maintenance')
+            .insert([{ id: generateInterventionNumericId(), ...dataToInsert }])
+            .select('id')
+            .single();
+
+          insertedIntervention = retryResult.data;
+          error = retryResult.error;
+        }
+      }
 
       if (error) {
         toast({ title: 'Erreur', description: error.message || 'Impossible d\'enregistrer l\'intervention', variant: 'destructive' });
         console.error('Erreur sauvegarde:', error);
-        return false;
+        return null;
       }
 
       toast({
@@ -254,24 +1221,171 @@ const MaintenanceTab = ({ technicien }) => {
         description: 'Intervention enregistrée avec succès',
         className: "bg-green-500 text-white"
       });
-      return true;
+      return insertedIntervention;
     } catch (error) {
       toast({ title: 'Erreur', description: 'Erreur lors de l\'enregistrement', variant: 'destructive' });
       console.error('Erreur:', error);
-      return false;
+      return null;
     } finally {
       setIsLoading(false);
     }
   };
 
+  const validateSignature = (signatureRef, setSignature, signerLabel) => {
+    if (!signatureRef.current || signatureRef.current.isEmpty()) {
+      toast({
+        title: 'Signature requise',
+        description: `Veuillez signer pour ${signerLabel.toLowerCase()}.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSignature(signatureRef.current.toDataURL('image/png'));
+    toast({
+      title: 'Signature enregistrée',
+      description: `${signerLabel} a signé la fiche.`,
+      className: 'bg-blue-500 text-white',
+    });
+  };
+
+  const clearSignature = (signatureRef, setSignature) => {
+    signatureRef.current?.clear();
+    setSignature(null);
+  };
+
+  const downloadValidationPdf = () => {
+    if (!technicienSignature || !chefAgenceSignature) {
+      toast({
+        title: 'Signatures requises',
+        description: 'Les signatures du technicien et du chef d’agence sont nécessaires pour le PDF.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!chefAgence) {
+      toast({
+        title: 'Chef d’agence introuvable',
+        description: "Aucun chef d'agence n'est associé à l'agence sélectionnée.",
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      printHtmlContent(buildValidationHtml(savedInterventionId));
+    } catch (error) {
+      console.error('Erreur export PDF:', error);
+      downloadTextFile(`${getValidationFileBaseName()}.html`, buildValidationHtml(savedInterventionId), 'text/html;charset=utf-8;');
+      toast({
+        title: 'Export alternatif généré',
+        description: "L'impression PDF n'a pas pu démarrer. La fiche a été téléchargée en HTML.",
+        className: 'bg-yellow-500 text-white',
+      });
+    }
+  };
+
+  const saveValidationFile = async (interventionId) => {
+    const baseName = getValidationFileBaseName();
+    const fileName = `${baseName}.html`;
+    const filePath = `validations_maintenance/${fileName}`;
+    const fileContent = buildValidationHtml(interventionId);
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('pmu-mali-storage')
+        .upload(filePath, new Blob([fileContent], { type: 'text/html;charset=utf-8;' }), {
+          contentType: 'text/html',
+          upsert: true,
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('pmu-mali-storage')
+        .getPublicUrl(data.path);
+
+      return {
+        fileName,
+        publicUrl: publicUrlData.publicUrl,
+        storedInSupabase: true,
+      };
+    } catch (error) {
+      console.error('Erreur enregistrement fiche validation:', error);
+      downloadTextFile(fileName, fileContent, 'text/html;charset=utf-8;');
+
+      return {
+        fileName,
+        publicUrl: null,
+        storedInSupabase: false,
+      };
+    }
+  };
+
   const finish = async () => {
-    const success = await saveIntervention({ ...form, technicien });
-    if (success) {
-    setRecap({ ...form, technicien });
+    if (!chefAgence) {
+      toast({
+        title: 'Chef d’agence requis',
+        description: "Ajoutez ou associez un chef d'agence à cette agence avant la validation.",
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!technicienSignature || !chefAgenceSignature) {
+      toast({
+        title: 'Signatures manquantes',
+        description: 'Les signatures du technicien et du chef d’agence sont requises pour enregistrer la validation.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    let interventionId = savedInterventionId;
+
+    if (!interventionId) {
+      const savedIntervention = await saveIntervention({ ...form, technicien });
+
+      if (!savedIntervention?.id) {
+        return;
+      }
+
+      interventionId = savedIntervention.id;
+      setSavedInterventionId(savedIntervention.id);
+    }
+
+    setIsLoading(true);
+
+    try {
+      const validationFile = await saveValidationFile(interventionId);
+      setSavedValidationFile(validationFile);
+      setRecap({
+        ...form,
+        technicien,
+        chefAgence,
+        interventionId,
+        technicienSignature,
+        chefAgenceSignature,
+        validationFile,
+      });
+
+      toast({
+        title: 'Validation enregistrée',
+        description: validationFile.storedInSupabase
+          ? 'La fiche de validation a été enregistrée et archivée.'
+          : 'La fiche a été générée et téléchargée localement.',
+        className: 'bg-green-500 text-white',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const resetForm = () => {
+    clearValidationDraft();
     setForm({
       agence: '',
       terminal: '',
@@ -284,13 +1398,14 @@ const MaintenanceTab = ({ technicien }) => {
       remplace: 'non',
       remplacement: '',
     });
+    setChefAgence(null);
     setRecap(null);
     setStep(1);
   };
 
   if (recap) {
-    const selectedAgence = agences.find(a => String(a.id) === recap.agence);
-    const selectedTerminal = terminaux.find(t => String(t.id) === recap.terminal);
+    const recapAgence = agences.find(a => String(a.id) === recap.agence);
+    const recapTerminal = terminaux.find(t => String(t.id) === recap.terminal);
     
     return (
       <motion.div
@@ -301,14 +1416,16 @@ const MaintenanceTab = ({ technicien }) => {
         <Card className="shadow-lg glassmorphism">
         <CardHeader>
             <CardTitle className="text-xl text-green-600">✅ Intervention Terminée</CardTitle>
-            <CardDescription>Récapitulatif de l'intervention de maintenance</CardDescription>
+            <CardDescription>Récapitulatif et validation de l'intervention de maintenance</CardDescription>
         </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div><strong>Agence :</strong> {selectedAgence?.nom}</div>
-              <div><strong>Terminal :</strong> {selectedTerminal?.reference}</div>
+              <div><strong>Agence :</strong> {recapAgence?.nom}</div>
+              <div><strong>Terminal :</strong> {recapTerminal?.reference}</div>
               <div><strong>Sous-ensemble :</strong> {recap.sousEnsemble}</div>
               <div><strong>Type :</strong> {recap.typeIntervention === 'curative' ? 'Curative' : 'Préventive'}</div>
+              <div><strong>N° Intervention :</strong> {recap.interventionId}</div>
+              <div><strong>Chef d'agence :</strong> {recap.chefAgence?.prenom} {recap.chefAgence?.nom}</div>
               
           {recap.typeIntervention === 'curative' ? (
             <>
@@ -333,6 +1450,39 @@ const MaintenanceTab = ({ technicien }) => {
               <div className="md:col-span-2 mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <strong>Technicien :</strong> {technicien?.prenom} {technicien?.nom} - {technicien?.matricule}
               </div>
+
+              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="rounded-lg border bg-white p-3">
+                  <p className="mb-2 text-sm font-medium text-primary">Signature technicien</p>
+                  {recap.technicienSignature ? (
+                    <img src={recap.technicienSignature} alt="Signature technicien" className="h-24 w-full object-contain" />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Non disponible</p>
+                  )}
+                </div>
+                <div className="rounded-lg border bg-white p-3">
+                  <p className="mb-2 text-sm font-medium text-primary">Signature chef d'agence</p>
+                  {recap.chefAgenceSignature ? (
+                    <img src={recap.chefAgenceSignature} alt="Signature chef d'agence" className="h-24 w-full object-contain" />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Non disponible</p>
+                  )}
+                </div>
+              </div>
+
+              {recap.validationFile?.fileName && (
+                <div className="md:col-span-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm">
+                  <strong>Fiche de validation :</strong> {recap.validationFile.fileName}
+                  {recap.validationFile.publicUrl && (
+                    <>
+                      {' '}-
+                      <a href={recap.validationFile.publicUrl} target="_blank" rel="noreferrer" className="ml-1 text-primary underline">
+                        Ouvrir la fiche enregistrée
+                      </a>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
         </CardContent>
         <CardFooter>
@@ -358,7 +1508,7 @@ const MaintenanceTab = ({ technicien }) => {
       <CardHeader>
           <CardTitle className="text-xl text-primary">Fiche de Maintenance</CardTitle>
           <CardDescription>
-            Étape {step} sur 2 - Remplissez les informations de l'intervention avec recherche intégrée
+            Étape {step} sur 3 - Préparez, validez et archivez l'intervention avec signatures
           </CardDescription>
       </CardHeader>
         <CardContent className="space-y-6">
@@ -405,6 +1555,65 @@ const MaintenanceTab = ({ technicien }) => {
                   />
             </div>
           </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <div>
+                  <h4 className="text-lg font-medium text-primary">10 dernières interventions</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {form.agence
+                      ? `Historique filtré pour ${selectedAgence?.nom || 'l’agence sélectionnée'}${selectedTerminal ? `, ${selectedTerminal.reference}` : ''}${form.sousEnsemble ? `, ${form.sousEnsemble}` : ''}.`
+                      : 'Sélectionnez une agence pour afficher l’historique récent des interventions.'}
+                  </p>
+                </div>
+
+                {!form.agence ? (
+                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    L’historique apparaît dès que vous choisissez une agence, puis il se resserre automatiquement avec le terminal et le sous-ensemble.
+                  </div>
+                ) : isRecentInterventionsLoading ? (
+                  <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+                    Chargement des dernières interventions...
+                  </div>
+                ) : (
+                  <Table>
+                    <TableCaption>
+                      {recentInterventions.length === 0
+                        ? 'Aucune intervention trouvée pour ce filtre.'
+                        : `Affichage des ${recentInterventions.length} intervention(s) les plus récentes.`}
+                    </TableCaption>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Terminal</TableHead>
+                        <TableHead>Sous-ensemble</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Code</TableHead>
+                        <TableHead>Statut</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {recentInterventions.length > 0 ? recentInterventions.map((intervention) => (
+                        <TableRow key={intervention.id}>
+                          <TableCell className="whitespace-nowrap">{formatInterventionDate(intervention.date_intervention || intervention.date_fin)}</TableCell>
+                          <TableCell className="font-medium">{intervention.terminal_reference}</TableCell>
+                          <TableCell>{intervention.sous_ensemble}</TableCell>
+                          <TableCell>{getInterventionTypeLabel(intervention.type_intervention)}</TableCell>
+                          <TableCell>{getInterventionCodeLabel(intervention)}</TableCell>
+                          <TableCell>{intervention.statut}</TableCell>
+                        </TableRow>
+                      )) : (
+                        <TableRow>
+                          <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
+                            Aucun historique disponible pour la sélection actuelle.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
             </div>
           )}
 
@@ -534,9 +1743,204 @@ const MaintenanceTab = ({ technicien }) => {
               </div>
           </div>
         )}
+
+          {step === 3 && (
+            <div className="space-y-8">
+              <div className="overflow-hidden rounded-3xl border bg-gradient-to-br from-slate-50 via-white to-blue-50 shadow-sm">
+                <div className="grid gap-6 p-6 xl:grid-cols-[1.4fr_0.9fr] xl:p-7">
+                  <div className="space-y-3">
+                    <span className="inline-flex rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                      Etape finale de validation
+                    </span>
+                    <div className="space-y-2">
+                      <h3 className="text-2xl font-semibold tracking-tight text-primary">Validation de l'intervention</h3>
+                      <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                        Vérifiez la fiche, confirmez les informations techniques puis recueillez les deux signatures avant
+                        l’export PDF ou l’enregistrement de la validation.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                    <div className="rounded-2xl border border-white/70 bg-white/90 p-4">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Date</p>
+                      <p className="mt-1 text-sm font-medium text-slate-900">{formatValidationDate()}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/70 bg-white/90 p-4">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Agence</p>
+                      <p className="mt-1 text-sm font-medium text-slate-900">{selectedAgence?.nom || 'N/A'}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/70 bg-white/90 p-4">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Etat</p>
+                      <p className={`mt-1 text-sm font-medium ${chefAgence ? 'text-emerald-700' : 'text-amber-700'}`}>
+                        {validationStatusText}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-6 xl:grid-cols-[1.5fr_0.95fr]">
+                <div className="rounded-2xl border bg-white p-6 shadow-sm">
+                  <div className="mb-5 flex flex-col gap-3 border-b border-slate-100 pb-5 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <h4 className="text-xl font-semibold text-primary">Fiche de validation d'intervention</h4>
+                      <p className="text-sm text-muted-foreground">Mise en page resserrée pour lecture et impression</p>
+                    </div>
+                    <div className="rounded-2xl border bg-slate-50 px-4 py-3 text-sm text-muted-foreground">
+                      <p><strong>Terminal :</strong> {selectedTerminal?.reference || 'N/A'}</p>
+                      <p><strong>Sous-ensemble :</strong> {form.sousEnsemble || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h5 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Contexte</h5>
+                        <span className="text-xs text-muted-foreground">Document pret a signer</span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <ValidationInfoBlock label="Agence" value={selectedAgence?.nom || 'N/A'} tone="accent" />
+                        <ValidationInfoBlock label="Terminal" value={selectedTerminal?.reference || 'N/A'} />
+                        <ValidationInfoBlock label="Type d'intervention" value={getInterventionTypeLabel(form.typeIntervention)} />
+                        <ValidationInfoBlock label="Sous-ensemble" value={form.sousEnsemble || 'N/A'} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <h5 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Constat et traitement</h5>
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <ValidationInfoBlock label="Code" value={getCurrentInterventionCodeLabel()} tone="accent" />
+                        <ValidationInfoBlock label={currentDetailLabel} value={currentDetailValue} />
+                        <ValidationInfoBlock label="Remplacement" value={remplacementValue} />
+                        <ValidationInfoBlock label="Commentaire" value={form.commentaire || 'Aucun commentaire'} fullWidth tone="default" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-2xl border bg-white p-5 shadow-sm">
+                    <div className="mb-4 flex items-center justify-between">
+                      <h4 className="text-base font-semibold text-primary">Acteurs de validation</h4>
+                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${validationReadyCount === 2 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {validationReadyCount}/2 signes
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="rounded-xl border bg-slate-50/80 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Technicien</p>
+                        <p className="mt-1 font-medium text-slate-900">{technicien?.prenom} {technicien?.nom}</p>
+                        <p className="text-sm text-muted-foreground">{technicien?.matricule || 'Sans matricule'}</p>
+                        <p className={`mt-2 text-xs font-medium ${technicienSignature ? 'text-emerald-700' : 'text-amber-700'}`}>
+                          {technicienSignature ? 'Signature validee' : 'Signature en attente'}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border bg-slate-50/80 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Chef d'agence</p>
+                        {chefAgence ? (
+                          <>
+                            <p className="mt-1 font-medium text-slate-900">{chefAgence.prenom} {chefAgence.nom}</p>
+                            <p className="text-sm text-muted-foreground">{chefAgence.matricule || chefAgence.codePDV || 'Aucune reference'}</p>
+                            <p className={`mt-2 text-xs font-medium ${chefAgenceSignature ? 'text-emerald-700' : 'text-amber-700'}`}>
+                              {chefAgenceSignature ? 'Signature validee' : 'Signature en attente'}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="mt-2 text-sm leading-6 text-red-600">
+                            Aucun chef d'agence n'est actuellement associe a l'agence selectionnee.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border bg-white p-5 shadow-sm">
+                    <h4 className="mb-4 text-base font-semibold text-primary">Etat du dossier</h4>
+                    <div className="space-y-3 text-sm text-slate-700">
+                      <div className="flex items-start justify-between gap-3 rounded-xl border bg-slate-50/80 px-4 py-3">
+                        <span>Fiche de validation</span>
+                        <span className="font-medium text-emerald-700">Prete</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3 rounded-xl border bg-slate-50/80 px-4 py-3">
+                        <span>Signatures</span>
+                        <span className={`font-medium ${validationReadyCount === 2 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                          {validationStatusText}
+                        </span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3 rounded-xl border bg-slate-50/80 px-4 py-3">
+                        <span>Sortie du document</span>
+                        <span className="font-medium text-slate-900">PDF ou archivage</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {savedValidationFile?.fileName && (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm shadow-sm">
+                      <p className="font-medium text-emerald-800">Derniere fiche preparee</p>
+                      <p className="mt-2 break-words text-emerald-900">{savedValidationFile.fileName}</p>
+                      {savedValidationFile.publicUrl && (
+                        <a
+                          href={savedValidationFile.publicUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-3 inline-flex text-primary underline"
+                        >
+                          Ouvrir la version enregistree
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h4 className="text-lg font-semibold text-primary">Signatures</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Les deux signatures sont requises avant l’enregistrement definitif.
+                    </p>
+                  </div>
+                  <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-medium ${validationReadyCount === 2 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {validationReadyCount === 2 ? 'Validation complete' : 'Validation en cours'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                  <ValidationSignatureField
+                    title="Signature du technicien"
+                    signerName={`${technicien?.prenom || ''} ${technicien?.nom || ''}`.trim() || 'Technicien'}
+                    signatureRef={technicienSignatureRef}
+                    signatureValue={technicienSignature}
+                    onValidate={() => validateSignature(technicienSignatureRef, setTechnicienSignature, 'Le technicien')}
+                    onClear={() => clearSignature(technicienSignatureRef, setTechnicienSignature)}
+                    disabled={isLoading}
+                    statusLabel={technicienSignature ? 'Validee' : 'En attente'}
+                    helperText="Le technicien confirme ici la realisation de l'intervention et les informations mentionnees."
+                  />
+                  <ValidationSignatureField
+                    title="Signature du chef d'agence"
+                    signerName={chefAgenceNomComplet || "Chef d'agence introuvable"}
+                    signatureRef={chefAgenceSignatureRef}
+                    signatureValue={chefAgenceSignature}
+                    onValidate={() => validateSignature(chefAgenceSignatureRef, setChefAgenceSignature, "Le chef d'agence")}
+                    onClear={() => clearSignature(chefAgenceSignatureRef, setChefAgenceSignature)}
+                    disabled={isLoading || !chefAgence}
+                    statusLabel={chefAgenceSignature ? 'Validee' : 'En attente'}
+                    helperText={chefAgence
+                      ? "Le chef d'agence valide la conformite de la fiche avant export ou archivage."
+                      : "Associez d'abord un chef d'agence a cette agence pour activer cette signature."}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
       </CardContent>
         
-      <CardFooter className="flex justify-between">
+      <CardFooter className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {step > 1 && (
             <Button variant="outline" onClick={() => setStep(step - 1)} disabled={isLoading}>
               ← Retour
@@ -555,12 +1959,33 @@ const MaintenanceTab = ({ technicien }) => {
           
           {step === 2 && (
             <Button 
-              onClick={finish}
+              onClick={() => setStep(3)}
               disabled={!form.code || (form.remplace === 'oui' && !form.remplacement) || isLoading}
-              className="ml-auto bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+              className="ml-auto bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90"
             >
-              {isLoading ? 'Enregistrement...' : 'Terminer l\'intervention'}
+              Suivant →
             </Button>
+          )}
+
+          {step === 3 && (
+            <div className="flex w-full flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={downloadValidationPdf}
+                disabled={!technicienSignature || !chefAgenceSignature || !chefAgence || isLoading}
+                className="w-full sm:w-auto"
+              >
+                Télécharger en PDF
+              </Button>
+              <Button 
+                onClick={finish}
+                disabled={!technicienSignature || !chefAgenceSignature || !chefAgence || isLoading}
+                className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 sm:w-auto"
+              >
+                {isLoading ? 'Enregistrement...' : 'Enregistrer la validation'}
+              </Button>
+            </div>
           )}
       </CardFooter>
     </Card>

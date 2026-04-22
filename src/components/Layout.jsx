@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Toaster } from '@/components/ui/toaster';
-import { Home, Briefcase, Users, Settings, BarChart3, LogIn, Sun, Moon, Menu, Wrench } from 'lucide-react';
+import { Home, Briefcase, Users, Settings, BarChart3, LogIn, Sun, Moon, Menu, Wrench, ShieldCheck, Wallet } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Layout = () => {
@@ -35,11 +35,13 @@ const Layout = () => {
   const navLinks = [
     { to: '/', label: "Page d'Accueil", icon: <Home className="mr-2 h-4 w-4" /> },
     { to: '/pointage', label: 'Pointage', icon: <LogIn className="mr-2 h-4 w-4" /> },
+    { to: '/paiement-gros-gain', label: 'Paiement Gros Gain', icon: <Wallet className="mr-2 h-4 w-4" /> },
   ];
 
   const dropdownLinks = [
       { to: '/espace-exploitation', label: 'Espace Exploitation', icon: <Briefcase className="mr-2 h-4 w-4" /> },
       { to: '/espace-chef-agence', label: "Espace Chef d'agence", icon: <Users className="mr-2 h-4 w-4" /> },
+      { to: '/espace-validation-paiement-gain', label: 'Validation Paiement Gain', icon: <ShieldCheck className="mr-2 h-4 w-4" /> },
       { to: '/maintenance-terminaux', label: 'Maintenance Terminaux', icon: <Wrench className="mr-2 h-4 w-4" /> },
   ];
 
@@ -49,10 +51,10 @@ const Layout = () => {
         <div className="container flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center space-x-2">
             <motion.div whileHover={{ rotate: [0, 10, -10, 0], scale: 1.1 }}>
-              <img  alt="PMU Mali Logo" class="h-10 w-auto" src="https://pzmapmxjkkqhuiamdvjd.supabase.co/storage/v1/object/public/pmu-mali-storage//326291198_1368954473860231_6856823940381691525_n.jpg" />
+              <img  alt="Logo Star3000+" class="h-10 w-auto" src="https://pzmapmxjkkqhuiamdvjd.supabase.co/storage/v1/object/public/pmu-mali-storage//326291198_1368954473860231_6856823940381691525_n.jpg" />
             </motion.div>
             <span className="font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-primary to-pink-500 dark:to-pink-400">
-              PMU Mali Gestion
+              Star3000+
             </span>
           </Link>
 
@@ -123,7 +125,7 @@ const Layout = () => {
       <footer className="py-6 md:px-8 md:py-0 border-t border-border/40">
         <div className="container flex flex-col items-center justify-between gap-4 md:h-20 md:flex-row">
           <p className="text-center text-sm leading-loose text-muted-foreground md:text-left">
-            © {new Date().getFullYear()} PMU Mali. Tous droits réservés.
+            © {new Date().getFullYear()} Star3000+. Tous droits réservés.
           </p>
            <motion.div 
              initial={{ opacity: 0, y: 10 }}
