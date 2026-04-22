@@ -26,6 +26,7 @@ import EspaceMaintenancePage from '@/pages/EspaceMaintenancePage';
 import MesGuichetieresPage from '@/pages/chef_agence/MesGuichetieresPage';
 import MonPlanningPage from '@/pages/chef_agence/MonPlanningPage';
 import MaintenanceTerminauxPage from '@/pages/chef_agence/MaintenanceTerminauxPage';
+import MonPlanningMaintenancePage from '@/pages/chef_agence/MonPlanningMaintenancePage';
 import PointsVenteMobiChefPage from '@/pages/chef_agence/PointsVenteMobiChefPage';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -78,6 +79,7 @@ const App = () => {
               <Route path="mes-guichetieres" element={<MesGuichetieresPage />} />
               <Route path="mon-planning" element={<MonPlanningPage />} />
               <Route path="maintenance-terminaux" element={<MaintenanceTerminauxPage />} />
+              <Route path="planning-maintenance" element={<MonPlanningMaintenancePage />} />
               <Route path="points-vente-mobi" element={<PointsVenteMobiChefPage />} />
               <Route path="paiement-gros-gain" element={<PaiementGrosGainPage />} />
             </Route>

@@ -340,6 +340,87 @@ COMMENT ON COLUMN public.terminaux.lecteur_reference IS 'Référence du lecteur 
 COMMENT ON COLUMN public.terminaux.ecran_reference IS 'Référence de l''écran associé';
 ```
 
+## Table Planning Maintenance
+
+Pour gérer la planification des maintenances par agence, technicien et créneau (`Matin` / `Après-midi`), exécutez aussi le script suivant :
+
+```sql
+CREATE TABLE IF NOT EXISTS public.planning_maintenance (
+    id BIGSERIAL PRIMARY KEY,
+    date_planification DATE NOT NULL,
+    creneau TEXT NOT NULL CHECK (creneau IN ('matin', 'apres_midi')),
+    region TEXT,
+    agence_id BIGINT REFERENCES public.agences(id) ON DELETE CASCADE,
+    agence_nom TEXT NOT NULL,
+    technicien_id BIGINT REFERENCES public.techniciens(id) ON DELETE SET NULL,
+    technicien_label TEXT NOT NULL,
+    technicien_matricule TEXT,
+    notes TEXT,
+    statut TEXT NOT NULL DEFAULT 'planifiee' CHECK (statut IN ('planifiee', 'annulee')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_planning_maintenance_date
+ON public.planning_maintenance(date_planification);
+
+CREATE INDEX IF NOT EXISTS idx_planning_maintenance_agence
+ON public.planning_maintenance(agence_id);
+
+CREATE INDEX IF NOT EXISTS idx_planning_maintenance_technicien
+ON public.planning_maintenance(technicien_id);
+
+CREATE INDEX IF NOT EXISTS idx_planning_maintenance_creneau
+ON public.planning_maintenance(creneau);
+
+CREATE INDEX IF NOT EXISTS idx_planning_maintenance_statut
+ON public.planning_maintenance(statut);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_planning_maintenance_agence_creneau
+ON public.planning_maintenance(date_planification, creneau, agence_id)
+WHERE statut = 'planifiee';
+
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_planning_maintenance_technicien_creneau
+ON public.planning_maintenance(date_planification, creneau, technicien_id)
+WHERE statut = 'planifiee';
+
+ALTER TABLE public.planning_maintenance ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'planning_maintenance'
+      AND policyname = 'Allow app access on planning_maintenance'
+  ) THEN
+    CREATE POLICY "Allow app access on planning_maintenance"
+      ON public.planning_maintenance
+      FOR ALL
+      USING (auth.role() IN ('anon', 'authenticated'))
+      WITH CHECK (auth.role() IN ('anon', 'authenticated'));
+  END IF;
+END $$;
+
+DROP TRIGGER IF EXISTS handle_planning_maintenance_updated_at
+ON public.planning_maintenance;
+
+CREATE TRIGGER handle_planning_maintenance_updated_at
+    BEFORE UPDATE ON public.planning_maintenance
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_updated_at();
+
+COMMENT ON TABLE public.planning_maintenance IS 'Planning des maintenances par agence, technicien, date et créneau';
+COMMENT ON COLUMN public.planning_maintenance.date_planification IS 'Date prévue pour la maintenance';
+COMMENT ON COLUMN public.planning_maintenance.creneau IS 'Créneau de maintenance : matin ou apres_midi';
+COMMENT ON COLUMN public.planning_maintenance.region IS 'Région de l agence planifiée';
+COMMENT ON COLUMN public.planning_maintenance.agence_id IS 'Agence concernée par la maintenance';
+COMMENT ON COLUMN public.planning_maintenance.technicien_id IS 'Technicien affecté';
+COMMENT ON COLUMN public.planning_maintenance.notes IS 'Consignes et commentaires de planification';
+COMMENT ON COLUMN public.planning_maintenance.statut IS 'Statut administratif du planning : planifiee ou annulee';
+```
+
 ## Tables d'Équipements pour la Maintenance
 
 Pour ajouter la gestion des équipements (Imprimantes, Écrans, Lecteurs) dans l'espace Maintenance, exécutez les scripts suivants :
@@ -760,13 +841,13 @@ BEGIN
     FROM pg_policies
     WHERE schemaname = 'public'
       AND tablename = 'profils_exploitation'
-      AND policyname = 'Enable all operations for authenticated users on profils_exploitation'
+      AND policyname = 'Allow app access on profils_exploitation'
   ) THEN
-    CREATE POLICY "Enable all operations for authenticated users on profils_exploitation"
+    CREATE POLICY "Allow app access on profils_exploitation"
       ON public.profils_exploitation
       FOR ALL
-      USING (auth.role() = 'authenticated')
-      WITH CHECK (auth.role() = 'authenticated');
+      USING (auth.role() IN ('anon', 'authenticated'))
+      WITH CHECK (auth.role() IN ('anon', 'authenticated'));
   END IF;
 END $$;
 
@@ -1171,3 +1252,157 @@ COMMENT ON COLUMN public.referentiel_parametres.statut IS 'Statut de la version 
 | statut | TEXT | NOT NULL, CHECK | Statut de la version : Actif ou Inactif |
 | created_at | TIMESTAMP | DEFAULT NOW() | Date de création |
 | updated_at | TIMESTAMP | DEFAULT NOW() | Date de dernière modification |
+
+## Correctif accès Profils Exploitation
+
+Les profils Exploitation utilisent un login applicatif, pas `Supabase Auth`.  
+Si une table est protégée avec une policy `auth.role() = 'authenticated'`, elle peut apparaître vide pour ces profils même si l’écran est accessible.
+
+Si `regions` reste vide pour un profil Exploitation, exécutez au minimum ce correctif ciblé :
+
+```sql
+ALTER TABLE public.regions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Enable all operations for authenticated users on regions"
+ON public.regions;
+
+DROP POLICY IF EXISTS "Allow app access on regions"
+ON public.regions;
+
+CREATE POLICY "Allow app access on regions"
+  ON public.regions
+  FOR ALL
+  USING (auth.role() IN ('anon', 'authenticated'))
+  WITH CHECK (auth.role() IN ('anon', 'authenticated'));
+```
+
+Exécutez ce script pour autoriser l’accès applicatif en lecture/écriture sur les tables exploitées par ces profils :
+
+```sql
+ALTER TABLE public.regions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.terminaux_mobi ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.points_vente_mobi ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.referentiel_parametres ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.agences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.guichetieres ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chefs_agence ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'regions'
+      AND policyname = 'Allow app access on regions'
+  ) THEN
+    CREATE POLICY "Allow app access on regions"
+      ON public.regions
+      FOR ALL
+      USING (auth.role() IN ('anon', 'authenticated'))
+      WITH CHECK (auth.role() IN ('anon', 'authenticated'));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'agences'
+      AND policyname = 'Allow app access on agences'
+  ) THEN
+    CREATE POLICY "Allow app access on agences"
+      ON public.agences
+      FOR ALL
+      USING (auth.role() IN ('anon', 'authenticated'))
+      WITH CHECK (auth.role() IN ('anon', 'authenticated'));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'guichetieres'
+      AND policyname = 'Allow app access on guichetieres'
+  ) THEN
+    CREATE POLICY "Allow app access on guichetieres"
+      ON public.guichetieres
+      FOR ALL
+      USING (auth.role() IN ('anon', 'authenticated'))
+      WITH CHECK (auth.role() IN ('anon', 'authenticated'));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'chefs_agence'
+      AND policyname = 'Allow app access on chefs_agence'
+  ) THEN
+    CREATE POLICY "Allow app access on chefs_agence"
+      ON public.chefs_agence
+      FOR ALL
+      USING (auth.role() IN ('anon', 'authenticated'))
+      WITH CHECK (auth.role() IN ('anon', 'authenticated'));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'terminaux_mobi'
+      AND policyname = 'Allow app access on terminaux_mobi'
+  ) THEN
+    CREATE POLICY "Allow app access on terminaux_mobi"
+      ON public.terminaux_mobi
+      FOR ALL
+      USING (auth.role() IN ('anon', 'authenticated'))
+      WITH CHECK (auth.role() IN ('anon', 'authenticated'));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'points_vente_mobi'
+      AND policyname = 'Allow app access on points_vente_mobi'
+  ) THEN
+    CREATE POLICY "Allow app access on points_vente_mobi"
+      ON public.points_vente_mobi
+      FOR ALL
+      USING (auth.role() IN ('anon', 'authenticated'))
+      WITH CHECK (auth.role() IN ('anon', 'authenticated'));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'referentiel_parametres'
+      AND policyname = 'Allow app access on referentiel_parametres'
+  ) THEN
+    CREATE POLICY "Allow app access on referentiel_parametres"
+      ON public.referentiel_parametres
+      FOR ALL
+      USING (auth.role() IN ('anon', 'authenticated'))
+      WITH CHECK (auth.role() IN ('anon', 'authenticated'));
+  END IF;
+END $$;
+```

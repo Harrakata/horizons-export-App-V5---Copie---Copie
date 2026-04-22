@@ -5,12 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Wrench, Loader2, LogOut } from 'lucide-react';
+import { Wrench, Loader2, LogOut, Mail, Phone, BadgeCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
 import ConfigurationTab from '@/pages/maintenance/ConfigurationTab';
 import MaintenanceTab from '@/pages/maintenance/MaintenanceTab';
+import MaintenancePlanningSection from '@/components/maintenance/MaintenancePlanningSection';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const LoginPage = ({ onLogin }) => {
   const { toast } = useToast();
@@ -95,24 +97,76 @@ const EspaceMaintenancePage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-primary flex items-center">
-          <Wrench className="h-6 w-6 mr-2" />Maintenance Terminaux
-        </h1>
-        <Button variant="outline" onClick={handleLogout} className="flex items-center">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <Card className="flex-1 shadow-xl glassmorphism">
+          <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16 border-2 border-primary/20">
+                {userData?.photo_url ? <AvatarImage src={userData.photo_url} alt={`${userData.prenom} ${userData.nom}`} /> : null}
+                <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                  {[userData?.prenom?.[0], userData?.nom?.[0]].filter(Boolean).join('') || 'TM'}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h1 className="text-2xl font-bold text-primary flex items-center">
+                  <Wrench className="h-6 w-6 mr-2" />
+                  Maintenance Terminaux
+                </h1>
+                <p className="text-base font-medium text-foreground">
+                  {userData?.prenom} {userData?.nom}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {userData?.matricule ? `Matricule ${userData.matricule}` : 'Technicien connecté'}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-2 text-sm text-muted-foreground md:min-w-[260px]">
+              {userData?.email && (
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-primary" />
+                  <span>{userData.email}</span>
+                </div>
+              )}
+              {userData?.telephone && (
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-primary" />
+                  <span>{userData.telephone}</span>
+                </div>
+              )}
+              {userData?.matricule && (
+                <div className="flex items-center gap-2">
+                  <BadgeCheck className="h-4 w-4 text-primary" />
+                  <span>{userData.matricule}</span>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Button variant="outline" onClick={handleLogout} className="flex items-center self-start">
           <LogOut className="h-4 w-4 mr-2" />Déconnexion
         </Button>
       </div>
       <Tabs defaultValue="config">
-        <TabsList>
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="config">Configuration</TabsTrigger>
           <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
+          <TabsTrigger value="planning">Mon planning de Maintenance</TabsTrigger>
         </TabsList>
         <TabsContent value="config">
           <ConfigurationTab />
         </TabsContent>
         <TabsContent value="maintenance">
           <MaintenanceTab technicien={userData} />
+        </TabsContent>
+        <TabsContent value="planning">
+          <MaintenancePlanningSection
+            title="Mon planning de Maintenance"
+            description="Consultez les maintenances qui vous sont assignées, leur créneau et le suivi automatique des interventions enregistrées."
+            lockedTechnicienId={userData?.id}
+            canManage={false}
+          />
         </TabsContent>
       </Tabs>
     </div>
