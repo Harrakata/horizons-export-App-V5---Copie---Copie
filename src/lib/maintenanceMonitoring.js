@@ -103,6 +103,7 @@ export const buildTerminalSousEnsembleRows = (terminaux, interventions, agencesB
       return [
         {
           terminalId: terminal.id,
+          agenceId: terminal.agence_id || agence?.id || null,
           terminalReference: terminal.reference,
           terminalType: terminal.type_terminal || 'N/A',
           terminalPosition: terminal.position || 'Position non definie',
@@ -122,6 +123,7 @@ export const buildTerminalSousEnsembleRows = (terminaux, interventions, agencesB
 
       return {
         terminalId: terminal.id,
+        agenceId: terminal.agence_id || agence?.id || null,
         terminalReference: terminal.reference,
         terminalType: terminal.type_terminal || 'N/A',
         terminalPosition: terminal.position || 'Position non definie',
@@ -179,6 +181,7 @@ export const buildTerminalMonitoringGroups = (terminaux, interventions, agencesB
     if (!accumulator[key]) {
       accumulator[key] = {
         terminalId: row.terminalId,
+        agenceId: row.agenceId,
         terminalReference: row.terminalReference,
         terminalType: row.terminalType,
         terminalPosition: row.terminalPosition,

@@ -27,6 +27,7 @@ const MonPlanningMaintenancePage = () => {
         description="Planifiez les maintenances de votre agence, affectez les techniciens et suivez les visites réellement effectuées."
         canManage={true}
         lockedAgenceName={nomAgence}
+        emptyTitle="Aucune maintenance n’est encore planifiée pour cette agence."
       />
     </motion.div>
   );

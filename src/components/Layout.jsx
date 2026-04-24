@@ -41,8 +41,9 @@ const Layout = () => {
   const dropdownLinks = [
       { to: '/espace-exploitation', label: 'Espace Exploitation', icon: <Briefcase className="mr-2 h-4 w-4" /> },
       { to: '/espace-chef-agence', label: "Espace Chef d'agence", icon: <Users className="mr-2 h-4 w-4" /> },
-      { to: '/espace-validation-paiement-gain', label: 'Validation Paiement Gain', icon: <ShieldCheck className="mr-2 h-4 w-4" /> },
-      { to: '/maintenance-terminaux', label: 'Maintenance Terminaux', icon: <Wrench className="mr-2 h-4 w-4" /> },
+      { to: '/espace-validation-paiement-gain', label: 'Espace Directeur régional', icon: <ShieldCheck className="mr-2 h-4 w-4" /> },
+      { to: '/espace-directeur-general', label: 'Espace Directeur général', icon: <ShieldCheck className="mr-2 h-4 w-4" /> },
+      { to: '/espace-technicien', label: 'Espace Technicien', icon: <Wrench className="mr-2 h-4 w-4" /> },
   ];
 
   return (

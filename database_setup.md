@@ -345,21 +345,59 @@ COMMENT ON COLUMN public.terminaux.ecran_reference IS 'Référence de l''écran 
 Pour gérer la planification des maintenances par agence, technicien et créneau (`Matin` / `Après-midi`), exécutez aussi le script suivant :
 
 ```sql
-CREATE TABLE IF NOT EXISTS public.planning_maintenance (
-    id BIGSERIAL PRIMARY KEY,
-    date_planification DATE NOT NULL,
-    creneau TEXT NOT NULL CHECK (creneau IN ('matin', 'apres_midi')),
-    region TEXT,
-    agence_id BIGINT REFERENCES public.agences(id) ON DELETE CASCADE,
-    agence_nom TEXT NOT NULL,
-    technicien_id BIGINT REFERENCES public.techniciens(id) ON DELETE SET NULL,
-    technicien_label TEXT NOT NULL,
-    technicien_matricule TEXT,
-    notes TEXT,
-    statut TEXT NOT NULL DEFAULT 'planifiee' CHECK (statut IN ('planifiee', 'annulee')),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
+DO $$
+DECLARE
+    agence_id_type TEXT;
+    technicien_id_type TEXT;
+BEGIN
+    SELECT pg_catalog.format_type(a.atttypid, a.atttypmod)
+    INTO agence_id_type
+    FROM pg_attribute a
+    JOIN pg_class c ON c.oid = a.attrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname = 'agences'
+      AND a.attname = 'id'
+      AND a.attnum > 0
+      AND NOT a.attisdropped;
+
+    SELECT pg_catalog.format_type(a.atttypid, a.atttypmod)
+    INTO technicien_id_type
+    FROM pg_attribute a
+    JOIN pg_class c ON c.oid = a.attrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname = 'techniciens'
+      AND a.attname = 'id'
+      AND a.attnum > 0
+      AND NOT a.attisdropped;
+
+    IF agence_id_type IS NULL THEN
+        RAISE EXCEPTION 'Impossible de déterminer le type de public.agences.id';
+    END IF;
+
+    IF technicien_id_type IS NULL THEN
+        RAISE EXCEPTION 'Impossible de déterminer le type de public.techniciens.id';
+    END IF;
+
+    EXECUTE format($table$
+        CREATE TABLE IF NOT EXISTS public.planning_maintenance (
+            id BIGSERIAL PRIMARY KEY,
+            date_planification DATE NOT NULL,
+            creneau TEXT NOT NULL CHECK (creneau IN ('matin', 'apres_midi')),
+            region TEXT,
+            agence_id %1$s REFERENCES public.agences(id) ON DELETE CASCADE,
+            agence_nom TEXT NOT NULL,
+            technicien_id %2$s REFERENCES public.techniciens(id) ON DELETE SET NULL,
+            technicien_label TEXT NOT NULL,
+            technicien_matricule TEXT,
+            notes TEXT,
+            statut TEXT NOT NULL DEFAULT 'planifiee' CHECK (statut IN ('planifiee', 'annulee')),
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+        )
+    $table$, agence_id_type, technicien_id_type);
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_planning_maintenance_date
 ON public.planning_maintenance(date_planification);
@@ -1019,6 +1057,7 @@ BEGIN
     ALTER TABLE public.demandes_paiement_gain
     ADD CONSTRAINT demandes_paiement_gain_statut_check
     CHECK ("statutGlobal" IN (
+      'En attente chef d’agence',
       'En attente directeur régional',
       'En attente directeur général',
       'En attente exploitation',
@@ -1034,6 +1073,7 @@ BEGIN
     ALTER TABLE public.demandes_paiement_gain
     ADD CONSTRAINT demandes_paiement_gain_niveau_check
     CHECK ("niveauValidationCourant" IN (
+      'chef_agence',
       'directeur_regional',
       'directeur_general',
       'exploitation',
@@ -1134,6 +1174,109 @@ BEGIN
       USING (auth.role() = 'authenticated');
   END IF;
 END $$;
+```
+
+## Configuration du workflow Paiement de Gain
+
+Pour activer la configuration des tranches, seuils et validateurs dans le sous-onglet `Configuration` de `Autorisation de Paiement Gain`, exécutez ce script :
+
+```sql
+ALTER TABLE public.demandes_paiement_gain
+DROP CONSTRAINT IF EXISTS demandes_paiement_gain_statut_check;
+
+ALTER TABLE public.demandes_paiement_gain
+ADD CONSTRAINT demandes_paiement_gain_statut_check
+CHECK ("statutGlobal" IN (
+  'En attente chef d’agence',
+  'En attente directeur régional',
+  'En attente directeur général',
+  'En attente exploitation',
+  'Autorisée pour paiement',
+  'Payée',
+  'Refusée'
+));
+
+ALTER TABLE public.demandes_paiement_gain
+DROP CONSTRAINT IF EXISTS demandes_paiement_gain_niveau_check;
+
+ALTER TABLE public.demandes_paiement_gain
+ADD CONSTRAINT demandes_paiement_gain_niveau_check
+CHECK ("niveauValidationCourant" IN (
+  'chef_agence',
+  'directeur_regional',
+  'directeur_general',
+  'exploitation',
+  'agence_paiement',
+  'terminee'
+));
+
+CREATE TABLE IF NOT EXISTS public.paiement_gain_workflow_config (
+  id BIGSERIAL PRIMARY KEY,
+  ordre INTEGER NOT NULL DEFAULT 1,
+  "codeWorkflow" TEXT NOT NULL,
+  libelle TEXT NOT NULL,
+  "montantMin" NUMERIC(18,2) NOT NULL DEFAULT 0,
+  "montantMax" NUMERIC(18,2),
+  "modePaiement" TEXT NOT NULL,
+  "lieuPaiement" TEXT NOT NULL,
+  "identificationRequise" BOOLEAN NOT NULL DEFAULT false,
+  "requiresChefApproval" BOOLEAN NOT NULL DEFAULT false,
+  "requiresRegionalApproval" BOOLEAN NOT NULL DEFAULT false,
+  "requiresGeneralApproval" BOOLEAN NOT NULL DEFAULT false,
+  description TEXT,
+  statut TEXT NOT NULL DEFAULT 'Actif',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'paiement_gain_workflow_config_statut_check'
+  ) THEN
+    ALTER TABLE public.paiement_gain_workflow_config
+    ADD CONSTRAINT paiement_gain_workflow_config_statut_check
+    CHECK (statut IN ('Actif', 'Inactif'));
+  END IF;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_paiement_gain_workflow_config_code
+ON public.paiement_gain_workflow_config("codeWorkflow");
+
+CREATE INDEX IF NOT EXISTS idx_paiement_gain_workflow_config_ordre
+ON public.paiement_gain_workflow_config(ordre);
+
+CREATE INDEX IF NOT EXISTS idx_paiement_gain_workflow_config_statut
+ON public.paiement_gain_workflow_config(statut);
+
+ALTER TABLE public.paiement_gain_workflow_config ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'paiement_gain_workflow_config'
+      AND policyname = 'Allow app access on paiement_gain_workflow_config'
+  ) THEN
+    CREATE POLICY "Allow app access on paiement_gain_workflow_config"
+      ON public.paiement_gain_workflow_config
+      FOR ALL
+      USING (auth.role() IN ('anon', 'authenticated'))
+      WITH CHECK (auth.role() IN ('anon', 'authenticated'));
+  END IF;
+END $$;
+
+DROP TRIGGER IF EXISTS handle_paiement_gain_workflow_config_updated_at
+ON public.paiement_gain_workflow_config;
+
+CREATE TRIGGER handle_paiement_gain_workflow_config_updated_at
+  BEFORE UPDATE ON public.paiement_gain_workflow_config
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
 ```
 
 ## Table Référentiel Paramètres

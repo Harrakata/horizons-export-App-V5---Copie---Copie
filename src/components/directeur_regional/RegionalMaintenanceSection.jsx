@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CalendarClock, ChevronDown, ChevronUp, Search, Wrench } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -10,24 +9,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
+import MaintenancePlanningSection from '@/components/maintenance/MaintenancePlanningSection';
 import { supabase } from '@/lib/supabaseClient';
-import ConfigurationTab from '@/pages/maintenance/ConfigurationTab';
-import { buildRegionOptions, fetchRegions } from '@/lib/regions';
 import {
   buildTerminalMonitoringGroups,
   formatMaintenanceDateTime,
   getMaintenanceInterventionTypeLabel,
   normalizeMaintenanceText,
 } from '@/lib/maintenanceMonitoring';
-import MaintenancePlanningSection from '@/components/maintenance/MaintenancePlanningSection';
-import { EXPLOITATION_ACCESS_LEVELS } from '@/lib/exploitationProfiles';
+import { fetchRegions, normalizeRegionText, resolveRegionName } from '@/lib/regions';
 
 const ALL_FILTER_VALUE = '__all__';
 
-const MaintenanceTerminauxPage = () => {
-  const outletContext = useOutletContext() || {};
-  const canWriteCurrentPage = outletContext.canWriteCurrentPage ?? true;
-  const currentAccessLevel = outletContext.currentAccessLevel || EXPLOITATION_ACCESS_LEVELS.WRITE;
+const RegionalMaintenanceSection = ({ regionName = '', allowAllRegions = false, viewerLabel = 'directeur régional' }) => {
   const { toast } = useToast();
   const [regions, setRegions] = useState([]);
   const [agences, setAgences] = useState([]);
@@ -37,7 +31,6 @@ const MaintenanceTerminauxPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [expandedTerminalIds, setExpandedTerminalIds] = useState({});
   const [filters, setFilters] = useState({
-    region: ALL_FILTER_VALUE,
     agenceId: ALL_FILTER_VALUE,
     terminalId: ALL_FILTER_VALUE,
     suivi: ALL_FILTER_VALUE,
@@ -95,43 +88,59 @@ const MaintenanceTerminauxPage = () => {
     loadData();
   }, [loadData]);
 
-  const regionOptions = useMemo(
-    () => buildRegionOptions(regions, { includeAllLabel: 'Toutes les régions' }),
-    [regions]
+  const effectiveRegionName = useMemo(
+    () => resolveRegionName(regions, regionName) || regionName || '',
+    [regionName, regions]
+  );
+
+  const regionalAgences = useMemo(() => {
+    if (!effectiveRegionName && allowAllRegions) {
+      return agences;
+    }
+
+    return agences.filter(
+      (agence) => normalizeRegionText(agence.region) === normalizeRegionText(effectiveRegionName)
+    );
+  }, [agences, allowAllRegions, effectiveRegionName]);
+
+  const regionalAgencyIds = useMemo(
+    () => regionalAgences.map((agence) => String(agence.id)),
+    [regionalAgences]
+  );
+
+  const regionalTerminaux = useMemo(
+    () => terminaux.filter((terminal) => regionalAgencyIds.includes(String(terminal.agence_id))),
+    [regionalAgencyIds, terminaux]
+  );
+
+  const regionalTerminalIds = useMemo(
+    () => regionalTerminaux.map((terminal) => String(terminal.id)),
+    [regionalTerminaux]
+  );
+
+  const regionalInterventions = useMemo(
+    () => interventions.filter((intervention) => regionalTerminalIds.includes(String(intervention.terminal_id))),
+    [interventions, regionalTerminalIds]
   );
 
   const agencesById = useMemo(
     () =>
-      agences.reduce((accumulator, agence) => {
+      regionalAgences.reduce((accumulator, agence) => {
         accumulator[String(agence.id)] = agence;
         return accumulator;
       }, {}),
-    [agences]
+    [regionalAgences]
   );
 
-  const terminalById = useMemo(
-    () =>
-      terminaux.reduce((accumulator, terminal) => {
-        accumulator[String(terminal.id)] = terminal;
-        return accumulator;
-      }, {}),
-    [terminaux]
-  );
-
-  const filteredAgencesForSelect = useMemo(
-    () =>
-      agences.filter(
-        (agence) =>
-          filters.region === ALL_FILTER_VALUE ||
-          normalizeMaintenanceText(agence.region) === normalizeMaintenanceText(filters.region)
-      ),
-    [agences, filters.region]
+  const maintenanceGroups = useMemo(
+    () => buildTerminalMonitoringGroups(regionalTerminaux, regionalInterventions, agencesById),
+    [agencesById, regionalInterventions, regionalTerminaux]
   );
 
   const terminalOptions = useMemo(
     () => [
       { value: ALL_FILTER_VALUE, label: 'Tous les terminaux' },
-      ...terminaux
+      ...regionalTerminaux
         .filter(
           (terminal) =>
             filters.agenceId === ALL_FILTER_VALUE || String(terminal.agence_id) === String(filters.agenceId)
@@ -141,30 +150,22 @@ const MaintenanceTerminauxPage = () => {
           label: `${terminal.reference} • ${terminal.type_terminal || 'Sans type'}`,
         })),
     ],
-    [filters.agenceId, terminaux]
-  );
-
-  const maintenanceGroups = useMemo(
-    () => buildTerminalMonitoringGroups(terminaux, interventions, agencesById),
-    [agencesById, interventions, terminaux]
+    [filters.agenceId, regionalTerminaux]
   );
 
   const filteredMaintenanceGroups = useMemo(() => {
     const normalizedSearch = normalizeMaintenanceText(searchTerm);
 
     return maintenanceGroups
-      .filter(
-        (group) =>
-          filters.region === ALL_FILTER_VALUE ||
-          normalizeMaintenanceText(group.regionNom) === normalizeMaintenanceText(filters.region)
+      .filter((group) =>
+        filters.agenceId === ALL_FILTER_VALUE
+          ? true
+          : String(group.agenceId) === String(filters.agenceId)
       )
-      .filter(
-        (group) =>
-          filters.agenceId === ALL_FILTER_VALUE ||
-          String(terminalById[String(group.terminalId)]?.agence_id ?? '') === String(filters.agenceId)
-      )
-      .filter(
-        (group) => filters.terminalId === ALL_FILTER_VALUE || String(group.terminalId) === String(filters.terminalId)
+      .filter((group) =>
+        filters.terminalId === ALL_FILTER_VALUE
+          ? true
+          : String(group.terminalId) === String(filters.terminalId)
       )
       .filter((group) =>
         filters.suivi === ALL_FILTER_VALUE
@@ -177,7 +178,6 @@ const MaintenanceTerminauxPage = () => {
         (group) =>
           !normalizedSearch ||
           [
-            group.regionNom,
             group.agenceNom,
             group.terminalReference,
             group.terminalType,
@@ -192,7 +192,7 @@ const MaintenanceTerminauxPage = () => {
             ]),
           ].some((value) => normalizeMaintenanceText(value).includes(normalizedSearch))
       );
-  }, [filters.agenceId, filters.region, filters.suivi, filters.terminalId, maintenanceGroups, searchTerm, terminalById]);
+  }, [filters.agenceId, filters.suivi, filters.terminalId, maintenanceGroups, searchTerm]);
 
   const upToDateCount = filteredMaintenanceGroups.filter(
     (group) => group.followUp.label === 'Maintenance à jour'
@@ -209,6 +209,23 @@ const MaintenanceTerminauxPage = () => {
     }));
   };
 
+  if (!effectiveRegionName && !allowAllRegions) {
+    return (
+      <Card className="shadow-xl glassmorphism">
+        <CardHeader>
+          <CardTitle className="text-2xl text-primary">Maintenance des Terminaux</CardTitle>
+          <CardDescription>
+            Cette vue est disponible pour un directeur régional disposant d’une région assignée.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  const scopeLabel = effectiveRegionName
+    ? `les agences de la région ${effectiveRegionName}`
+    : 'toutes les agences';
+
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <Card className="shadow-xl glassmorphism">
@@ -218,29 +235,16 @@ const MaintenanceTerminauxPage = () => {
             Maintenance des Terminaux
           </CardTitle>
           <CardDescription>
-            Suivez les terminaux par région et agence, puis dépliez chaque ligne pour voir le détail des sous-ensembles.
+            Consultez le planning et le suivi des maintenances pour {scopeLabel}.
           </CardDescription>
         </CardHeader>
       </Card>
 
       <Tabs defaultValue="suivi" className="space-y-6">
-        <TabsList className="grid w-full max-w-3xl grid-cols-3">
-          <TabsTrigger value="configuration">Configuration des Terminaux</TabsTrigger>
+        <TabsList className="grid w-full max-w-2xl grid-cols-2">
           <TabsTrigger value="suivi">Suivi des Terminaux</TabsTrigger>
           <TabsTrigger value="planning">Planification de Maintenance</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="configuration">
-          <ConfigurationTab
-            canManage={canWriteCurrentPage}
-            showEquipmentManagement
-            readOnlyMessage={
-              currentAccessLevel === EXPLOITATION_ACCESS_LEVELS.READ
-                ? 'Votre profil est en lecture seule sur cet onglet. La configuration et la gestion des équipements peuvent être consultées mais pas modifiées.'
-                : ''
-            }
-          />
-        </TabsContent>
 
         <TabsContent value="suivi" className="space-y-6">
           <div className="grid gap-4 md:grid-cols-3">
@@ -275,34 +279,7 @@ const MaintenanceTerminauxPage = () => {
 
           <Card className="shadow-xl glassmorphism">
             <CardHeader className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Région</p>
-                  <Select
-                    value={filters.region}
-                    onValueChange={(value) =>
-                      setFilters((previousState) => ({
-                        ...previousState,
-                        region: value,
-                        agenceId: ALL_FILTER_VALUE,
-                        terminalId: ALL_FILTER_VALUE,
-                      }))
-                    }
-                    disabled={isLoading}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Toutes les régions" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {regionOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Agence</p>
                   <Select
@@ -321,7 +298,7 @@ const MaintenanceTerminauxPage = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={ALL_FILTER_VALUE}>Toutes les agences</SelectItem>
-                      {filteredAgencesForSelect.map((agence) => (
+                      {regionalAgences.map((agence) => (
                         <SelectItem key={agence.id} value={String(agence.id)}>
                           {agence.nom}
                         </SelectItem>
@@ -388,11 +365,10 @@ const MaintenanceTerminauxPage = () => {
                 <TableCaption>
                   {filteredMaintenanceGroups.length === 0
                     ? 'Aucun terminal ne correspond aux filtres.'
-                    : `${filteredMaintenanceGroups.length} terminal(aux) affiche(s).`}
+                    : `${filteredMaintenanceGroups.length} terminal(aux) affiché(s).`}
                 </TableCaption>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Région</TableHead>
                     <TableHead>Agence</TableHead>
                     <TableHead>Terminal</TableHead>
                     <TableHead>Dernière maintenance</TableHead>
@@ -407,7 +383,6 @@ const MaintenanceTerminauxPage = () => {
                     return (
                       <React.Fragment key={group.terminalId}>
                         <TableRow>
-                          <TableCell>{group.regionNom || 'N/A'}</TableCell>
                           <TableCell>{group.agenceNom || 'N/A'}</TableCell>
                           <TableCell>
                             <div className="flex flex-col">
@@ -445,7 +420,7 @@ const MaintenanceTerminauxPage = () => {
 
                         {isExpanded && (
                           <TableRow className="bg-muted/20 hover:bg-muted/20">
-                            <TableCell colSpan={6} className="p-0">
+                            <TableCell colSpan={5} className="p-0">
                               <div className="m-4 rounded-xl border bg-background/80 p-4 shadow-sm">
                                 <div className="mb-4 flex flex-col gap-1">
                                   <p className="font-semibold text-slate-900">
@@ -521,14 +496,20 @@ const MaintenanceTerminauxPage = () => {
 
         <TabsContent value="planning">
           <MaintenancePlanningSection
-            title="Planification de Maintenance"
-            description="Planifiez les maintenances par région, agence, technicien et créneau, puis suivez automatiquement ce qui a été réellement exécuté."
-            canManage={canWriteCurrentPage}
-            readOnlyMessage={
-              currentAccessLevel === EXPLOITATION_ACCESS_LEVELS.READ
-                ? 'Votre profil est en lecture seule sur cet onglet. La planification peut être consultée mais pas modifiée.'
-                : ''
+            title={
+              effectiveRegionName
+                ? `Planification de Maintenance - ${effectiveRegionName}`
+                : 'Planification de Maintenance - Toutes les régions'
             }
+            description={
+              effectiveRegionName
+                ? 'Consultez le planning maintenance des agences de votre région, ainsi que le suivi automatique des créneaux effectués ou non.'
+                : 'Consultez le planning maintenance de toutes les agences, ainsi que le suivi automatique des créneaux effectués ou non.'
+            }
+            canManage={false}
+            lockedRegion={effectiveRegionName || null}
+            readOnlyMessage={`Le planning est affiché en consultation pour le ${viewerLabel}. Les affectations sont créées depuis l’Exploitation ou par le chef d’agence.`}
+            emptyTitle={effectiveRegionName ? 'Aucune maintenance planifiée pour cette région.' : 'Aucune maintenance planifiée.'}
           />
         </TabsContent>
       </Tabs>
@@ -536,4 +517,4 @@ const MaintenanceTerminauxPage = () => {
   );
 };
 
-export default MaintenanceTerminauxPage;
+export default RegionalMaintenanceSection;

@@ -1,9 +1,11 @@
 export const VALIDATOR_FUNCTIONS = {
+  CHEF: 'Chef d’agence',
   REGIONAL: 'Directeur régional',
   GENERAL: 'Directeur général',
 };
 
 export const WORKFLOW_STAGES = {
+  CHEF: 'chef_agence',
   REGIONAL: 'directeur_regional',
   GENERAL: 'directeur_general',
   EXPLOITATION: 'exploitation',
@@ -12,6 +14,7 @@ export const WORKFLOW_STAGES = {
 };
 
 export const DEMANDE_STATUSES = {
+  PENDING_CHEF: 'En attente chef d’agence',
   PENDING_REGIONAL: 'En attente directeur régional',
   PENDING_GENERAL: 'En attente directeur général',
   PENDING_EXPLOITATION: 'En attente exploitation',
@@ -81,6 +84,8 @@ export const generateDemandeCode = () => {
 
 export const getWorkflowStageLabel = (stage) => {
   switch (stage) {
+    case WORKFLOW_STAGES.CHEF:
+      return VALIDATOR_FUNCTIONS.CHEF;
     case WORKFLOW_STAGES.REGIONAL:
       return VALIDATOR_FUNCTIONS.REGIONAL;
     case WORKFLOW_STAGES.GENERAL:
@@ -110,6 +115,7 @@ export const getStatusBadgeClass = (status) => {
   }
 
   if (
+    status === DEMANDE_STATUSES.PENDING_CHEF ||
     status === DEMANDE_STATUSES.PENDING_REGIONAL ||
     status === DEMANDE_STATUSES.PENDING_GENERAL ||
     status === DEMANDE_STATUSES.PENDING_EXPLOITATION
@@ -135,11 +141,12 @@ export const getProcedureForAmount = (amount) => {
       modePaiement: 'Espèces',
       lieuPaiement: 'Terminal vendeur ou caisse LONAB',
       identificationRequired: false,
+      requiresChefApproval: false,
       requiresRegionalApproval: false,
       requiresGeneralApproval: false,
       initialStatus: DEMANDE_STATUSES.PENDING_EXPLOITATION,
       initialStage: WORKFLOW_STAGES.EXPLOITATION,
-      circuit: ['Chef d’agence', 'Exploitation', 'Paiement en agence'],
+      circuit: ['Exploitation', 'Paiement en agence'],
     };
   }
 
@@ -151,11 +158,12 @@ export const getProcedureForAmount = (amount) => {
       modePaiement: 'Espèces',
       lieuPaiement: 'Point de vente',
       identificationRequired: true,
+      requiresChefApproval: false,
       requiresRegionalApproval: false,
       requiresGeneralApproval: false,
       initialStatus: DEMANDE_STATUSES.PENDING_EXPLOITATION,
       initialStage: WORKFLOW_STAGES.EXPLOITATION,
-      circuit: ['Chef d’agence', 'Exploitation', 'Paiement en agence'],
+      circuit: ['Exploitation', 'Paiement en agence'],
     };
   }
 
@@ -167,11 +175,12 @@ export const getProcedureForAmount = (amount) => {
       modePaiement: 'Espèces',
       lieuPaiement: 'Caisse LONAB',
       identificationRequired: true,
+      requiresChefApproval: false,
       requiresRegionalApproval: false,
       requiresGeneralApproval: false,
       initialStatus: DEMANDE_STATUSES.PENDING_EXPLOITATION,
       initialStage: WORKFLOW_STAGES.EXPLOITATION,
-      circuit: ['Chef d’agence', 'Exploitation', 'Paiement en agence'],
+      circuit: ['Exploitation', 'Paiement en agence'],
     };
   }
 
@@ -183,6 +192,7 @@ export const getProcedureForAmount = (amount) => {
       modePaiement: 'Espèces',
       lieuPaiement: 'Caisse LONAB',
       identificationRequired: true,
+      requiresChefApproval: true,
       requiresRegionalApproval: false,
       requiresGeneralApproval: false,
       initialStatus: DEMANDE_STATUSES.PENDING_EXPLOITATION,
@@ -195,10 +205,11 @@ export const getProcedureForAmount = (amount) => {
     return {
       trancheLabel: 'De 5 000 000 FCFA à moins de 50 000 000 FCFA',
       description:
-        'Paiement par chèque à la caisse LONAB, avec obligation d’identification du gagnant et validation du directeur régional.',
+        'Paiement par chèque à la caisse LONAB, avec obligation d’identification du gagnant, validation du chef d’agence et validation du directeur régional.',
       modePaiement: 'Chèque',
       lieuPaiement: 'Caisse LONAB',
       identificationRequired: true,
+      requiresChefApproval: true,
       requiresRegionalApproval: true,
       requiresGeneralApproval: false,
       initialStatus: DEMANDE_STATUSES.PENDING_REGIONAL,
@@ -210,15 +221,16 @@ export const getProcedureForAmount = (amount) => {
   return {
     trancheLabel: 'Supérieur ou égal à 50 000 000 FCFA',
     description:
-      'Paiement par chèque à la caisse LONAB, avec obligation d’identification du gagnant et validation du directeur général.',
+      'Paiement par chèque à la caisse LONAB, avec obligation d’identification du gagnant, validation du chef d’agence, validation du directeur régional puis validation du directeur général.',
     modePaiement: 'Chèque',
     lieuPaiement: 'Caisse LONAB',
     identificationRequired: true,
-    requiresRegionalApproval: false,
+    requiresChefApproval: true,
+    requiresRegionalApproval: true,
     requiresGeneralApproval: true,
-    initialStatus: DEMANDE_STATUSES.PENDING_GENERAL,
-    initialStage: WORKFLOW_STAGES.GENERAL,
-    circuit: ['Chef d’agence', 'Directeur général', 'Exploitation', 'Paiement en agence'],
+    initialStatus: DEMANDE_STATUSES.PENDING_REGIONAL,
+    initialStage: WORKFLOW_STAGES.REGIONAL,
+    circuit: ['Chef d’agence', 'Directeur régional', 'Directeur général', 'Exploitation', 'Paiement en agence'],
   };
 };
 
@@ -228,8 +240,31 @@ export const buildProcedureSummary = (procedure) => {
   return `${procedure.modePaiement} • ${procedure.lieuPaiement} • ${procedure.trancheLabel}`;
 };
 
+export const demandeRequiresChefApproval = (demande) =>
+  String(demande?.circuitValidation ?? '').includes(VALIDATOR_FUNCTIONS.CHEF);
+
+export const isChefApprovalPending = (demande) => {
+  if (!demande) return false;
+
+  if (!demandeRequiresChefApproval(demande)) return false;
+  if (demande.dateValidationChef) return false;
+
+  return ![
+    DEMANDE_STATUSES.AUTHORIZED_FOR_PAYMENT,
+    DEMANDE_STATUSES.PAID,
+    DEMANDE_STATUSES.REJECTED,
+  ].includes(demande.statutGlobal);
+};
+
+export const getEffectiveDemandeStatus = (demande) =>
+  isChefApprovalPending(demande) ? DEMANDE_STATUSES.PENDING_CHEF : demande?.statutGlobal;
+
+export const getEffectiveWorkflowStage = (demande) =>
+  isChefApprovalPending(demande) ? WORKFLOW_STAGES.CHEF : demande?.niveauValidationCourant;
+
 export const isValidatorAssignedToDemande = (demande, validator) => {
   if (!demande || !validator) return false;
+  if (isChefApprovalPending(demande)) return false;
 
   if (validator.fonction === VALIDATOR_FUNCTIONS.REGIONAL) {
     return (
@@ -250,14 +285,14 @@ export const canValidatorHandleRequest = (demande, validator) => {
 
   if (validator.fonction === VALIDATOR_FUNCTIONS.REGIONAL) {
     return (
-      demande.niveauValidationCourant === WORKFLOW_STAGES.REGIONAL &&
+      getEffectiveWorkflowStage(demande) === WORKFLOW_STAGES.REGIONAL &&
       isValidatorAssignedToDemande(demande, validator)
     );
   }
 
   if (validator.fonction === VALIDATOR_FUNCTIONS.GENERAL) {
     return (
-      demande.niveauValidationCourant === WORKFLOW_STAGES.GENERAL &&
+      getEffectiveWorkflowStage(demande) === WORKFLOW_STAGES.GENERAL &&
       isValidatorAssignedToDemande(demande, validator)
     );
   }

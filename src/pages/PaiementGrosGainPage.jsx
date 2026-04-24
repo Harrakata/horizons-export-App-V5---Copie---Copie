@@ -36,13 +36,19 @@ import {
   formatDisplayDate,
   formatDisplayDateTime,
   generateDemandeCode,
-  getProcedureForAmount,
+  getEffectiveDemandeStatus,
+  getEffectiveWorkflowStage,
   getStatusBadgeClass,
   getWorkflowStageLabel,
+  isChefApprovalPending,
   normalizeText,
   VALIDATOR_FUNCTIONS,
   WORKFLOW_STAGES,
 } from '@/lib/paiementGainUtils';
+import {
+  fetchPaiementGainWorkflowConfigs,
+  resolveProcedureForAmount,
+} from '@/lib/paiementGainWorkflowConfig';
 import {
   buildFullName,
   normalizeBigIntIdentifier,
@@ -70,6 +76,9 @@ const DEFAULT_FORM_DATA = {
 };
 
 const ALL_FILTER_VALUE = '__all__';
+const sortDemandesByUpdatedAt = (firstDemande, secondDemande) =>
+  new Date(secondDemande?.updated_at || secondDemande?.created_at || 0) -
+  new Date(firstDemande?.updated_at || firstDemande?.created_at || 0);
 
 const PaiementGrosGainPage = () => {
   const location = useLocation();
@@ -81,11 +90,13 @@ const PaiementGrosGainPage = () => {
   const [agences, setAgences] = useState([]);
   const [regions, setRegions] = useState([]);
   const [validateurs, setValidateurs] = useState([]);
+  const [workflowConfigs, setWorkflowConfigs] = useState([]);
   const [demandes, setDemandes] = useState([]);
   const [events, setEvents] = useState([]);
   const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [chefDecisionComment, setChefDecisionComment] = useState('');
   const [paymentComment, setPaymentComment] = useState('');
   const [ownDemandesSearchTerm, setOwnDemandesSearchTerm] = useState('');
   const [ownDemandesStatusFilter, setOwnDemandesStatusFilter] = useState(ALL_FILTER_VALUE);
@@ -93,9 +104,11 @@ const PaiementGrosGainPage = () => {
   const [agencyDemandesStatusFilter, setAgencyDemandesStatusFilter] = useState(ALL_FILTER_VALUE);
   const [selectedOwnDemandeId, setSelectedOwnDemandeId] = useState(null);
   const [selectedAgencyDemandeId, setSelectedAgencyDemandeId] = useState(null);
+  const [selectedChefActionDemandeId, setSelectedChefActionDemandeId] = useState(null);
   const [selectedPaymentDemandeId, setSelectedPaymentDemandeId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isChefDecisionLoading, setIsChefDecisionLoading] = useState(false);
   const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -107,12 +120,14 @@ const PaiementGrosGainPage = () => {
       { data: agencesData, error: agencesError },
       { data: regionsData, error: regionsError },
       { data: validateursData, error: validateursError },
+      { data: workflowConfigData, error: workflowConfigError, isMissingTable: workflowConfigMissingTable },
       { data: demandesData, error: demandesError },
       { data: eventsData, error: eventsError },
     ] = await Promise.all([
       supabase.from('agences').select('*').order('nom', { ascending: true }),
       fetchRegions(),
       supabase.from('validateurs_paiement_gain').select('*').eq('statut', 'Actif').order('nom', { ascending: true }),
+      fetchPaiementGainWorkflowConfigs(),
       supabase.from('demandes_paiement_gain').select('*').order('updated_at', { ascending: false }),
       supabase.from('paiement_gain_workflow_events').select('*').order('created_at', { ascending: false }),
     ]);
@@ -134,6 +149,15 @@ const PaiementGrosGainPage = () => {
     } else {
       setValidateurs(validateursData || []);
     }
+
+    if (workflowConfigError && !workflowConfigMissingTable) {
+      toast({
+        title: 'Erreur chargement workflows',
+        description: workflowConfigError.message,
+        variant: 'destructive',
+      });
+    }
+    setWorkflowConfigs(workflowConfigData || []);
 
     if (demandesError) {
       toast({ title: 'Erreur chargement demandes', description: demandesError.message, variant: 'destructive' });
@@ -216,8 +240,8 @@ const PaiementGrosGainPage = () => {
   );
 
   const selectedProcedure = useMemo(
-    () => getProcedureForAmount(Number(formData.montantGain)),
-    [formData.montantGain]
+    () => resolveProcedureForAmount(Number(formData.montantGain), workflowConfigs),
+    [formData.montantGain, workflowConfigs]
   );
 
   const selectedRegionalValidator = useMemo(
@@ -268,6 +292,21 @@ const PaiementGrosGainPage = () => {
     [demandes, matchesConnectedAgency]
   );
 
+  const chefValidationDemandes = useMemo(
+    () => [...ownDemandes].filter((demande) => isChefApprovalPending(demande)).sort(sortDemandesByUpdatedAt),
+    [ownDemandes]
+  );
+
+  const chefActionDemandes = useMemo(() => {
+    const demandeMap = new Map();
+
+    [...chefValidationDemandes, ...authorizedDemandes].forEach((demande) => {
+      demandeMap.set(String(demande.id), demande);
+    });
+
+    return Array.from(demandeMap.values()).sort(sortDemandesByUpdatedAt);
+  }, [authorizedDemandes, chefValidationDemandes]);
+
   const paidDemandes = useMemo(
     () =>
       demandes.filter(
@@ -281,17 +320,32 @@ const PaiementGrosGainPage = () => {
     [demandes, matchesConnectedAgency]
   );
 
+  const chefWorkspaceHistoryDemandes = useMemo(() => {
+    const demandeMap = new Map();
+
+    [...ownDemandes, ...agencyDemandes].forEach((demande) => {
+      demandeMap.set(String(demande.id), demande);
+    });
+
+    return Array.from(demandeMap.values()).sort(sortDemandesByUpdatedAt);
+  }, [agencyDemandes, ownDemandes]);
+
+  const historyDemandes = useMemo(
+    () => (isChefAgenceWorkspace ? chefWorkspaceHistoryDemandes : agencyDemandes),
+    [agencyDemandes, chefWorkspaceHistoryDemandes, isChefAgenceWorkspace]
+  );
+
   const filteredOwnDemandes = useMemo(
     () =>
       ownDemandes
-        .filter((demande) => ownDemandesStatusFilter === ALL_FILTER_VALUE || demande.statutGlobal === ownDemandesStatusFilter)
+        .filter((demande) => ownDemandesStatusFilter === ALL_FILTER_VALUE || getEffectiveDemandeStatus(demande) === ownDemandesStatusFilter)
         .filter((demande) =>
           [
             demande.codeDemande,
             demande.nomGagnant,
             demande.prenomGagnant,
             demande.numeroTicketGagnant,
-            demande.statutGlobal,
+            getEffectiveDemandeStatus(demande),
             demande.agencePaiementNom,
           ].some((value) => String(value ?? '').toLowerCase().includes(ownDemandesSearchTerm.toLowerCase()))
         ),
@@ -300,19 +354,21 @@ const PaiementGrosGainPage = () => {
 
   const filteredAgencyDemandes = useMemo(
     () =>
-      agencyDemandes
-        .filter((demande) => agencyDemandesStatusFilter === ALL_FILTER_VALUE || demande.statutGlobal === agencyDemandesStatusFilter)
+      historyDemandes
+        .filter((demande) => agencyDemandesStatusFilter === ALL_FILTER_VALUE || getEffectiveDemandeStatus(demande) === agencyDemandesStatusFilter)
         .filter((demande) =>
           [
             demande.codeDemande,
             demande.nomGagnant,
             demande.prenomGagnant,
             demande.numeroTicketGagnant,
-            demande.statutGlobal,
+            getEffectiveDemandeStatus(demande),
+            demande.agenceOrigineNom,
             demande.agencePaiementNom,
+            demande.localitePaiementSouhaitee,
           ].some((value) => String(value ?? '').toLowerCase().includes(agencyDemandesSearchTerm.toLowerCase()))
         ),
-    [agencyDemandes, agencyDemandesSearchTerm, agencyDemandesStatusFilter]
+    [historyDemandes, agencyDemandesSearchTerm, agencyDemandesStatusFilter]
   );
 
   useEffect(() => {
@@ -326,6 +382,18 @@ const PaiementGrosGainPage = () => {
       setSelectedOwnDemandeId(filteredOwnDemandes[0]?.id || null);
     }
   }, [filteredOwnDemandes, selectedOwnDemandeId]);
+
+  useEffect(() => {
+    if (!selectedChefActionDemandeId && chefActionDemandes.length > 0) {
+      setSelectedChefActionDemandeId(chefActionDemandes[0].id);
+      return;
+    }
+
+    const stillExists = chefActionDemandes.some((demande) => String(demande.id) === String(selectedChefActionDemandeId));
+    if (selectedChefActionDemandeId && !stillExists) {
+      setSelectedChefActionDemandeId(chefActionDemandes[0]?.id || null);
+    }
+  }, [chefActionDemandes, selectedChefActionDemandeId]);
 
   useEffect(() => {
     if (!selectedPaymentDemandeId && authorizedDemandes.length > 0) {
@@ -353,6 +421,8 @@ const PaiementGrosGainPage = () => {
 
   const selectedOwnDemande =
     filteredOwnDemandes.find((demande) => String(demande.id) === String(selectedOwnDemandeId)) || null;
+  const selectedChefActionDemande =
+    chefActionDemandes.find((demande) => String(demande.id) === String(selectedChefActionDemandeId)) || null;
   const selectedAgencyDemande =
     filteredAgencyDemandes.find((demande) => String(demande.id) === String(selectedAgencyDemandeId)) || null;
   const selectedPaymentDemande =
@@ -374,6 +444,22 @@ const PaiementGrosGainPage = () => {
     [events, selectedPaymentDemande?.id]
   );
 
+  useEffect(() => {
+    setChefDecisionComment('');
+  }, [selectedOwnDemande?.id, selectedChefActionDemande?.id]);
+
+  useEffect(() => {
+    setPaymentComment('');
+  }, [selectedPaymentDemande?.id, selectedChefActionDemande?.id]);
+
+  const selectedChefActionDemandeEvents = useMemo(
+    () =>
+      events
+        .filter((event) => String(event.demandeId ?? '') === String(selectedChefActionDemande?.id ?? ''))
+        .sort((firstEvent, secondEvent) => new Date(secondEvent.created_at) - new Date(firstEvent.created_at)),
+    [events, selectedChefActionDemande?.id]
+  );
+
   const selectedAgencyDemandeEvents = useMemo(
     () =>
       events
@@ -381,6 +467,13 @@ const PaiementGrosGainPage = () => {
         .sort((firstEvent, secondEvent) => new Date(secondEvent.created_at) - new Date(firstEvent.created_at)),
     [events, selectedAgencyDemande?.id]
   );
+
+  const selectedOwnDemandeAwaitingChefDecision = isChefApprovalPending(selectedOwnDemande);
+  const selectedChefActionDemandeAwaitingChefDecision = isChefApprovalPending(selectedChefActionDemande);
+  const selectedChefActionDemandeAwaitingPayment =
+    Boolean(selectedChefActionDemande) &&
+    selectedChefActionDemande.statutGlobal === DEMANDE_STATUSES.AUTHORIZED_FOR_PAYMENT &&
+    matchesConnectedAgency(selectedChefActionDemande);
 
   const handleFormFieldChange = (fieldName, fieldValue) => {
     setFormData((previousData) => {
@@ -430,7 +523,7 @@ const PaiementGrosGainPage = () => {
     }
 
     const montantGain = Number(formData.montantGain);
-    const procedure = getProcedureForAmount(montantGain);
+    const procedure = resolveProcedureForAmount(montantGain, workflowConfigs);
 
     if (!procedure || !Number.isFinite(montantGain) || montantGain <= 0) {
       toast({
@@ -509,12 +602,19 @@ const PaiementGrosGainPage = () => {
       photoPieceUrl = uploadedUrl;
     }
 
-    const directeurRegionalName = selectedRegionalValidator
-      ? buildFullName(selectedRegionalValidator.prenom, selectedRegionalValidator.nom)
-      : null;
-    const directeurGeneralName = selectedGeneralValidator
-      ? buildFullName(selectedGeneralValidator.prenom, selectedGeneralValidator.nom)
-      : null;
+    const directeurRegionalName =
+      procedure.requiresRegionalApproval && selectedRegionalValidator
+        ? buildFullName(selectedRegionalValidator.prenom, selectedRegionalValidator.nom)
+        : null;
+    const directeurGeneralName =
+      procedure.requiresGeneralApproval && selectedGeneralValidator
+        ? buildFullName(selectedGeneralValidator.prenom, selectedGeneralValidator.nom)
+        : null;
+
+    const waitingChefApproval = procedure.requiresChefApproval;
+    const initialComment = waitingChefApproval
+      ? 'Demande créée et en attente de validation du chef d’agence.'
+      : 'Demande créée et transmise dans le circuit de validation.';
 
     const payload = {
       codeDemande,
@@ -527,10 +627,16 @@ const PaiementGrosGainPage = () => {
       numeroCourse: formData.numeroCourse.trim() || null,
       typePari: formData.typePari.trim() || null,
       localitePaiementSouhaitee: selectedDesiredAgency?.nom || formData.agenceSouhaiteeNom.trim() || null,
-      directeurRegionalId: normalizeBigIntIdentifier(selectedRegionalValidator?.id),
+      directeurRegionalId: procedure.requiresRegionalApproval
+        ? normalizeBigIntIdentifier(selectedRegionalValidator?.id)
+        : null,
       directeurRegionalName,
-      directeurRegionalRegion: formData.regionPaiementSouhaitee || selectedRegionalValidator?.regionAssignee || null,
-      directeurGeneralId: normalizeBigIntIdentifier(selectedGeneralValidator?.id),
+      directeurRegionalRegion: procedure.requiresRegionalApproval
+        ? formData.regionPaiementSouhaitee || selectedRegionalValidator?.regionAssignee || null
+        : null,
+      directeurGeneralId: procedure.requiresGeneralApproval
+        ? normalizeBigIntIdentifier(selectedGeneralValidator?.id)
+        : null,
       directeurGeneralName,
       dateReunionCourse: formData.dateReunionCourse || null,
       dateCourse: formData.dateCourse || null,
@@ -552,8 +658,8 @@ const PaiementGrosGainPage = () => {
       statutGlobal: procedure.initialStatus,
       niveauValidationCourant: procedure.initialStage,
       circuitValidation: procedure.circuit.join(' > '),
-      dateValidationChef: new Date().toISOString(),
-      commentaireDerniereAction: 'Demande validée et transmise par le chef d’agence.',
+      dateValidationChef: null,
+      commentaireDerniereAction: initialComment,
     };
 
     const { data: insertedDemande, error: insertError } = await supabase
@@ -575,19 +681,21 @@ const PaiementGrosGainPage = () => {
     await recordPaiementGainEvent({
       demandeId: insertedDemande.id,
       codeDemande,
-      actionType: 'soumission_chef',
+      actionType: waitingChefApproval ? 'creation_demande' : 'soumission_demande',
       actorType: 'chef_agence',
       actorId: chefInfo.id,
       actorName: chefInfo.nomChef || 'Chef d’agence',
       actorFunction: 'Chef d’agence',
       statusBefore: null,
       statusAfter: payload.statutGlobal,
-      commentaire: 'Formulaire validé par le chef d’agence.',
+      commentaire: initialComment,
     });
 
     toast({
       title: 'Demande envoyée',
-      description: `La demande ${codeDemande} a été créée et transmise dans le circuit de validation.`,
+      description: waitingChefApproval
+        ? `La demande ${codeDemande} a été créée et attend maintenant la validation du chef d’agence.`
+        : `La demande ${codeDemande} a été créée et transmise dans le circuit de validation.`,
       className: 'bg-green-500 text-white',
     });
 
@@ -596,12 +704,109 @@ const PaiementGrosGainPage = () => {
     setIsSubmitting(false);
   };
 
+  const getNextStepAfterChefApproval = (demande) => {
+    const circuitValidation = String(demande?.circuitValidation ?? '');
+
+    if (circuitValidation.includes(VALIDATOR_FUNCTIONS.REGIONAL)) {
+      return {
+        nextStatus: DEMANDE_STATUSES.PENDING_REGIONAL,
+        nextStage: WORKFLOW_STAGES.REGIONAL,
+        nextLabel: 'directeur régional',
+      };
+    }
+
+    if (circuitValidation.includes(VALIDATOR_FUNCTIONS.GENERAL)) {
+      return {
+        nextStatus: DEMANDE_STATUSES.PENDING_GENERAL,
+        nextStage: WORKFLOW_STAGES.GENERAL,
+        nextLabel: 'directeur général',
+      };
+    }
+
+    return {
+      nextStatus: DEMANDE_STATUSES.PENDING_EXPLOITATION,
+      nextStage: WORKFLOW_STAGES.EXPLOITATION,
+      nextLabel: 'Exploitation',
+    };
+  };
+
+  const handleChefDecision = async (decision) => {
+    const demandeToHandle = isChefAgenceWorkspace ? selectedChefActionDemande : selectedOwnDemande;
+    if (!demandeToHandle || !chefInfo?.id) return;
+
+    setIsChefDecisionLoading(true);
+
+    const statusBefore = demandeToHandle.statutGlobal;
+    const updates = {
+      commentaireDerniereAction:
+        chefDecisionComment.trim() ||
+        (decision === 'approve'
+          ? 'Demande validée par le chef d’agence.'
+          : 'Demande refusée par le chef d’agence.'),
+    };
+
+    let nextLabel = 'circuit suivant';
+
+    if (decision === 'approve') {
+      const nextStep = getNextStepAfterChefApproval(demandeToHandle);
+      updates.dateValidationChef = new Date().toISOString();
+      updates.statutGlobal = nextStep.nextStatus;
+      updates.niveauValidationCourant = nextStep.nextStage;
+      nextLabel = nextStep.nextLabel;
+    } else {
+      updates.statutGlobal = DEMANDE_STATUSES.REJECTED;
+      updates.niveauValidationCourant = WORKFLOW_STAGES.DONE;
+    }
+
+    const { error: updateError } = await supabase
+      .from('demandes_paiement_gain')
+      .update(updates)
+      .eq('id', demandeToHandle.id);
+
+    if (updateError) {
+      toast({
+        title: 'Action impossible',
+        description: updateError.message,
+        variant: 'destructive',
+      });
+      setIsChefDecisionLoading(false);
+      return;
+    }
+
+    await recordPaiementGainEvent({
+      demandeId: demandeToHandle.id,
+      codeDemande: demandeToHandle.codeDemande,
+      actionType: decision === 'approve' ? 'validation_chef' : 'rejet_chef',
+      actorType: WORKFLOW_STAGES.CHEF,
+      actorId: chefInfo.id,
+      actorName: chefInfo.nomChef || 'Chef d’agence',
+      actorFunction: 'Chef d’agence',
+      statusBefore,
+      statusAfter: updates.statutGlobal,
+      commentaire: updates.commentaireDerniereAction,
+    });
+
+    toast({
+      title: decision === 'approve' ? 'Demande validée' : 'Demande refusée',
+      description:
+        decision === 'approve'
+          ? `La demande ${demandeToHandle.codeDemande} a été transmise au ${nextLabel}.`
+          : `La demande ${demandeToHandle.codeDemande} a été refusée par le chef d’agence.`,
+      className: decision === 'approve' ? 'bg-green-500 text-white' : 'bg-red-500 text-white',
+    });
+
+    setChefDecisionComment('');
+    await loadData();
+    setIsChefDecisionLoading(false);
+  };
+
   const handleConfirmPayment = async () => {
-    if (!selectedPaymentDemande || !chefInfo?.id) return;
+    const demandeToPay = isChefAgenceWorkspace ? selectedChefActionDemande : selectedPaymentDemande;
+    if (!demandeToPay || !chefInfo?.id) return;
 
     setIsPaymentSubmitting(true);
 
-    const statusBefore = selectedPaymentDemande.statutGlobal;
+    const statusBefore = demandeToPay.statutGlobal;
     const updates = {
       statutGlobal: DEMANDE_STATUSES.PAID,
       niveauValidationCourant: WORKFLOW_STAGES.DONE,
@@ -612,7 +817,7 @@ const PaiementGrosGainPage = () => {
     const { error: updateError } = await supabase
       .from('demandes_paiement_gain')
       .update(updates)
-      .eq('id', selectedPaymentDemande.id);
+      .eq('id', demandeToPay.id);
 
     if (updateError) {
       toast({
@@ -625,8 +830,8 @@ const PaiementGrosGainPage = () => {
     }
 
     await recordPaiementGainEvent({
-      demandeId: selectedPaymentDemande.id,
-      codeDemande: selectedPaymentDemande.codeDemande,
+      demandeId: demandeToPay.id,
+      codeDemande: demandeToPay.codeDemande,
       actionType: 'paiement_final',
       actorType: WORKFLOW_STAGES.AGENCY_PAYMENT,
       actorId: chefInfo.id,
@@ -639,7 +844,7 @@ const PaiementGrosGainPage = () => {
 
     toast({
       title: 'Paiement final validé',
-      description: `Le paiement du gain ${selectedPaymentDemande.codeDemande} a été confirmé.`,
+      description: `Le paiement du gain ${demandeToPay.codeDemande} a été confirmé.`,
       className: 'bg-green-500 text-white',
     });
 
@@ -685,13 +890,13 @@ const PaiementGrosGainPage = () => {
         </div>
         <div className="rounded-xl border bg-background/70 p-4">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Statut global</p>
-          <Badge variant="outline" className={getStatusBadgeClass(demande.statutGlobal)}>
-            {demande.statutGlobal}
+          <Badge variant="outline" className={getStatusBadgeClass(getEffectiveDemandeStatus(demande))}>
+            {getEffectiveDemandeStatus(demande)}
           </Badge>
         </div>
         <div className="rounded-xl border bg-background/70 p-4">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Etape en cours</p>
-          <p className="mt-1 font-medium">{getWorkflowStageLabel(demande.niveauValidationCourant)}</p>
+          <p className="mt-1 font-medium">{getWorkflowStageLabel(getEffectiveWorkflowStage(demande))}</p>
         </div>
         <div className="rounded-xl border bg-background/70 p-4">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Agence de paiement</p>
@@ -841,7 +1046,7 @@ const PaiementGrosGainPage = () => {
               <p className="text-sm text-muted-foreground">
                 {isChefAgenceWorkspace ? 'Demandes suivies' : 'Demandes créées'}
               </p>
-              <p className="text-2xl font-bold">{isChefAgenceWorkspace ? agencyDemandes.length : ownDemandes.length}</p>
+              <p className="text-2xl font-bold">{isChefAgenceWorkspace ? chefWorkspaceHistoryDemandes.length : ownDemandes.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -850,9 +1055,9 @@ const PaiementGrosGainPage = () => {
             <Clock3 className="h-8 w-8 text-amber-600" />
             <div>
               <p className="text-sm text-muted-foreground">
-                {isChefAgenceWorkspace ? 'Autorisations à traiter' : 'Autorisations à payer'}
+                {isChefAgenceWorkspace ? 'Demandes à traiter' : 'Autorisations à payer'}
               </p>
-              <p className="text-2xl font-bold">{authorizedDemandes.length}</p>
+              <p className="text-2xl font-bold">{isChefAgenceWorkspace ? chefActionDemandes.length : authorizedDemandes.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -870,63 +1075,63 @@ const PaiementGrosGainPage = () => {
       {isChefAgenceWorkspace ? (
         <Tabs defaultValue="pending" className="space-y-6">
           <TabsList className="grid w-full max-w-xl grid-cols-2">
-            <TabsTrigger value="pending">Autorisations à valider</TabsTrigger>
+            <TabsTrigger value="pending">Demandes à traiter</TabsTrigger>
             <TabsTrigger value="history">Historique</TabsTrigger>
           </TabsList>
 
           <TabsContent value="pending" className="space-y-6">
             <Card className="shadow-xl glassmorphism">
               <CardHeader>
-                <CardTitle className="text-2xl text-primary">Demandes autorisées à traiter</CardTitle>
+                <CardTitle className="text-2xl text-primary">Demandes à traiter par le chef d’agence</CardTitle>
                 <CardDescription>
-                  Les demandes validées par la hiérarchie et autorisées par l’Exploitation arrivent ici pour confirmation finale du paiement en agence.
+                  Les demandes en attente de validation du chef d’agence et les autorisations prêtes pour paiement final sont regroupées ici.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableCaption>
-                    {authorizedDemandes.length === 0
-                      ? 'Aucune autorisation de paiement n’est disponible pour votre agence.'
-                      : `${authorizedDemandes.length} autorisation(s) en attente de traitement.`}
+                    {chefActionDemandes.length === 0
+                      ? 'Aucune demande n’attend actuellement une action du chef d’agence.'
+                      : `${chefActionDemandes.length} demande(s) en attente de traitement.`}
                   </TableCaption>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Code</TableHead>
                       <TableHead>Gagnant</TableHead>
                       <TableHead>Montant</TableHead>
+                      <TableHead>Etape</TableHead>
                       <TableHead>Statut</TableHead>
-                      <TableHead>Date autorisation</TableHead>
-                      <TableHead className="text-right">Détail</TableHead>
+                      <TableHead>Action requise</TableHead>
+                      <TableHead>Mise à jour</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {authorizedDemandes.map((demande, index) => (
+                    {chefActionDemandes.map((demande, index) => (
                       <motion.tr
                         key={demande.id}
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.03 }}
                         className={`cursor-pointer transition-colors hover:bg-primary/5 ${
-                          String(selectedPaymentDemandeId) === String(demande.id) ? 'bg-primary/5' : ''
+                          String(selectedChefActionDemandeId) === String(demande.id) ? 'bg-primary/5' : ''
                         }`}
-                        onClick={() => setSelectedPaymentDemandeId(demande.id)}
+                        onClick={() => setSelectedChefActionDemandeId(demande.id)}
                       >
                         <TableCell className="font-medium">{demande.codeDemande}</TableCell>
                         <TableCell>
                           {demande.prenomGagnant || '-'} {demande.nomGagnant || ''}
                         </TableCell>
                         <TableCell>{formatCurrency(demande.montantGain)}</TableCell>
+                        <TableCell>{getWorkflowStageLabel(getEffectiveWorkflowStage(demande))}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={getStatusBadgeClass(demande.statutGlobal)}>
-                            {demande.statutGlobal}
+                          <Badge variant="outline" className={getStatusBadgeClass(getEffectiveDemandeStatus(demande))}>
+                            {getEffectiveDemandeStatus(demande)}
                           </Badge>
                         </TableCell>
-                        <TableCell>{formatDisplayDateTime(demande.dateAutorisationExploitation)}</TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" onClick={() => setSelectedPaymentDemandeId(demande.id)}>
-                            Ouvrir
-                          </Button>
+                        <TableCell>
+                          {isChefApprovalPending(demande) ? 'Validation du chef' : 'Paiement final en agence'}
                         </TableCell>
+                        <TableCell>{formatDisplayDateTime(demande.updated_at)}</TableCell>
                       </motion.tr>
                     ))}
                   </TableBody>
@@ -934,44 +1139,93 @@ const PaiementGrosGainPage = () => {
               </CardContent>
             </Card>
 
-            {selectedPaymentDemande && (
+            {selectedChefActionDemande && (
               <Card className="shadow-xl glassmorphism">
                 <CardHeader>
                   <CardTitle className="text-2xl text-primary">
-                    Finaliser le paiement {selectedPaymentDemande.codeDemande}
+                    Traitement de la demande {selectedChefActionDemande.codeDemande}
                   </CardTitle>
                   <CardDescription>
-                    Cette demande a terminé le circuit de validation et attend maintenant votre confirmation de paiement.
+                    {selectedChefActionDemandeAwaitingChefDecision
+                      ? 'Cette demande attend votre validation avant transmission à l’étape suivante du workflow.'
+                      : selectedChefActionDemandeAwaitingPayment
+                        ? 'Cette demande a terminé le circuit de validation et attend maintenant votre confirmation de paiement.'
+                        : 'Consultez le détail complet de la demande et son historique.'}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {renderDemandeDetailsSections(selectedPaymentDemande)}
+                  {renderDemandeDetailsSections(selectedChefActionDemande)}
 
-                  <div className="space-y-2">
-                    <Label>Commentaire de paiement</Label>
-                    <Textarea
-                      rows={4}
-                      value={paymentComment}
-                      onChange={(event) => setPaymentComment(event.target.value)}
-                      placeholder="Commentaire ou référence interne de paiement."
-                      disabled={isPaymentSubmitting}
-                    />
-                  </div>
+                  {selectedChefActionDemandeAwaitingChefDecision && (
+                    <Card className="shadow-sm">
+                      <CardHeader>
+                        <CardTitle className="text-lg text-primary">Validation du chef d’agence</CardTitle>
+                        <CardDescription>
+                          Contrôlez la demande puis validez-la ou refusez-la avant transmission au validateur suivant.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Commentaire de validation</Label>
+                          <Textarea
+                            rows={4}
+                            value={chefDecisionComment}
+                            onChange={(event) => setChefDecisionComment(event.target.value)}
+                            placeholder="Ajoutez un commentaire de validation ou de refus si nécessaire."
+                            disabled={isChefDecisionLoading}
+                          />
+                        </div>
 
-                  <Button
-                    onClick={handleConfirmPayment}
-                    disabled={isPaymentSubmitting}
-                    className="bg-green-600 text-white hover:bg-green-700"
-                  >
-                    {isPaymentSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                    Confirmer le paiement final
-                  </Button>
+                        <div className="flex flex-wrap gap-3">
+                          <Button
+                            onClick={() => handleChefDecision('approve')}
+                            disabled={isChefDecisionLoading}
+                            className="bg-green-600 text-white hover:bg-green-700"
+                          >
+                            {isChefDecisionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                            Valider et transmettre
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={() => handleChefDecision('reject')}
+                            disabled={isChefDecisionLoading}
+                          >
+                            Refuser la demande
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {selectedChefActionDemandeAwaitingPayment && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Commentaire de paiement</Label>
+                        <Textarea
+                          rows={4}
+                          value={paymentComment}
+                          onChange={(event) => setPaymentComment(event.target.value)}
+                          placeholder="Commentaire ou référence interne de paiement."
+                          disabled={isPaymentSubmitting}
+                        />
+                      </div>
+
+                      <Button
+                        onClick={handleConfirmPayment}
+                        disabled={isPaymentSubmitting}
+                        className="bg-green-600 text-white hover:bg-green-700"
+                      >
+                        {isPaymentSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                        Confirmer le paiement final
+                      </Button>
+                    </>
+                  )}
 
                   <Card className="shadow-sm">
                     <CardHeader>
                       <CardTitle className="text-lg text-primary">Historique du workflow</CardTitle>
                     </CardHeader>
-                    <CardContent>{renderWorkflowEvents(selectedPaymentDemandeEvents)}</CardContent>
+                    <CardContent>{renderWorkflowEvents(selectedChefActionDemandeEvents)}</CardContent>
                   </Card>
                 </CardContent>
               </Card>
@@ -1005,11 +1259,12 @@ const PaiementGrosGainPage = () => {
                       <SelectTrigger>
                         <SelectValue placeholder="Tous les statuts" />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={ALL_FILTER_VALUE}>Tous les statuts</SelectItem>
-                        <SelectItem value={DEMANDE_STATUSES.PENDING_REGIONAL}>{DEMANDE_STATUSES.PENDING_REGIONAL}</SelectItem>
-                        <SelectItem value={DEMANDE_STATUSES.PENDING_GENERAL}>{DEMANDE_STATUSES.PENDING_GENERAL}</SelectItem>
-                        <SelectItem value={DEMANDE_STATUSES.PENDING_EXPLOITATION}>{DEMANDE_STATUSES.PENDING_EXPLOITATION}</SelectItem>
+                    <SelectContent>
+                      <SelectItem value={ALL_FILTER_VALUE}>Tous les statuts</SelectItem>
+                      <SelectItem value={DEMANDE_STATUSES.PENDING_CHEF}>{DEMANDE_STATUSES.PENDING_CHEF}</SelectItem>
+                      <SelectItem value={DEMANDE_STATUSES.PENDING_REGIONAL}>{DEMANDE_STATUSES.PENDING_REGIONAL}</SelectItem>
+                      <SelectItem value={DEMANDE_STATUSES.PENDING_GENERAL}>{DEMANDE_STATUSES.PENDING_GENERAL}</SelectItem>
+                      <SelectItem value={DEMANDE_STATUSES.PENDING_EXPLOITATION}>{DEMANDE_STATUSES.PENDING_EXPLOITATION}</SelectItem>
                         <SelectItem value={DEMANDE_STATUSES.AUTHORIZED_FOR_PAYMENT}>{DEMANDE_STATUSES.AUTHORIZED_FOR_PAYMENT}</SelectItem>
                         <SelectItem value={DEMANDE_STATUSES.PAID}>{DEMANDE_STATUSES.PAID}</SelectItem>
                         <SelectItem value={DEMANDE_STATUSES.REJECTED}>{DEMANDE_STATUSES.REJECTED}</SelectItem>
@@ -1021,11 +1276,11 @@ const PaiementGrosGainPage = () => {
               <CardContent>
                 <Table>
                   <TableCaption>
-                    {agencyDemandes.length === 0
-                      ? 'Aucune demande d’autorisation n’est encore affectée à votre agence.'
+                    {historyDemandes.length === 0
+                      ? 'Aucune demande liée à votre agence n’est encore disponible.'
                       : filteredAgencyDemandes.length === 0
                         ? 'Aucune demande ne correspond aux filtres actuels.'
-                        : `${filteredAgencyDemandes.length} demande(s) affichée(s) sur ${agencyDemandes.length} pour votre agence.`}
+                        : `${filteredAgencyDemandes.length} demande(s) affichée(s) sur ${historyDemandes.length} liée(s) à votre agence.`}
                   </TableCaption>
                   <TableHeader>
                     <TableRow>
@@ -1054,10 +1309,10 @@ const PaiementGrosGainPage = () => {
                           {demande.prenomGagnant || '-'} {demande.nomGagnant || ''}
                         </TableCell>
                         <TableCell>{formatCurrency(demande.montantGain)}</TableCell>
-                        <TableCell>{getWorkflowStageLabel(demande.niveauValidationCourant)}</TableCell>
+                        <TableCell>{getWorkflowStageLabel(getEffectiveWorkflowStage(demande))}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={getStatusBadgeClass(demande.statutGlobal)}>
-                            {demande.statutGlobal}
+                          <Badge variant="outline" className={getStatusBadgeClass(getEffectiveDemandeStatus(demande))}>
+                            {getEffectiveDemandeStatus(demande)}
                           </Badge>
                         </TableCell>
                         <TableCell>{formatDisplayDateTime(demande.updated_at)}</TableCell>
@@ -1365,6 +1620,7 @@ const PaiementGrosGainPage = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={ALL_FILTER_VALUE}>Tous les statuts</SelectItem>
+                      <SelectItem value={DEMANDE_STATUSES.PENDING_CHEF}>{DEMANDE_STATUSES.PENDING_CHEF}</SelectItem>
                       <SelectItem value={DEMANDE_STATUSES.PENDING_REGIONAL}>{DEMANDE_STATUSES.PENDING_REGIONAL}</SelectItem>
                       <SelectItem value={DEMANDE_STATUSES.PENDING_GENERAL}>{DEMANDE_STATUSES.PENDING_GENERAL}</SelectItem>
                       <SelectItem value={DEMANDE_STATUSES.PENDING_EXPLOITATION}>{DEMANDE_STATUSES.PENDING_EXPLOITATION}</SelectItem>
@@ -1413,8 +1669,8 @@ const PaiementGrosGainPage = () => {
                       </TableCell>
                       <TableCell>{formatCurrency(demande.montantGain)}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={getStatusBadgeClass(demande.statutGlobal)}>
-                          {demande.statutGlobal}
+                        <Badge variant="outline" className={getStatusBadgeClass(getEffectiveDemandeStatus(demande))}>
+                          {getEffectiveDemandeStatus(demande)}
                         </Badge>
                       </TableCell>
                       <TableCell>{demande.agencePaiementNom || 'En attente'}</TableCell>
@@ -1437,6 +1693,47 @@ const PaiementGrosGainPage = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 {renderDemandeDetailsSections(selectedOwnDemande)}
+
+                {selectedOwnDemandeAwaitingChefDecision && (
+                  <Card className="shadow-sm">
+                    <CardHeader>
+                      <CardTitle className="text-lg text-primary">Validation du chef d’agence</CardTitle>
+                      <CardDescription>
+                        Cette demande attend votre validation avant transmission à l’étape suivante du workflow.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Commentaire de validation</Label>
+                        <Textarea
+                          rows={4}
+                          value={chefDecisionComment}
+                          onChange={(event) => setChefDecisionComment(event.target.value)}
+                          placeholder="Ajoutez un commentaire de validation ou de refus si nécessaire."
+                          disabled={isChefDecisionLoading}
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap gap-3">
+                        <Button
+                          onClick={() => handleChefDecision('approve')}
+                          disabled={isChefDecisionLoading}
+                          className="bg-green-600 text-white hover:bg-green-700"
+                        >
+                          {isChefDecisionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                          Valider et transmettre
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={() => handleChefDecision('reject')}
+                          disabled={isChefDecisionLoading}
+                        >
+                          Refuser la demande
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
                 <div className="space-y-3">
                   {selectedOwnDemandeEvents.length === 0 ? (
@@ -1625,8 +1922,8 @@ const PaiementGrosGainPage = () => {
                       <TableCell>{formatCurrency(demande.montantGain)}</TableCell>
                       <TableCell>{formatDisplayDateTime(demande.datePaiementFinal)}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={getStatusBadgeClass(demande.statutGlobal)}>
-                          {demande.statutGlobal}
+                        <Badge variant="outline" className={getStatusBadgeClass(getEffectiveDemandeStatus(demande))}>
+                          {getEffectiveDemandeStatus(demande)}
                         </Badge>
                       </TableCell>
                     </TableRow>

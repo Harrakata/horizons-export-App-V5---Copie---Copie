@@ -3,26 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   CheckCircle2,
+  ClipboardList,
   Clock3,
   FileText,
-  LogOut,
   Loader2,
-  Mail,
-  MapPin,
+  LogOut,
   Search,
   ShieldCheck,
-  UserCog,
+  Wrench,
   XCircle,
 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar.jsx';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+import RegionalMaintenanceSection from '@/components/directeur_regional/RegionalMaintenanceSection';
+import RegionalPointageSection from '@/components/directeur_regional/RegionalPointageSection';
 import { supabase } from '@/lib/supabaseClient';
 import {
   canValidatorHandleRequest,
@@ -30,6 +32,8 @@ import {
   formatCurrency,
   formatDisplayDate,
   formatDisplayDateTime,
+  getEffectiveDemandeStatus,
+  getEffectiveWorkflowStage,
   getStatusBadgeClass,
   getWorkflowStageLabel,
   isValidatorAssignedToDemande,
@@ -38,9 +42,37 @@ import {
 } from '@/lib/paiementGainUtils';
 import { buildFullName, recordPaiementGainEvent } from '@/lib/paiementGainService';
 
-const STORAGE_KEY = 'pmuValidationGainAuth';
+const SPACE_CONFIGS = {
+  regional: {
+    storageKey: 'pmuValidationGainAuth',
+    spaceTitle: 'Espace Directeur régional',
+    loginDescription: 'Connectez-vous avec le profil directeur régional créé dans l’espace Exploitation.',
+    expectedFunction: VALIDATOR_FUNCTIONS.REGIONAL,
+    fallbackInitials: 'DR',
+  },
+  general: {
+    storageKey: 'pmuDirecteurGeneralAuth',
+    spaceTitle: 'Espace Directeur général',
+    loginDescription: 'Connectez-vous avec le profil directeur général créé dans l’espace Exploitation.',
+    expectedFunction: VALIDATOR_FUNCTIONS.GENERAL,
+    fallbackInitials: 'DG',
+  },
+};
 
-const LoginPage = ({ onLogin }) => {
+const getStoredValidatorForSpace = (storageKey, expectedFunction) => {
+  try {
+    const storedAuth = JSON.parse(localStorage.getItem(storageKey) || '{}');
+    if (storedAuth?.userData?.fonction === expectedFunction) {
+      return storedAuth.userData;
+    }
+  } catch (error) {
+    console.error('Impossible de lire la session validateur :', error);
+  }
+
+  return null;
+};
+
+const LoginPage = ({ onLogin, spaceConfig }) => {
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -65,6 +97,7 @@ const LoginPage = ({ onLogin }) => {
       .select('*')
       .eq('email', email)
       .eq('motDePasse', password)
+      .eq('fonction', spaceConfig.expectedFunction)
       .eq('statut', 'Actif')
       .single();
 
@@ -97,11 +130,9 @@ const LoginPage = ({ onLogin }) => {
         <CardHeader>
           <CardTitle className="text-3xl font-bold text-center text-primary">
             <ShieldCheck className="mr-2 inline-block h-8 w-8 text-primary" />
-            Validation Paiement de Gain
+            {spaceConfig.spaceTitle}
           </CardTitle>
-          <CardDescription className="text-center">
-            Connectez-vous avec le profil validateur créé dans l’espace Exploitation.
-          </CardDescription>
+          <CardDescription className="text-center">{spaceConfig.loginDescription}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -150,11 +181,14 @@ const LoginPage = ({ onLogin }) => {
   );
 };
 
-const EspaceValidationPaiementGainPage = () => {
+const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const storedAuth = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-  const [validator, setValidator] = useState(storedAuth.userData || null);
+  const spaceConfig = SPACE_CONFIGS[spaceMode] || SPACE_CONFIGS.regional;
+  const [validator, setValidator] = useState(() =>
+    getStoredValidatorForSpace(spaceConfig.storageKey, spaceConfig.expectedFunction)
+  );
+  const [activeSection, setActiveSection] = useState('paiement');
   const [demandes, setDemandes] = useState([]);
   const [events, setEvents] = useState([]);
   const [selectedDemandeId, setSelectedDemandeId] = useState(null);
@@ -221,7 +255,6 @@ const EspaceValidationPaiementGainPage = () => {
 
   const assignedDemandes = useMemo(() => {
     if (!validator) return [];
-
     return demandes.filter((demande) => isValidatorAssignedToDemande(demande, validator));
   }, [demandes, validator]);
 
@@ -233,7 +266,7 @@ const EspaceValidationPaiementGainPage = () => {
           demande.nomGagnant,
           demande.prenomGagnant,
           demande.numeroTicketGagnant,
-          demande.statutGlobal,
+          getEffectiveDemandeStatus(demande),
           demande.agenceOrigineNom,
         ].some((value) => String(value ?? '').toLowerCase().includes(historySearchTerm.toLowerCase()))
       ),
@@ -274,20 +307,24 @@ const EspaceValidationPaiementGainPage = () => {
 
   const handledCount = useMemo(() => {
     if (!validator) return 0;
-
     return events.filter((event) => String(event.actorId ?? '') === String(validator.id)).length;
   }, [events, validator]);
 
+  const isRegionalProfile =
+    validator?.fonction === VALIDATOR_FUNCTIONS.REGIONAL && Boolean(validator?.regionAssignee);
+  const isGeneralProfile = validator?.fonction === VALIDATOR_FUNCTIONS.GENERAL;
+
   const handleLogin = (userData) => {
     setValidator(userData);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ isAuthenticated: true, userData }));
+    localStorage.setItem(spaceConfig.storageKey, JSON.stringify({ isAuthenticated: true, userData }));
   };
 
   const handleLogout = () => {
     setValidator(null);
     setDemandes([]);
     setEvents([]);
-    localStorage.removeItem(STORAGE_KEY);
+    setActiveSection('paiement');
+    localStorage.removeItem(spaceConfig.storageKey);
     navigate('/');
   };
 
@@ -299,18 +336,30 @@ const EspaceValidationPaiementGainPage = () => {
     const statusBefore = selectedDemande.statutGlobal;
     let nextStatus = DEMANDE_STATUSES.REJECTED;
     let nextStage = WORKFLOW_STAGES.DONE;
+    let nextStepLabel = 'workflow';
     const updates = {
       commentaireDerniereAction: actionComment.trim() || null,
     };
 
     if (decision === 'approve') {
-      nextStatus = DEMANDE_STATUSES.PENDING_EXPLOITATION;
-      nextStage = WORKFLOW_STAGES.EXPLOITATION;
-
       if (validator.fonction === VALIDATOR_FUNCTIONS.REGIONAL) {
         updates.dateValidationDirecteurRegional = new Date().toISOString();
+        const requiresGeneralValidation =
+          Number(selectedDemande.montantGain) >= 50000000 ||
+          String(selectedDemande.circuitValidation ?? '').includes(VALIDATOR_FUNCTIONS.GENERAL);
+
+        nextStatus = requiresGeneralValidation
+          ? DEMANDE_STATUSES.PENDING_GENERAL
+          : DEMANDE_STATUSES.PENDING_EXPLOITATION;
+        nextStage = requiresGeneralValidation
+          ? WORKFLOW_STAGES.GENERAL
+          : WORKFLOW_STAGES.EXPLOITATION;
+        nextStepLabel = requiresGeneralValidation ? 'directeur général' : 'Exploitation';
       } else {
         updates.dateValidationDirecteurGeneral = new Date().toISOString();
+        nextStatus = DEMANDE_STATUSES.PENDING_EXPLOITATION;
+        nextStage = WORKFLOW_STAGES.EXPLOITATION;
+        nextStepLabel = 'Exploitation';
       }
     }
 
@@ -351,7 +400,7 @@ const EspaceValidationPaiementGainPage = () => {
       title: decision === 'approve' ? 'Demande validée' : 'Demande refusée',
       description:
         decision === 'approve'
-          ? 'La demande a été transmise à l’Exploitation.'
+          ? `La demande a été transmise au ${nextStepLabel}.`
           : 'La demande a été refusée et clôturée.',
       className: decision === 'approve' ? 'bg-green-500 text-white' : 'bg-red-500 text-white',
     });
@@ -499,36 +548,19 @@ const EspaceValidationPaiementGainPage = () => {
     );
   };
 
-  if (!validator) {
-    return <LoginPage onLogin={handleLogin} />;
-  }
-
-  return (
+  const renderPaymentSection = () => (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="flex items-center text-3xl font-bold text-primary">
-            <ShieldCheck className="mr-3 h-7 w-7" />
-            Espace Validation Paiement de Gain
-          </h1>
-          <p className="text-muted-foreground">
+      <Card className="shadow-xl glassmorphism">
+        <CardHeader>
+          <CardTitle className="flex items-center text-3xl font-bold text-primary">
+            <ShieldCheck className="mr-3 h-8 w-8" />
+            {spaceConfig.spaceTitle}
+          </CardTitle>
+          <CardDescription>
             Validez les demandes d’autorisation de paiement selon votre niveau hiérarchique.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="rounded-xl border bg-background/70 px-4 py-3 text-sm shadow-sm">
-            <p className="font-semibold">
-              {validator.prenom} {validator.nom}
-            </p>
-            <p className="text-muted-foreground">{validator.fonction}</p>
-            <p className="text-muted-foreground">{validator.regionAssignee || 'Couverture nationale'}</p>
-          </div>
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Déconnexion
-          </Button>
-        </div>
-      </div>
+          </CardDescription>
+        </CardHeader>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="shadow-sm">
@@ -629,8 +661,8 @@ const EspaceValidationPaiementGainPage = () => {
                         <TableCell>{formatCurrency(demande.montantGain)}</TableCell>
                         <TableCell>{demande.agenceOrigineNom || 'N/A'}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={getStatusBadgeClass(demande.statutGlobal)}>
-                            {demande.statutGlobal}
+                          <Badge variant="outline" className={getStatusBadgeClass(getEffectiveDemandeStatus(demande))}>
+                            {getEffectiveDemandeStatus(demande)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -658,7 +690,7 @@ const EspaceValidationPaiementGainPage = () => {
               <CardHeader>
                 <CardTitle className="text-2xl text-primary">Détail de la demande {selectedDemande.codeDemande}</CardTitle>
                 <CardDescription>
-                  Étape en cours : {getWorkflowStageLabel(selectedDemande.niveauValidationCourant)}
+                  Étape en cours : {getWorkflowStageLabel(getEffectiveWorkflowStage(selectedDemande))}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -706,7 +738,7 @@ const EspaceValidationPaiementGainPage = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="history">
+        <TabsContent value="history" className="space-y-6">
           <Card className="shadow-xl glassmorphism">
             <CardHeader>
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -762,10 +794,10 @@ const EspaceValidationPaiementGainPage = () => {
                         {demande.prenomGagnant || '-'} {demande.nomGagnant || ''}
                       </TableCell>
                       <TableCell>{formatCurrency(demande.montantGain)}</TableCell>
-                      <TableCell>{getWorkflowStageLabel(demande.niveauValidationCourant)}</TableCell>
+                      <TableCell>{getWorkflowStageLabel(getEffectiveWorkflowStage(demande))}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={getStatusBadgeClass(demande.statutGlobal)}>
-                          {demande.statutGlobal}
+                        <Badge variant="outline" className={getStatusBadgeClass(getEffectiveDemandeStatus(demande))}>
+                          {getEffectiveDemandeStatus(demande)}
                         </Badge>
                       </TableCell>
                       <TableCell>{formatDisplayDateTime(demande.updated_at)}</TableCell>
@@ -781,7 +813,7 @@ const EspaceValidationPaiementGainPage = () => {
               <CardHeader>
                 <CardTitle className="text-2xl text-primary">Détail de la demande {selectedDemande.codeDemande}</CardTitle>
                 <CardDescription>
-                  Étape en cours : {getWorkflowStageLabel(selectedDemande.niveauValidationCourant)}
+                  Étape en cours : {getWorkflowStageLabel(getEffectiveWorkflowStage(selectedDemande))}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -798,6 +830,157 @@ const EspaceValidationPaiementGainPage = () => {
           )}
         </TabsContent>
       </Tabs>
+    </div>
+  );
+
+  const renderUnavailableRegionalSection = (title, description) => (
+    <Card className="shadow-xl glassmorphism">
+      <CardHeader>
+        <CardTitle className="text-2xl text-primary">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+    </Card>
+  );
+
+  const renderCurrentSection = () => {
+    if (activeSection === 'maintenance') {
+      if (spaceConfig.expectedFunction === VALIDATOR_FUNCTIONS.GENERAL) {
+        return <RegionalMaintenanceSection allowAllRegions viewerLabel="directeur général" />;
+      }
+
+      return isRegionalProfile ? (
+        <RegionalMaintenanceSection regionName={validator.regionAssignee} viewerLabel="directeur régional" />
+      ) : (
+        renderUnavailableRegionalSection(
+          'Maintenance des Terminaux',
+          'Cette vue est réservée aux directeurs régionaux disposant d’une région assignée.'
+        )
+      );
+    }
+
+    if (activeSection === 'pointage') {
+      if (spaceConfig.expectedFunction === VALIDATOR_FUNCTIONS.GENERAL) {
+        return <RegionalPointageSection allowAllRegions />;
+      }
+
+      return isRegionalProfile ? (
+        <RegionalPointageSection regionName={validator.regionAssignee} />
+      ) : (
+        renderUnavailableRegionalSection(
+          'Suivi Pointage',
+          'Cette vue est réservée aux directeurs régionaux disposant d’une région assignée.'
+        )
+      );
+    }
+
+    return renderPaymentSection();
+  };
+
+  if (!validator) {
+    return <LoginPage onLogin={handleLogin} spaceConfig={spaceConfig} />;
+  }
+
+  const menuItems = [
+    {
+      key: 'paiement',
+      label: 'Paiement de Gain',
+      icon: <ShieldCheck className="h-5 w-5" />,
+      disabled: false,
+    },
+    {
+      key: 'maintenance',
+      label: 'Maintenance Terminaux',
+      icon: <Wrench className="h-5 w-5" />,
+      disabled: spaceConfig.expectedFunction === VALIDATOR_FUNCTIONS.GENERAL ? !isGeneralProfile : !isRegionalProfile,
+    },
+    {
+      key: 'pointage',
+      label: 'Suivi Pointage',
+      icon: <ClipboardList className="h-5 w-5" />,
+      disabled: spaceConfig.expectedFunction === VALIDATOR_FUNCTIONS.GENERAL ? !isGeneralProfile : !isRegionalProfile,
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-8 md:flex-row">
+      <motion.aside
+        initial={{ x: -100, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="md:w-72"
+      >
+        <Card className="sticky top-20 shadow-lg glassmorphism">
+          <CardHeader>
+            <div className="flex items-center gap-4">
+              <Avatar className="h-14 w-14 border-2 border-primary/20">
+                <AvatarImage src={validator.photo_url || ''} alt={`${validator.prenom} ${validator.nom}`} />
+                <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                  {[validator.prenom?.[0], validator.nom?.[0]].filter(Boolean).join('') || spaceConfig.fallbackInitials}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <CardTitle className="text-xl text-primary">{spaceConfig.spaceTitle}</CardTitle>
+                <CardDescription className="text-sm">
+                  {validator.prenom} {validator.nom} <br />
+                  {validator.fonction} <br />
+                  {spaceConfig.expectedFunction === VALIDATOR_FUNCTIONS.GENERAL
+                    ? 'Périmètre : National'
+                    : `Région : ${validator.regionAssignee || 'Non assignée'}`}
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="flex h-full flex-col">
+            <nav className="flex flex-grow flex-col space-y-2">
+              {menuItems.map((item) => (
+                <Button
+                  key={item.key}
+                  type="button"
+                  variant={activeSection === item.key ? 'default' : 'ghost'}
+                  className={`justify-start py-3 text-base ${
+                    activeSection === item.key
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      : 'hover:bg-muted/50'
+                  } ${item.disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                  onClick={() => !item.disabled && setActiveSection(item.key)}
+                  disabled={item.disabled}
+                >
+                  {React.cloneElement(item.icon, { className: 'mr-3 h-5 w-5' })}
+                  {item.label}
+                </Button>
+              ))}
+            </nav>
+
+            {spaceConfig.expectedFunction === VALIDATOR_FUNCTIONS.REGIONAL && !isRegionalProfile && (
+              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                Les onglets Maintenance et Suivi Pointage sont disponibles uniquement pour un directeur régional avec région assignée.
+              </div>
+            )}
+
+            <div className="mt-auto pt-4">
+              <Button
+                variant="outline"
+                className="w-full justify-start py-3 text-base hover:bg-destructive/10 hover:text-destructive"
+                onClick={handleLogout}
+              >
+                <LogOut className="mr-3 h-5 w-5 text-red-500" />
+                Déconnexion
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.aside>
+
+      <main className="flex-1">
+        <motion.div
+          key={activeSection}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {renderCurrentSection()}
+        </motion.div>
+      </main>
     </div>
   );
 };

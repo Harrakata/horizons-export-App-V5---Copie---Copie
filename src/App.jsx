@@ -26,7 +26,6 @@ import EspaceMaintenancePage from '@/pages/EspaceMaintenancePage';
 import MesGuichetieresPage from '@/pages/chef_agence/MesGuichetieresPage';
 import MonPlanningPage from '@/pages/chef_agence/MonPlanningPage';
 import MaintenanceTerminauxPage from '@/pages/chef_agence/MaintenanceTerminauxPage';
-import MonPlanningMaintenancePage from '@/pages/chef_agence/MonPlanningMaintenancePage';
 import PointsVenteMobiChefPage from '@/pages/chef_agence/PointsVenteMobiChefPage';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -50,9 +49,11 @@ const App = () => {
             <Route path="/" element={<HomePage />} />
             <Route path="/pointage" element={<PointagePage />} />
             <Route path="/paiement-gros-gain" element={<PaiementGrosGainPage />} />
-            <Route path="/maintenance-terminaux" element={<EspaceMaintenancePage />} />
+            <Route path="/maintenance-terminaux" element={<Navigate to="/espace-technicien" replace />} />
+            <Route path="/espace-technicien" element={<EspaceMaintenancePage />} />
             <Route path="/validation-paiement-gain" element={<Navigate to="/espace-validation-paiement-gain" replace />} />
             <Route path="/espace-validation-paiement-gain" element={<EspaceValidationPaiementGainPage />} />
+            <Route path="/espace-directeur-general" element={<EspaceValidationPaiementGainPage spaceMode="general" />} />
             <Route path="/espace-paiement-gros-gain" element={<Navigate to="/paiement-gros-gain" replace />} />
             
             <Route path="/espace-exploitation" element={<EspaceExploitationPage />}>
@@ -79,7 +80,6 @@ const App = () => {
               <Route path="mes-guichetieres" element={<MesGuichetieresPage />} />
               <Route path="mon-planning" element={<MonPlanningPage />} />
               <Route path="maintenance-terminaux" element={<MaintenanceTerminauxPage />} />
-              <Route path="planning-maintenance" element={<MonPlanningMaintenancePage />} />
               <Route path="points-vente-mobi" element={<PointsVenteMobiChefPage />} />
               <Route path="paiement-gros-gain" element={<PaiementGrosGainPage />} />
             </Route>

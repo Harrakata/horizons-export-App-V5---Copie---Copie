@@ -8,8 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
+import ConfigurationTab from '@/pages/maintenance/ConfigurationTab';
+import MaintenancePlanningSection from '@/components/maintenance/MaintenancePlanningSection';
 import {
   buildTerminalMonitoringGroups,
   formatMaintenanceDateTime,
@@ -305,476 +308,506 @@ const MaintenanceTerminauxPage = () => {
             Maintenance Terminaux
           </CardTitle>
           <CardDescription>
-            Historique des interventions réalisées sur les terminaux de {agenceRecord?.nom || nomAgence}.
+            Suivez les terminaux de {agenceRecord?.nom || nomAgence}, leur état de maintenance et la planification des passages techniques.
           </CardDescription>
         </CardHeader>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <Activity className="h-8 w-8 text-primary" />
-            <div>
-              <p className="text-sm text-muted-foreground">Terminaux de l’agence</p>
-              <p className="text-2xl font-bold">{terminaux.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <Wrench className="h-8 w-8 text-blue-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Interventions enregistrées</p>
-              <p className="text-2xl font-bold">{interventions.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <CalendarClock className="h-8 w-8 text-green-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Interventions terminées</p>
-              <p className="text-2xl font-bold">{termineesCount}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <CalendarClock className="h-8 w-8 text-emerald-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Terminaux à jour</p>
-              <p className="text-2xl font-bold">{maintenanceUpToDateCount}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <Wrench className="h-8 w-8 text-red-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Terminaux à traiter</p>
-              <p className="text-2xl font-bold">{preventiveRequiredCount}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Tabs defaultValue="suivi" className="space-y-6">
+        <TabsList className="grid w-full max-w-3xl grid-cols-3">
+          <TabsTrigger value="configuration">Configuration des Terminaux</TabsTrigger>
+          <TabsTrigger value="suivi">Suivi des Terminaux</TabsTrigger>
+          <TabsTrigger value="planning">Planification de Maintenance</TabsTrigger>
+        </TabsList>
 
-      <Card className="shadow-xl glassmorphism">
-        <CardHeader className="space-y-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <CardTitle className="text-2xl text-primary">Suivi des terminaux et sous-ensembles</CardTitle>
-              <CardDescription>
-                Une maintenance preventive ou curative datant de moins d&apos;un mois place le terminal a jour sur le sous-ensemble concerné.
-              </CardDescription>
-            </div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Terminal</p>
-              <Select
-                value={filters.terminalId}
-                onValueChange={(value) => setFilters((previousState) => ({ ...previousState, terminalId: value }))}
-                disabled={isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Tous les terminaux" />
-                </SelectTrigger>
-                <SelectContent>
-                  {terminalOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <TabsContent value="configuration">
+          <ConfigurationTab
+            canManage
+            lockedAgenceId={agenceRecord?.id || null}
+            lockedAgenceName={agenceRecord?.nom || nomAgence}
+            showEquipmentManagement={false}
+          />
+        </TabsContent>
 
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Suivi maintenance</p>
-              <Select value={maintenanceFollowUpFilter} onValueChange={setMaintenanceFollowUpFilter} disabled={isLoading}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Tous les suivis" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_FILTER_VALUE}>Tous les suivis</SelectItem>
-                  <SelectItem value="a_jour">Maintenance à jour</SelectItem>
-                  <SelectItem value="preventive">Faire maintenance préventive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Recherche</p>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Terminal, sous-ensemble, reference..."
-                  className="pl-10"
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableCaption>
-              {filteredTerminalMonitoringGroups.length === 0
-                ? 'Aucun terminal ne correspond aux filtres.'
-                : `${filteredTerminalMonitoringGroups.length} terminal(aux) affiche(s).`}
-            </TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Terminal</TableHead>
-                <TableHead>Derniere maintenance</TableHead>
-                <TableHead>Suivi maintenance</TableHead>
-                <TableHead className="text-right">Détail</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredTerminalMonitoringGroups.map((group) => {
-                const isExpanded = Boolean(expandedTerminalIds[String(group.terminalId)]);
-
-                return (
-                  <React.Fragment key={group.terminalId}>
-                    <TableRow>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{group.terminalReference}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {group.terminalType} • {group.terminalPosition}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{formatMaintenanceDateTime(group.latestIntervention?.date_intervention)}</TableCell>
-                      <TableCell>
-                        <div className="space-y-2">
-                          <Badge variant="outline" className={group.followUp.className}>
-                            {group.followUp.label}
-                          </Badge>
-                          <p className="text-xs text-muted-foreground">{group.followUp.detail}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => toggleTerminalExpansion(group.terminalId)}
-                        >
-                          {isExpanded ? (
-                            <ChevronUp className="mr-2 h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="mr-2 h-4 w-4" />
-                          )}
-                          {isExpanded ? 'Masquer' : 'Voir sous-ensembles'}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-
-                    {isExpanded && (
-                      <TableRow className="bg-muted/20 hover:bg-muted/20">
-                        <TableCell colSpan={4} className="p-0">
-                          <div className="m-4 rounded-xl border bg-background/80 p-4 shadow-sm">
-                            <div className="mb-4 flex flex-col gap-1">
-                              <p className="font-semibold text-slate-900">
-                                Sous-ensembles du terminal {group.terminalReference}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                {group.sousEnsembles.length} sous-ensemble(s) suivi(s).
-                              </p>
-                            </div>
-
-                            <div className="overflow-hidden rounded-lg border">
-                              <table className="w-full text-sm">
-                                <thead className="bg-muted/40">
-                                  <tr>
-                                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                      Sous-ensemble
-                                    </th>
-                                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                      Référence
-                                    </th>
-                                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                      Dernière maintenance
-                                    </th>
-                                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                      Type recente
-                                    </th>
-                                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                      Suivi maintenance
-                                    </th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {group.sousEnsembles.map((row) => (
-                                    <tr
-                                      key={`${group.terminalId}-${row.sousEnsembleReference}`}
-                                      className="border-t bg-white"
-                                    >
-                                      <td className="px-4 py-3 font-medium">{row.sousEnsembleLabel}</td>
-                                      <td className="px-4 py-3">{row.sousEnsembleReference}</td>
-                                      <td className="px-4 py-3">
-                                        {formatMaintenanceDateTime(row.latestIntervention?.date_intervention)}
-                                      </td>
-                                      <td className="px-4 py-3">
-                                        {row.latestIntervention
-                                          ? getMaintenanceInterventionTypeLabel(row.latestIntervention.type_intervention)
-                                          : 'Aucune'}
-                                      </td>
-                                      <td className="px-4 py-3">
-                                        <div className="space-y-2">
-                                          <Badge variant="outline" className={row.followUp.className}>
-                                            {row.followUp.label}
-                                          </Badge>
-                                          <p className="text-xs text-muted-foreground">{row.followUp.detail}</p>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-xl glassmorphism">
-        <CardHeader className="space-y-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <CardTitle className="text-2xl text-primary">Historique des maintenances</CardTitle>
-              <CardDescription>
-                Filtrez l’historique par terminal, sous-ensemble, type d’intervention ou statut.
-              </CardDescription>
-            </div>
-            <div className="relative w-full lg:max-w-md">
-              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Rechercher une intervention ou un terminal..."
-                className="pl-10"
-                disabled={isLoading}
-              />
-            </div>
+        <TabsContent value="suivi" className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <Card className="shadow-sm">
+              <CardContent className="flex items-center gap-3 p-5">
+                <Activity className="h-8 w-8 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Terminaux de l’agence</p>
+                  <p className="text-2xl font-bold">{terminaux.length}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm">
+              <CardContent className="flex items-center gap-3 p-5">
+                <Wrench className="h-8 w-8 text-blue-600" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Interventions enregistrées</p>
+                  <p className="text-2xl font-bold">{interventions.length}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm">
+              <CardContent className="flex items-center gap-3 p-5">
+                <CalendarClock className="h-8 w-8 text-green-600" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Interventions terminées</p>
+                  <p className="text-2xl font-bold">{termineesCount}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm">
+              <CardContent className="flex items-center gap-3 p-5">
+                <CalendarClock className="h-8 w-8 text-emerald-600" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Terminaux à jour</p>
+                  <p className="text-2xl font-bold">{maintenanceUpToDateCount}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm">
+              <CardContent className="flex items-center gap-3 p-5">
+                <Wrench className="h-8 w-8 text-red-600" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Terminaux à traiter</p>
+                  <p className="text-2xl font-bold">{preventiveRequiredCount}</p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Terminal</p>
-              <Select
-                value={filters.terminalId}
-                onValueChange={(value) => setFilters((previousState) => ({ ...previousState, terminalId: value }))}
-                disabled={isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Tous les terminaux" />
-                </SelectTrigger>
-                <SelectContent>
-                  {terminalOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Sous-ensemble</p>
-              <Select
-                value={filters.sousEnsemble}
-                onValueChange={(value) => setFilters((previousState) => ({ ...previousState, sousEnsemble: value }))}
-                disabled={isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Tous les sous-ensembles" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sousEnsembleOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Type</p>
-              <Select
-                value={filters.type}
-                onValueChange={(value) => setFilters((previousState) => ({ ...previousState, type: value }))}
-                disabled={isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Tous les types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_FILTER_VALUE}>Tous les types</SelectItem>
-                  <SelectItem value="curative">Curative</SelectItem>
-                  <SelectItem value="preventive">Préventive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Statut</p>
-              <Select
-                value={filters.statut}
-                onValueChange={(value) => setFilters((previousState) => ({ ...previousState, statut: value }))}
-                disabled={isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Tous les statuts" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_FILTER_VALUE}>Tous les statuts</SelectItem>
-                  <SelectItem value="Terminée">Terminée</SelectItem>
-                  <SelectItem value="En cours">En cours</SelectItem>
-                  <SelectItem value="En attente">En attente</SelectItem>
-                  <SelectItem value="Annulée">Annulée</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          {isLoading && interventions.length === 0 ? (
-            <p className="py-8 text-center text-muted-foreground">Chargement de l’historique maintenance...</p>
-          ) : (
-            <Table>
-              <TableCaption>
-                {filteredInterventions.length === 0
-                  ? 'Aucune intervention trouvée pour les filtres actuels.'
-                  : `${filteredInterventions.length} intervention(s) affichée(s).`}
-              </TableCaption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Terminal</TableHead>
-                  <TableHead>Sous-ensemble</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Technicien</TableHead>
-                  <TableHead>Statut</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredInterventions.map((intervention, index) => (
-                  <motion.tr
-                    key={intervention.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.03 }}
-                    className={`cursor-pointer transition-colors hover:bg-primary/5 ${
-                      String(selectedInterventionId) === String(intervention.id) ? 'bg-primary/5' : ''
-                    }`}
-                    onClick={() => setSelectedInterventionId(intervention.id)}
-                  >
-                    <TableCell>{formatMaintenanceDateTime(intervention.date_intervention)}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{intervention.terminalReference}</span>
-                        <span className="text-xs text-muted-foreground">{intervention.terminalPosition}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{intervention.sous_ensemble || 'N/A'}</TableCell>
-                    <TableCell>{getMaintenanceInterventionTypeLabel(intervention.type_intervention)}</TableCell>
-                    <TableCell>{intervention.codeLabel}</TableCell>
-                    <TableCell>{intervention.technicienLabel}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={getMaintenanceInterventionStatusClass(intervention.statut)}>
-                        {intervention.statut}
-                      </Badge>
-                    </TableCell>
-                  </motion.tr>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      {selectedIntervention && (
-        <Card className="shadow-xl glassmorphism">
-          <CardHeader>
-            <CardTitle className="text-2xl text-primary">
-              Détail de l’intervention {selectedIntervention.terminalReference}
-            </CardTitle>
-            <CardDescription>
-              {getMaintenanceInterventionTypeLabel(selectedIntervention.type_intervention)} • {selectedIntervention.sous_ensemble || 'Sans sous-ensemble'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-xl border bg-background/70 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Date d’intervention</p>
-                <p className="mt-1 font-medium">{formatMaintenanceDateTime(selectedIntervention.date_intervention)}</p>
-              </div>
-              <div className="rounded-xl border bg-background/70 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Terminal</p>
-                <p className="mt-1 font-medium">{selectedIntervention.terminalReference}</p>
-              </div>
-              <div className="rounded-xl border bg-background/70 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Technicien</p>
-                <p className="mt-1 font-medium">{selectedIntervention.technicienLabel}</p>
-              </div>
-              <div className="rounded-xl border bg-background/70 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Statut</p>
-                <div className="mt-2">
-                  <Badge variant="outline" className={getMaintenanceInterventionStatusClass(selectedIntervention.statut)}>
-                    {selectedIntervention.statut}
-                  </Badge>
+          <Card className="shadow-xl glassmorphism">
+            <CardHeader className="space-y-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <CardTitle className="text-2xl text-primary">Suivi des terminaux et sous-ensembles</CardTitle>
+                  <CardDescription>
+                    Une maintenance preventive ou curative datant de moins d&apos;un mois place le terminal a jour sur le sous-ensemble concerné.
+                  </CardDescription>
                 </div>
               </div>
-            </div>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Terminal</p>
+                  <Select
+                    value={filters.terminalId}
+                    onValueChange={(value) => setFilters((previousState) => ({ ...previousState, terminalId: value }))}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Tous les terminaux" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {terminalOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-xl border bg-background/70 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Sous-ensemble</p>
-                <p className="mt-1 font-medium">{selectedIntervention.sous_ensemble || 'N/A'}</p>
-              </div>
-              <div className="rounded-xl border bg-background/70 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Code d’intervention</p>
-                <p className="mt-1 font-medium">{selectedIntervention.codeLabel}</p>
-              </div>
-              <div className="rounded-xl border bg-background/70 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Equipement remplacé</p>
-                <p className="mt-1 font-medium">{selectedIntervention.equipement_remplace ? 'Oui' : 'Non'}</p>
-              </div>
-              <div className="rounded-xl border bg-background/70 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Référence de remplacement</p>
-                <p className="mt-1 font-medium">{selectedIntervention.reference_remplacement || 'Aucune'}</p>
-              </div>
-            </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Suivi maintenance</p>
+                  <Select value={maintenanceFollowUpFilter} onValueChange={setMaintenanceFollowUpFilter} disabled={isLoading}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Tous les suivis" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_FILTER_VALUE}>Tous les suivis</SelectItem>
+                      <SelectItem value="a_jour">Maintenance à jour</SelectItem>
+                      <SelectItem value="preventive">Faire maintenance préventive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="rounded-xl border bg-background/70 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Commentaire technique</p>
-              <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
-                {selectedIntervention.commentaire || 'Aucun commentaire renseigné.'}
-              </p>
-            </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Recherche</p>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                      placeholder="Terminal, sous-ensemble, reference..."
+                      className="pl-10"
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableCaption>
+                  {filteredTerminalMonitoringGroups.length === 0
+                    ? 'Aucun terminal ne correspond aux filtres.'
+                    : `${filteredTerminalMonitoringGroups.length} terminal(aux) affiche(s).`}
+                </TableCaption>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Terminal</TableHead>
+                    <TableHead>Derniere maintenance</TableHead>
+                    <TableHead>Suivi maintenance</TableHead>
+                    <TableHead className="text-right">Détail</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTerminalMonitoringGroups.map((group) => {
+                    const isExpanded = Boolean(expandedTerminalIds[String(group.terminalId)]);
 
-            <div className="rounded-xl border bg-background/70 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Clôture</p>
-              <p className="mt-1 font-medium">{formatMaintenanceDateTime(selectedIntervention.date_fin)}</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                    return (
+                      <React.Fragment key={group.terminalId}>
+                        <TableRow>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{group.terminalReference}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {group.terminalType} • {group.terminalPosition}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{formatMaintenanceDateTime(group.latestIntervention?.date_intervention)}</TableCell>
+                          <TableCell>
+                            <div className="space-y-2">
+                              <Badge variant="outline" className={group.followUp.className}>
+                                {group.followUp.label}
+                              </Badge>
+                              <p className="text-xs text-muted-foreground">{group.followUp.detail}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => toggleTerminalExpansion(group.terminalId)}
+                            >
+                              {isExpanded ? (
+                                <ChevronUp className="mr-2 h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="mr-2 h-4 w-4" />
+                              )}
+                              {isExpanded ? 'Masquer' : 'Voir sous-ensembles'}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+
+                        {isExpanded && (
+                          <TableRow className="bg-muted/20 hover:bg-muted/20">
+                            <TableCell colSpan={4} className="p-0">
+                              <div className="m-4 rounded-xl border bg-background/80 p-4 shadow-sm">
+                                <div className="mb-4 flex flex-col gap-1">
+                                  <p className="font-semibold text-slate-900">
+                                    Sous-ensembles du terminal {group.terminalReference}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {group.sousEnsembles.length} sous-ensemble(s) suivi(s).
+                                  </p>
+                                </div>
+
+                                <div className="overflow-hidden rounded-lg border">
+                                  <table className="w-full text-sm">
+                                    <thead className="bg-muted/40">
+                                      <tr>
+                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                                          Sous-ensemble
+                                        </th>
+                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                                          Référence
+                                        </th>
+                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                                          Dernière maintenance
+                                        </th>
+                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                                          Type recente
+                                        </th>
+                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                                          Suivi maintenance
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {group.sousEnsembles.map((row) => (
+                                        <tr
+                                          key={`${group.terminalId}-${row.sousEnsembleReference}`}
+                                          className="border-t bg-white"
+                                        >
+                                          <td className="px-4 py-3 font-medium">{row.sousEnsembleLabel}</td>
+                                          <td className="px-4 py-3">{row.sousEnsembleReference}</td>
+                                          <td className="px-4 py-3">
+                                            {formatMaintenanceDateTime(row.latestIntervention?.date_intervention)}
+                                          </td>
+                                          <td className="px-4 py-3">
+                                            {row.latestIntervention
+                                              ? getMaintenanceInterventionTypeLabel(row.latestIntervention.type_intervention)
+                                              : 'Aucune'}
+                                          </td>
+                                          <td className="px-4 py-3">
+                                            <div className="space-y-2">
+                                              <Badge variant="outline" className={row.followUp.className}>
+                                                {row.followUp.label}
+                                              </Badge>
+                                              <p className="text-xs text-muted-foreground">{row.followUp.detail}</p>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-xl glassmorphism">
+            <CardHeader className="space-y-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <CardTitle className="text-2xl text-primary">Historique des maintenances</CardTitle>
+                  <CardDescription>
+                    Filtrez l’historique par terminal, sous-ensemble, type d’intervention ou statut.
+                  </CardDescription>
+                </div>
+                <div className="relative w-full lg:max-w-md">
+                  <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder="Rechercher une intervention ou un terminal..."
+                    className="pl-10"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Terminal</p>
+                  <Select
+                    value={filters.terminalId}
+                    onValueChange={(value) => setFilters((previousState) => ({ ...previousState, terminalId: value }))}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Tous les terminaux" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {terminalOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Sous-ensemble</p>
+                  <Select
+                    value={filters.sousEnsemble}
+                    onValueChange={(value) => setFilters((previousState) => ({ ...previousState, sousEnsemble: value }))}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Tous les sous-ensembles" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sousEnsembleOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Type</p>
+                  <Select
+                    value={filters.type}
+                    onValueChange={(value) => setFilters((previousState) => ({ ...previousState, type: value }))}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Tous les types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_FILTER_VALUE}>Tous les types</SelectItem>
+                      <SelectItem value="curative">Curative</SelectItem>
+                      <SelectItem value="preventive">Préventive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Statut</p>
+                  <Select
+                    value={filters.statut}
+                    onValueChange={(value) => setFilters((previousState) => ({ ...previousState, statut: value }))}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Tous les statuts" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_FILTER_VALUE}>Tous les statuts</SelectItem>
+                      <SelectItem value="Terminée">Terminée</SelectItem>
+                      <SelectItem value="En cours">En cours</SelectItem>
+                      <SelectItem value="En attente">En attente</SelectItem>
+                      <SelectItem value="Annulée">Annulée</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent>
+              {isLoading && interventions.length === 0 ? (
+                <p className="py-8 text-center text-muted-foreground">Chargement de l’historique maintenance...</p>
+              ) : (
+                <Table>
+                  <TableCaption>
+                    {filteredInterventions.length === 0
+                      ? 'Aucune intervention trouvée pour les filtres actuels.'
+                      : `${filteredInterventions.length} intervention(s) affichée(s).`}
+                  </TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Terminal</TableHead>
+                      <TableHead>Sous-ensemble</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Technicien</TableHead>
+                      <TableHead>Statut</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredInterventions.map((intervention, index) => (
+                      <motion.tr
+                        key={intervention.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.03 }}
+                        className={`cursor-pointer transition-colors hover:bg-primary/5 ${
+                          String(selectedInterventionId) === String(intervention.id) ? 'bg-primary/5' : ''
+                        }`}
+                        onClick={() => setSelectedInterventionId(intervention.id)}
+                      >
+                        <TableCell>{formatMaintenanceDateTime(intervention.date_intervention)}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{intervention.terminalReference}</span>
+                            <span className="text-xs text-muted-foreground">{intervention.terminalPosition}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{intervention.sous_ensemble || 'N/A'}</TableCell>
+                        <TableCell>{getMaintenanceInterventionTypeLabel(intervention.type_intervention)}</TableCell>
+                        <TableCell>{intervention.codeLabel}</TableCell>
+                        <TableCell>{intervention.technicienLabel}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={getMaintenanceInterventionStatusClass(intervention.statut)}>
+                            {intervention.statut}
+                          </Badge>
+                        </TableCell>
+                      </motion.tr>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          {selectedIntervention && (
+            <Card className="shadow-xl glassmorphism">
+              <CardHeader>
+                <CardTitle className="text-2xl text-primary">
+                  Détail de l’intervention {selectedIntervention.terminalReference}
+                </CardTitle>
+                <CardDescription>
+                  {getMaintenanceInterventionTypeLabel(selectedIntervention.type_intervention)} • {selectedIntervention.sous_ensemble || 'Sans sous-ensemble'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-xl border bg-background/70 p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Date d’intervention</p>
+                    <p className="mt-1 font-medium">{formatMaintenanceDateTime(selectedIntervention.date_intervention)}</p>
+                  </div>
+                  <div className="rounded-xl border bg-background/70 p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Terminal</p>
+                    <p className="mt-1 font-medium">{selectedIntervention.terminalReference}</p>
+                  </div>
+                  <div className="rounded-xl border bg-background/70 p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Technicien</p>
+                    <p className="mt-1 font-medium">{selectedIntervention.technicienLabel}</p>
+                  </div>
+                  <div className="rounded-xl border bg-background/70 p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Statut</p>
+                    <div className="mt-2">
+                      <Badge variant="outline" className={getMaintenanceInterventionStatusClass(selectedIntervention.statut)}>
+                        {selectedIntervention.statut}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="rounded-xl border bg-background/70 p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Sous-ensemble</p>
+                    <p className="mt-1 font-medium">{selectedIntervention.sous_ensemble || 'N/A'}</p>
+                  </div>
+                  <div className="rounded-xl border bg-background/70 p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Code d’intervention</p>
+                    <p className="mt-1 font-medium">{selectedIntervention.codeLabel}</p>
+                  </div>
+                  <div className="rounded-xl border bg-background/70 p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Equipement remplacé</p>
+                    <p className="mt-1 font-medium">{selectedIntervention.equipement_remplace ? 'Oui' : 'Non'}</p>
+                  </div>
+                  <div className="rounded-xl border bg-background/70 p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Référence de remplacement</p>
+                    <p className="mt-1 font-medium">{selectedIntervention.reference_remplacement || 'Aucune'}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border bg-background/70 p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Commentaire technique</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+                    {selectedIntervention.commentaire || 'Aucun commentaire renseigné.'}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border bg-background/70 p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Clôture</p>
+                  <p className="mt-1 font-medium">{formatMaintenanceDateTime(selectedIntervention.date_fin)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="planning">
+          <MaintenancePlanningSection
+            title={`Planification de Maintenance${agenceRecord?.nom ? ` - ${agenceRecord.nom}` : ''}`}
+            description="Planifiez les passages maintenance de votre agence, affectez les techniciens par matin et après-midi, puis suivez automatiquement les maintenances réellement effectuées."
+            canManage
+            lockedAgenceName={agenceRecord?.nom || nomAgence}
+            lockedRegion={agenceRecord?.region || ''}
+            emptyTitle="Aucune maintenance planifiée pour cette agence."
+          />
+        </TabsContent>
+      </Tabs>
     </motion.div>
   );
 };

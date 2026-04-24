@@ -4,12 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Wrench, Loader2, LogOut, Mail, Phone, BadgeCheck } from 'lucide-react';
+import { Wrench, Loader2, LogOut, CalendarClock } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
-import ConfigurationTab from '@/pages/maintenance/ConfigurationTab';
 import MaintenanceTab from '@/pages/maintenance/MaintenanceTab';
 import MaintenancePlanningSection from '@/components/maintenance/MaintenancePlanningSection';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -49,7 +47,7 @@ const LoginPage = ({ onLogin }) => {
       <Card className="w-full max-w-md shadow-2xl glassmorphism">
         <CardHeader>
           <CardTitle className="text-3xl font-bold text-center text-primary">
-            <Wrench className="inline-block h-8 w-8 mr-2 text-primary" />Maintenance Terminaux
+            <Wrench className="inline-block h-8 w-8 mr-2 text-primary" />Espace Technicien
           </CardTitle>
           <CardDescription className="text-center">Connectez-vous avec votre matricule.</CardDescription>
         </CardHeader>
@@ -78,6 +76,7 @@ const EspaceMaintenancePage = () => {
   const storedAuth = JSON.parse(localStorage.getItem('pmuTechnicienAuth') || '{}');
   const [isAuthenticated, setIsAuthenticated] = useState(storedAuth.isAuthenticated || false);
   const [userData, setUserData] = useState(storedAuth.userData || null);
+  const [activeSection, setActiveSection] = useState('maintenance');
 
   const handleLogin = (status, data) => {
     setIsAuthenticated(status);
@@ -95,80 +94,92 @@ const EspaceMaintenancePage = () => {
     return <LoginPage onLogin={handleLogin} />;
   }
 
+  const menuItems = [
+    { key: 'maintenance', label: 'Maintenance', icon: <Wrench className="h-5 w-5" /> },
+    { key: 'planning', label: 'Mon planning de Maintenance', icon: <CalendarClock className="h-5 w-5" /> },
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <Card className="flex-1 shadow-xl glassmorphism">
-          <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-8 md:flex-row">
+      <motion.aside
+        initial={{ x: -100, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="md:w-72"
+      >
+        <Card className="sticky top-20 shadow-lg glassmorphism">
+          <CardHeader>
             <div className="flex items-center gap-4">
-              <Avatar className="h-16 w-16 border-2 border-primary/20">
+              <Avatar className="h-14 w-14 border-2 border-primary/20">
                 {userData?.photo_url ? <AvatarImage src={userData.photo_url} alt={`${userData.prenom} ${userData.nom}`} /> : null}
                 <AvatarFallback className="bg-primary/10 text-primary font-medium">
                   {[userData?.prenom?.[0], userData?.nom?.[0]].filter(Boolean).join('') || 'TM'}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h1 className="text-2xl font-bold text-primary flex items-center">
-                  <Wrench className="h-6 w-6 mr-2" />
-                  Maintenance Terminaux
-                </h1>
-                <p className="text-base font-medium text-foreground">
-                  {userData?.prenom} {userData?.nom}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {userData?.matricule ? `Matricule ${userData.matricule}` : 'Technicien connecté'}
-                </p>
+                <CardTitle className="text-xl text-primary">Espace Technicien</CardTitle>
+                <CardDescription className="text-sm">
+                  {userData?.prenom} {userData?.nom} <br />
+                  Technicien de maintenance
+                </CardDescription>
               </div>
             </div>
+          </CardHeader>
+          <CardContent className="flex h-full flex-col">
+            <nav className="flex flex-grow flex-col space-y-2">
+              {menuItems.map((item) => (
+                <Button
+                  key={item.key}
+                  type="button"
+                  variant={activeSection === item.key ? 'default' : 'ghost'}
+                  className={`justify-start py-3 text-base ${
+                    activeSection === item.key
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      : 'hover:bg-muted/50'
+                  }`}
+                  onClick={() => setActiveSection(item.key)}
+                >
+                  {React.cloneElement(item.icon, { className: 'mr-3 h-5 w-5' })}
+                  {item.label}
+                </Button>
+              ))}
+            </nav>
 
-            <div className="grid gap-2 text-sm text-muted-foreground md:min-w-[260px]">
-              {userData?.email && (
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-primary" />
-                  <span>{userData.email}</span>
-                </div>
-              )}
-              {userData?.telephone && (
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-primary" />
-                  <span>{userData.telephone}</span>
-                </div>
-              )}
-              {userData?.matricule && (
-                <div className="flex items-center gap-2">
-                  <BadgeCheck className="h-4 w-4 text-primary" />
-                  <span>{userData.matricule}</span>
-                </div>
-              )}
+            <div className="mt-auto pt-4">
+              <Button
+                variant="outline"
+                onClick={handleLogout}
+                className="w-full justify-start py-3 text-base hover:bg-destructive/10 hover:text-destructive"
+              >
+                <LogOut className="mr-3 h-5 w-5 text-red-500" />
+                Déconnexion
+              </Button>
             </div>
           </CardContent>
         </Card>
+      </motion.aside>
 
-        <Button variant="outline" onClick={handleLogout} className="flex items-center self-start">
-          <LogOut className="h-4 w-4 mr-2" />Déconnexion
-        </Button>
-      </div>
-      <Tabs defaultValue="config">
-        <TabsList className="grid w-full max-w-2xl grid-cols-3">
-          <TabsTrigger value="config">Configuration</TabsTrigger>
-          <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
-          <TabsTrigger value="planning">Mon planning de Maintenance</TabsTrigger>
-        </TabsList>
-        <TabsContent value="config">
-          <ConfigurationTab />
-        </TabsContent>
-        <TabsContent value="maintenance">
-          <MaintenanceTab technicien={userData} />
-        </TabsContent>
-        <TabsContent value="planning">
-          <MaintenancePlanningSection
-            title="Mon planning de Maintenance"
-            description="Consultez les maintenances qui vous sont assignées, leur créneau et le suivi automatique des interventions enregistrées."
-            lockedTechnicienId={userData?.id}
-            canManage={false}
-          />
-        </TabsContent>
-      </Tabs>
+      <main className="flex-1">
+        <motion.div
+          key={activeSection}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {activeSection === 'planning' ? (
+            <MaintenancePlanningSection
+              title="Mon planning de Maintenance"
+              description="Consultez les maintenances qui vous sont assignées, leur créneau et le suivi automatique des interventions enregistrées."
+              lockedTechnicienId={userData?.id}
+              canManage={false}
+              readOnlyMessage="Le planning vous est affiché en consultation. Les affectations sont créées depuis l’Exploitation ou par le chef d’agence."
+              emptyTitle="Aucune maintenance ne vous est actuellement assignée."
+            />
+          ) : (
+            <MaintenanceTab technicien={userData} />
+          )}
+        </motion.div>
+      </main>
     </div>
   );
 };

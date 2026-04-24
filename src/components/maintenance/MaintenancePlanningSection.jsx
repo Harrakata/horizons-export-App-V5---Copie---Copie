@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CalendarClock, CheckCircle2, ClipboardList, Pencil, Search, ShieldAlert, TimerReset, Wrench } from 'lucide-react';
+import { addMonths, addWeeks, endOfMonth, endOfWeek, eachDayOfInterval, format, getDay, isSameDay, isSameMonth, parseISO, startOfMonth, startOfWeek, subMonths, subWeeks } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Copy, Pencil, PlusCircle, Search, ShieldAlert, TimerReset, Wrench } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,12 +14,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
@@ -78,6 +78,8 @@ const MaintenancePlanningSection = ({
   const [currentPlanning, setCurrentPlanning] = useState(null);
   const [selectedPlanningId, setSelectedPlanningId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState('month');
   const [formData, setFormData] = useState(
     buildDefaultFormData({
       lockedAgency: null,
@@ -301,6 +303,40 @@ const MaintenancePlanningSection = ({
 
   const planningStats = useMemo(() => getMaintenancePlanningStats(filteredRows), [filteredRows]);
 
+  const calendarDays = useMemo(() => {
+    const start = viewMode === 'month'
+      ? startOfMonth(currentCalendarDate)
+      : startOfWeek(currentCalendarDate, { weekStartsOn: 1 });
+    const end = viewMode === 'month'
+      ? endOfMonth(currentCalendarDate)
+      : endOfWeek(currentCalendarDate, { weekStartsOn: 1 });
+
+    return eachDayOfInterval({ start, end });
+  }, [currentCalendarDate, viewMode]);
+
+  const colStartClass = useMemo(() => {
+    const firstDayOfMonth = startOfMonth(currentCalendarDate);
+    const firstDayOfWeek = getDay(firstDayOfMonth);
+    const adjustedFirstDayOfWeek = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
+    const classes = ['col-start-1', 'col-start-2', 'col-start-3', 'col-start-4', 'col-start-5', 'col-start-6', 'col-start-7'];
+    return classes[adjustedFirstDayOfWeek];
+  }, [currentCalendarDate]);
+
+  const filteredRowsByDate = useMemo(
+    () =>
+      filteredRows.reduce((accumulator, row) => {
+        const dateKey = extractMaintenancePlanningDateKey(row.date_planification);
+        if (!accumulator[dateKey]) accumulator[dateKey] = [];
+        accumulator[dateKey].push(row);
+        accumulator[dateKey].sort((firstRow, secondRow) => {
+          if (firstRow.creneau !== secondRow.creneau) return firstRow.creneau === 'matin' ? -1 : 1;
+          return firstRow.technicienNom.localeCompare(secondRow.technicienNom, 'fr');
+        });
+        return accumulator;
+      }, {}),
+    [filteredRows]
+  );
+
   const technicienOptions = useMemo(
     () => [
       { value: ALL_FILTER_VALUE, label: 'Tous les techniciens' },
@@ -341,6 +377,15 @@ const MaintenancePlanningSection = ({
     setIsDialogOpen(true);
   };
 
+  const openCreateDialogForDate = (date) => {
+    resetDialogState();
+    setFormData((previousState) => ({
+      ...previousState,
+      date_planification: extractMaintenancePlanningDateKey(date),
+    }));
+    setIsDialogOpen(true);
+  };
+
   const handleSubmit = async () => {
     if (!canManage) {
       toast({ title: 'Lecture seule', description: 'La planification est en lecture seule sur cet écran.', variant: 'destructive' });
@@ -364,9 +409,9 @@ const MaintenancePlanningSection = ({
       date_planification: formData.date_planification,
       creneau: formData.creneau,
       region: selectedAgency.region || formData.region || null,
-      agence_id: Number(formData.agenceId),
+      agence_id: formData.agenceId || null,
       agence_nom: selectedAgency.nom,
-      technicien_id: Number(formData.technicienId),
+      technicien_id: formData.technicienId || null,
       technicien_label: `${selectedTechnicien.prenom} ${selectedTechnicien.nom}`.trim(),
       technicien_matricule: selectedTechnicien.matricule || null,
       notes: formData.notes.trim() || null,
@@ -428,6 +473,110 @@ const MaintenancePlanningSection = ({
     setIsLoading(false);
   };
 
+  const handlePrev = () => {
+    setCurrentCalendarDate((previousDate) =>
+      viewMode === 'month' ? subMonths(previousDate, 1) : subWeeks(previousDate, 1)
+    );
+  };
+
+  const handleNext = () => {
+    setCurrentCalendarDate((previousDate) =>
+      viewMode === 'month' ? addMonths(previousDate, 1) : addWeeks(previousDate, 1)
+    );
+  };
+
+  const handleToday = () => {
+    setCurrentCalendarDate(new Date());
+  };
+
+  const handleCopyPrevious = async (period) => {
+    if (!canManage) return;
+
+    const sourceStart = period === 'month'
+      ? startOfMonth(subMonths(currentCalendarDate, 1))
+      : startOfWeek(subWeeks(currentCalendarDate, 1), { weekStartsOn: 1 });
+    const sourceEnd = period === 'month'
+      ? endOfMonth(subMonths(currentCalendarDate, 1))
+      : endOfWeek(subWeeks(currentCalendarDate, 1), { weekStartsOn: 1 });
+    const targetStart = period === 'month'
+      ? startOfMonth(currentCalendarDate)
+      : startOfWeek(currentCalendarDate, { weekStartsOn: 1 });
+
+    const sourceRows = filteredRows.filter((row) => {
+      const planningDate = parseISO(extractMaintenancePlanningDateKey(row.date_planification));
+      return planningDate >= sourceStart && planningDate <= sourceEnd && row.executionStatus !== 'annulee';
+    });
+
+    if (sourceRows.length === 0) {
+      toast({
+        title: 'Copie impossible',
+        description: `Aucune planification trouvée pour ${period === 'month' ? 'le mois' : 'la semaine'} précédent(e).`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const pendingEntries = [];
+
+    sourceRows.forEach((row) => {
+      const sourceDate = parseISO(extractMaintenancePlanningDateKey(row.date_planification));
+      const targetDate = new Date(targetStart);
+      const dayOffset = Math.round((sourceDate.getTime() - sourceStart.getTime()) / (1000 * 60 * 60 * 24));
+      targetDate.setDate(targetStart.getDate() + dayOffset);
+
+      if (period === 'month' && !isSameMonth(targetDate, currentCalendarDate)) return;
+
+      const payload = {
+        date_planification: extractMaintenancePlanningDateKey(targetDate),
+        creneau: row.creneau,
+        region: row.regionNom || null,
+        agence_id: row.agence_id || null,
+        agence_nom: row.agenceNom,
+        technicien_id: row.technicien_id || null,
+        technicien_label: row.technicienNom,
+        technicien_matricule: row.technicienMatricule || null,
+        notes: row.notes || null,
+        statut: 'planifiee',
+      };
+
+      const conflictMessage = checkMaintenancePlanningConflicts(
+        [
+          ...planningEntries,
+          ...pendingEntries.map((entry, index) => ({ ...entry, id: `pending-${index}` })),
+        ],
+        payload
+      );
+
+      if (!conflictMessage) {
+        pendingEntries.push(payload);
+      }
+    });
+
+    if (pendingEntries.length === 0) {
+      toast({
+        title: 'Copie non effectuée',
+        description: 'Tous les créneaux étaient déjà pris ou entraient en conflit.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    const { error } = await supabase.from('planning_maintenance').insert(pendingEntries);
+
+    if (error) {
+      toast({ title: 'Erreur de copie', description: error.message, variant: 'destructive' });
+    } else {
+      toast({
+        title: 'Planning copié',
+        description: `${pendingEntries.length} créneau(x) ont été copiés depuis ${period === 'month' ? 'le mois' : 'la semaine'} précédent(e).`,
+        className: 'bg-green-500 text-white',
+      });
+      loadData();
+    }
+    setIsLoading(false);
+  };
+
   const showRegionColumn = !resolvedLockedAgency && !lockedRegion;
   const showAgenceColumn = !resolvedLockedAgency;
   const showTechnicienColumn = !lockedTechnicienId;
@@ -444,166 +593,24 @@ const MaintenancePlanningSection = ({
               </CardTitle>
               <CardDescription>{description}</CardDescription>
             </div>
-            {canManage && (
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    type="button"
-                    className="bg-gradient-to-r from-primary to-green-600 text-white hover:from-primary/90 hover:to-green-600/90"
-                    onClick={() => openDialog()}
-                    disabled={isLoading}
-                  >
-                    <CalendarClock className="mr-2 h-4 w-4" />
-                    Planifier une maintenance
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-2xl glassmorphism">
-                  <DialogHeader>
-                    <DialogTitle className="text-2xl text-primary">
-                      {currentPlanning ? 'Modifier le planning maintenance' : 'Nouvelle planification maintenance'}
-                    </DialogTitle>
-                    <DialogDescription>
-                      Un même technicien ne peut pas être programmé sur deux agences au même créneau.
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <div className="grid gap-4 py-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="planning-date">Date</Label>
-                      <Input
-                        id="planning-date"
-                        type="date"
-                        value={formData.date_planification}
-                        onChange={(event) => setFormData((previousState) => ({ ...previousState, date_planification: event.target.value }))}
-                        disabled={isLoading}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Créneau</Label>
-                      <Select
-                        value={formData.creneau}
-                        onValueChange={(value) => setFormData((previousState) => ({ ...previousState, creneau: value }))}
-                        disabled={isLoading}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner un créneau" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {MAINTENANCE_SHIFT_OPTIONS.map((shift) => (
-                            <SelectItem key={shift.value} value={shift.value}>
-                              {shift.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {!resolvedLockedAgency && !lockedRegion && (
-                      <div className="space-y-2">
-                        <Label>Région</Label>
-                        <Select
-                          value={formData.region}
-                          onValueChange={(value) =>
-                            setFormData((previousState) => ({
-                              ...previousState,
-                              region: value,
-                              agenceId: '',
-                            }))
-                          }
-                          disabled={isLoading}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner une région" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {buildRegionOptions(regions).map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      <Label>Agence</Label>
-                      <Select
-                        value={formData.agenceId}
-                        onValueChange={(value) =>
-                          setFormData((previousState) => ({
-                            ...previousState,
-                            agenceId: value,
-                            region: agencesById[String(value)]?.region || previousState.region,
-                          }))
-                        }
-                        disabled={isLoading || Boolean(resolvedLockedAgency)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner une agence" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {filteredAgencesForDialog.map((agence) => (
-                            <SelectItem key={agence.id} value={String(agence.id)}>
-                              {agence.nom}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2 md:col-span-2">
-                      <Label>Technicien</Label>
-                      <Select
-                        value={formData.technicienId}
-                        onValueChange={(value) => setFormData((previousState) => ({ ...previousState, technicienId: value }))}
-                        disabled={isLoading || Boolean(lockedTechnicienId)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner un technicien" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {techniciens.map((technicien) => (
-                            <SelectItem key={technicien.id} value={String(technicien.id)}>
-                              {technicien.prenom} {technicien.nom}
-                              {technicien.matricule ? ` • ${technicien.matricule}` : ''}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="planning-notes">Notes</Label>
-                      <Textarea
-                        id="planning-notes"
-                        value={formData.notes}
-                        onChange={(event) => setFormData((previousState) => ({ ...previousState, notes: event.target.value }))}
-                        placeholder="Consignes, objectif de la visite, terminaux à prioriser..."
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
-
-                  <DialogFooter>
-                    <DialogClose asChild>
-                      <Button variant="outline" onClick={() => resetDialogState()} disabled={isLoading}>
-                        Annuler
-                      </Button>
-                    </DialogClose>
-                    <Button
-                      type="button"
-                      onClick={handleSubmit}
-                      className="bg-primary hover:bg-primary/90"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? 'Enregistrement...' : currentPlanning ? 'Sauvegarder' : 'Planifier'}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
+            <div className="flex gap-2 self-start sm:self-center">
+              <Button
+                size="sm"
+                variant={viewMode === 'month' ? 'default' : 'outline'}
+                onClick={() => setViewMode('month')}
+                disabled={isLoading}
+              >
+                Mois
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === 'week' ? 'default' : 'outline'}
+                onClick={() => setViewMode('week')}
+                disabled={isLoading}
+              >
+                Semaine
+              </Button>
+            </div>
           </div>
 
           {!canManage && readOnlyMessage && (
@@ -649,6 +656,36 @@ const MaintenancePlanningSection = ({
                 </div>
               </CardContent>
             </Card>
+          </div>
+
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="icon" onClick={handlePrev} disabled={isLoading}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <h2 className="text-lg font-semibold text-foreground whitespace-nowrap">
+                {format(currentCalendarDate, viewMode === 'month' ? 'MMMM yyyy' : "'Semaine du' dd MMMM", { locale: fr })}
+              </h2>
+              <Button variant="outline" size="icon" onClick={handleNext} disabled={isLoading}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleToday} disabled={isLoading}>
+                Aujourd&apos;hui
+              </Button>
+            </div>
+
+            {canManage && (
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={() => handleCopyPrevious('week')} disabled={isLoading}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copier Sem.
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => handleCopyPrevious('month')} disabled={isLoading}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copier Mois
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -783,88 +820,272 @@ const MaintenancePlanningSection = ({
         </CardHeader>
 
         <CardContent>
-          <Table>
-            <TableCaption>
-              {filteredRows.length === 0
-                ? emptyTitle
-                : `${filteredRows.length} planification(s) maintenance affichée(s).`}
-            </TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Créneau</TableHead>
-                {showRegionColumn && <TableHead>Région</TableHead>}
-                {showAgenceColumn && <TableHead>Agence</TableHead>}
-                {showTechnicienColumn && <TableHead>Technicien</TableHead>}
-                <TableHead>Suivi</TableHead>
-                <TableHead>Interventions</TableHead>
-                {canManage && <TableHead className="text-right">Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredRows.map((row, index) => (
-                <motion.tr
-                  key={row.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.02 }}
-                  className={`cursor-pointer transition-colors hover:bg-primary/5 ${
-                    String(selectedPlanningId) === String(row.id) ? 'bg-primary/5' : ''
-                  }`}
-                  onClick={() => setSelectedPlanningId(row.id)}
-                >
-                  <TableCell>{formatMaintenancePlanningDate(row.date_planification)}</TableCell>
-                  <TableCell>{row.creneauLabel}</TableCell>
-                  {showRegionColumn && <TableCell>{row.regionNom}</TableCell>}
-                  {showAgenceColumn && <TableCell>{row.agenceNom}</TableCell>}
-                  {showTechnicienColumn && (
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{row.technicienNom}</span>
-                        {row.technicienMatricule && (
-                          <span className="text-xs text-muted-foreground">{row.technicienMatricule}</span>
+          {isLoading && filteredRows.length === 0 ? (
+            <p className="py-8 text-center text-muted-foreground">Chargement du planning maintenance...</p>
+          ) : (
+            <div className="overflow-hidden rounded-lg border bg-border">
+              <div className="grid grid-cols-7 gap-px">
+                {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((dayName) => (
+                  <div key={dayName} className="bg-card py-2 text-center text-sm font-medium text-muted-foreground">
+                    {dayName}
+                  </div>
+                ))}
+
+                {calendarDays.map((day, dayIndex) => {
+                  const dateKey = extractMaintenancePlanningDateKey(day);
+                  const dayRows = filteredRowsByDate[dateKey] || [];
+                  const isCurrentMonthDay = viewMode === 'month' ? isSameMonth(day, currentCalendarDate) : true;
+                  const isToday = isSameDay(day, new Date());
+
+                  return (
+                    <div
+                      key={dateKey}
+                      className={`relative min-h-[120px] bg-card p-2 ${
+                        viewMode === 'month' && dayIndex === 0 ? colStartClass : ''
+                      } ${!isCurrentMonthDay ? 'bg-muted/30 text-muted-foreground/50' : ''} ${isToday ? 'ring-2 ring-primary z-10' : ''}`}
+                    >
+                      <time dateTime={dateKey} className={`text-sm font-semibold ${isToday ? 'text-primary' : 'text-foreground'}`}>
+                        {format(day, 'd')}
+                        {viewMode === 'week' && (
+                          <span className="block text-xs font-normal text-muted-foreground">
+                            {format(day, 'EEE', { locale: fr })}
+                          </span>
                         )}
-                      </div>
-                    </TableCell>
-                  )}
-                  <TableCell>
-                    <Badge variant="outline" className={row.executionMeta.className}>
-                      {row.executionMeta.label}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{row.matchedInterventions.length}</TableCell>
-                  {canManage && (
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button type="button" variant="ghost" size="icon" onClick={(event) => {
-                          event.stopPropagation();
-                          openDialog(row);
-                        }} disabled={isLoading}>
-                          <Pencil className="h-4 w-4 text-blue-500" />
-                        </Button>
-                        {row.executionStatus !== 'annulee' && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleCancelPlanning(row.id);
+                      </time>
+
+                      <div className="mt-2 space-y-1">
+                        {dayRows.map((row) => (
+                          <motion.div
+                            key={row.id}
+                            initial={{ opacity: 0, y: -6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setSelectedPlanningId(row.id)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                setSelectedPlanningId(row.id);
+                              }
                             }}
-                            disabled={isLoading}
+                            className={`w-full rounded-md border px-2 py-1 text-left text-[11px] transition ${
+                              String(selectedPlanningId) === String(row.id)
+                                ? 'border-primary bg-primary/10'
+                                : 'border-transparent bg-emerald-50 hover:border-primary/30 hover:bg-primary/5'
+                            }`}
                           >
-                            <ShieldAlert className="h-4 w-4 text-red-500" />
-                          </Button>
-                        )}
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="truncate font-medium text-slate-900">
+                                {showAgenceColumn ? row.agenceNom : row.technicienNom}
+                              </span>
+                              {canManage && (
+                                <button
+                                  type="button"
+                                  className="shrink-0 text-blue-500 hover:text-blue-700"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    openDialog(row);
+                                  }}
+                                  disabled={isLoading}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
+                            <p className="truncate text-[10px] text-muted-foreground">
+                              {row.creneauLabel} • {showTechnicienColumn ? row.technicienNom : row.agenceNom}
+                            </p>
+                          </motion.div>
+                        ))}
                       </div>
-                    </TableCell>
-                  )}
-                </motion.tr>
-              ))}
-            </TableBody>
-          </Table>
+
+                      {isCurrentMonthDay && canManage && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute bottom-1 right-1 h-7 w-7 text-primary hover:bg-primary/10"
+                          onClick={() => openCreateDialogForDate(day)}
+                          disabled={isLoading}
+                        >
+                          <PlusCircle className="h-5 w-5" />
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {!isLoading && filteredRows.length === 0 && (
+            <p className="pt-4 text-center text-sm text-muted-foreground">{emptyTitle}</p>
+          )}
         </CardContent>
       </Card>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-2xl glassmorphism">
+          <DialogHeader>
+            <DialogTitle className="text-2xl text-primary">
+              {currentPlanning ? 'Modifier le planning maintenance' : 'Nouvelle planification maintenance'}
+            </DialogTitle>
+            <DialogDescription>
+              Un même technicien ne peut pas être programmé sur deux agences au même créneau.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="planning-date">Date</Label>
+              <Input
+                id="planning-date"
+                type="date"
+                value={formData.date_planification}
+                onChange={(event) => setFormData((previousState) => ({ ...previousState, date_planification: event.target.value }))}
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Créneau</Label>
+              <Select
+                value={formData.creneau}
+                onValueChange={(value) => setFormData((previousState) => ({ ...previousState, creneau: value }))}
+                disabled={isLoading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un créneau" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MAINTENANCE_SHIFT_OPTIONS.map((shift) => (
+                    <SelectItem key={shift.value} value={shift.value}>
+                      {shift.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {!resolvedLockedAgency && !lockedRegion && (
+              <div className="space-y-2">
+                <Label>Région</Label>
+                <Select
+                  value={formData.region}
+                  onValueChange={(value) =>
+                    setFormData((previousState) => ({
+                      ...previousState,
+                      region: value,
+                      agenceId: '',
+                    }))
+                  }
+                  disabled={isLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner une région" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {buildRegionOptions(regions).map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Agence</Label>
+              <Select
+                value={formData.agenceId}
+                onValueChange={(value) =>
+                  setFormData((previousState) => ({
+                    ...previousState,
+                    agenceId: value,
+                    region: agencesById[String(value)]?.region || previousState.region,
+                  }))
+                }
+                disabled={isLoading || Boolean(resolvedLockedAgency)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une agence" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredAgencesForDialog.map((agence) => (
+                    <SelectItem key={agence.id} value={String(agence.id)}>
+                      {agence.nom}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label>Technicien</Label>
+              <Select
+                value={formData.technicienId}
+                onValueChange={(value) => setFormData((previousState) => ({ ...previousState, technicienId: value }))}
+                disabled={isLoading || Boolean(lockedTechnicienId)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un technicien" />
+                </SelectTrigger>
+                <SelectContent>
+                  {techniciens.map((technicien) => (
+                    <SelectItem key={technicien.id} value={String(technicien.id)}>
+                      {technicien.prenom} {technicien.nom}
+                      {technicien.matricule ? ` • ${technicien.matricule}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="planning-notes">Notes</Label>
+              <Textarea
+                id="planning-notes"
+                value={formData.notes}
+                onChange={(event) => setFormData((previousState) => ({ ...previousState, notes: event.target.value }))}
+                placeholder="Consignes, objectif de la visite, terminaux à prioriser..."
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+            <div>
+              {canManage && currentPlanning && currentPlanning.executionStatus !== 'annulee' && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => handleCancelPlanning(currentPlanning.id)}
+                  disabled={isLoading}
+                >
+                  <ShieldAlert className="mr-2 h-4 w-4" />
+                  Annuler le créneau
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <DialogClose asChild>
+                <Button variant="outline" onClick={() => resetDialogState()} disabled={isLoading}>
+                  Annuler
+                </Button>
+              </DialogClose>
+              <Button
+                type="button"
+                onClick={handleSubmit}
+                className="bg-primary hover:bg-primary/90"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Enregistrement...' : currentPlanning ? 'Sauvegarder' : 'Planifier'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {selectedPlanning && (
         <Card className="shadow-xl glassmorphism">
