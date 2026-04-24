@@ -243,6 +243,7 @@ export const buildWorkflowApprovalsLabel = (config) => {
 };
 
 export const buildProcedureFromWorkflowConfig = (config) => {
+  const rangeLabel = buildWorkflowRangeLabel(config);
   let initialStage = WORKFLOW_STAGES.EXPLOITATION;
   let initialStatus = DEMANDE_STATUSES.PENDING_EXPLOITATION;
 
@@ -256,7 +257,8 @@ export const buildProcedureFromWorkflowConfig = (config) => {
 
   return {
     workflowCode: config.codeWorkflow,
-    trancheLabel: config.libelle,
+    workflowLabel: config.libelle,
+    trancheLabel: rangeLabel,
     description: config.description || buildAutoDescription(config),
     modePaiement: config.modePaiement,
     lieuPaiement: config.lieuPaiement,
@@ -283,7 +285,21 @@ export const resolveProcedureForAmount = (amount, workflowConfigs = DEFAULT_PAIE
     (config.montantMax === null || numericAmount < Number(config.montantMax))
   ));
 
-  return matchingConfig ? buildProcedureFromWorkflowConfig(matchingConfig) : null;
+  if (matchingConfig) {
+    return buildProcedureFromWorkflowConfig(matchingConfig);
+  }
+
+  const exactUpperBoundIndex = activeConfigs.findIndex(
+    (config) => config.montantMax !== null && numericAmount === Number(config.montantMax)
+  );
+
+  if (exactUpperBoundIndex >= 0) {
+    const nextConfig = activeConfigs[exactUpperBoundIndex + 1];
+    const fallbackConfig = nextConfig || activeConfigs[exactUpperBoundIndex];
+    return fallbackConfig ? buildProcedureFromWorkflowConfig(fallbackConfig) : null;
+  }
+
+  return null;
 };
 
 export const isWorkflowConfigTableMissing = (error) => {

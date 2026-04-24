@@ -11,6 +11,11 @@ import { supabase } from '@/lib/supabaseClient';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar.jsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
+import {
+  APP_SPACE_SETTINGS_KEY,
+  buildDefaultAppSpaceFunctionalities,
+  normalizeAppSpaceFunctionalities,
+} from '@/lib/exploitationProfiles';
 
 const LoginPageChef = ({ onLogin }) => {
   const [matricule, setMatricule] = useState('');
@@ -459,6 +464,15 @@ const EspaceChefAgencePage = () => {
   );
   const [chefDetails, setChefDetails] = useState(null);
   const [sessionDurationMinutes, setSessionDurationMinutes] = useState(30);
+  const [spaceFunctionalities, setSpaceFunctionalities] = useState(() => {
+    try {
+      return normalizeAppSpaceFunctionalities(
+        JSON.parse(localStorage.getItem(APP_SPACE_SETTINGS_KEY) || '{}')
+      );
+    } catch (error) {
+      return buildDefaultAppSpaceFunctionalities();
+    }
+  });
   
   // Charger les paramètres de session
   useEffect(() => {
@@ -502,6 +516,15 @@ const EspaceChefAgencePage = () => {
     
     loadChefDetails();
   }, [isAuthenticated, chefAgenceInfo]);
+
+  useEffect(() => {
+    const handleFunctionalitiesUpdated = (event) => {
+      setSpaceFunctionalities(normalizeAppSpaceFunctionalities(event.detail));
+    };
+
+    window.addEventListener('app-functionalities-updated', handleFunctionalitiesUpdated);
+    return () => window.removeEventListener('app-functionalities-updated', handleFunctionalitiesUpdated);
+  }, []);
 
   const handleLogin = (status, chefData) => {
     setIsAuthenticated(status);
@@ -599,8 +622,13 @@ const EspaceChefAgencePage = () => {
     { path: 'mes-guichetieres', label: 'Mes Guichetières', icon: <UserCog className="h-5 w-5" /> },
     { path: 'maintenance-terminaux', label: 'Maintenance Terminaux', icon: <Wrench className="h-5 w-5" /> },
     { path: 'points-vente-mobi', label: 'Point de Vente Mobi', icon: <MapPin className="h-5 w-5" /> },
-    { path: 'paiement-gros-gain', label: 'Paiement Gros Gain', icon: <Wallet className="h-5 w-5" /> },
-  ];
+    {
+      path: 'paiement-gros-gain',
+      label: 'Paiement Gros Gain',
+      icon: <Wallet className="h-5 w-5" />,
+      featureKey: 'paiement-gros-gain',
+    },
+  ].filter((item) => !item.featureKey || spaceFunctionalities[item.featureKey] !== false);
 
   const normalizedPathname = location.pathname.replace(/\/+$/, '');
   const isMenuItemActive = (itemPath) => normalizedPathname === `/espace-chef-agence/${itemPath}`;

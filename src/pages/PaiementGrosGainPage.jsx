@@ -1377,6 +1377,9 @@ const PaiementGrosGainPage = () => {
                   <div>
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Tranche</p>
                     <p className="font-medium">{selectedProcedure.trancheLabel}</p>
+                    {selectedProcedure.workflowLabel && selectedProcedure.workflowLabel !== selectedProcedure.trancheLabel ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{selectedProcedure.workflowLabel}</p>
+                    ) : null}
                   </div>
                   <div>
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Mode de paiement</p>

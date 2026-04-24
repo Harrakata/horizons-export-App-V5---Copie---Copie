@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -13,11 +13,31 @@ import {
 import { Toaster } from '@/components/ui/toaster';
 import { Home, Briefcase, Users, Settings, BarChart3, LogIn, Sun, Moon, Menu, Wrench, ShieldCheck, Wallet } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/supabaseClient';
+import {
+  APP_SPACE_SETTINGS_KEY,
+  buildDefaultAppSpaceFunctionalities,
+  getAppSpaceFeatureForPathname,
+  normalizeAppSpaceFunctionalities,
+} from '@/lib/exploitationProfiles';
 
 const Layout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const [spaceFunctionalities, setSpaceFunctionalities] = React.useState(() => {
+    try {
+      return normalizeAppSpaceFunctionalities(
+        JSON.parse(window.localStorage.getItem(APP_SPACE_SETTINGS_KEY) || '{}')
+      );
+    } catch (error) {
+      return buildDefaultAppSpaceFunctionalities();
+    }
+  });
+  const [hasLoadedSpaceFunctionalities, setHasLoadedSpaceFunctionalities] = React.useState(false);
 
   React.useEffect(() => {
     const root = window.document.documentElement;
@@ -32,19 +52,89 @@ const Layout = () => {
     setIsDarkMode(!isDarkMode);
   };
 
+  React.useEffect(() => {
+    const loadSpaceFunctionalities = async () => {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', APP_SPACE_SETTINGS_KEY)
+        .single();
+
+      if (!error && data?.value) {
+        const normalizedSettings = normalizeAppSpaceFunctionalities(data.value);
+        setSpaceFunctionalities(normalizedSettings);
+        window.localStorage.setItem(APP_SPACE_SETTINGS_KEY, JSON.stringify(normalizedSettings));
+        window.dispatchEvent(
+          new CustomEvent('app-functionalities-updated', {
+            detail: normalizedSettings,
+          })
+        );
+      } else if (error && error.code !== 'PGRST116') {
+        console.error('Erreur chargement fonctionnalités espaces :', error);
+      } else {
+        const normalizedSettings = buildDefaultAppSpaceFunctionalities();
+        setSpaceFunctionalities(normalizedSettings);
+        window.localStorage.setItem(APP_SPACE_SETTINGS_KEY, JSON.stringify(normalizedSettings));
+      }
+
+      setHasLoadedSpaceFunctionalities(true);
+    };
+
+    loadSpaceFunctionalities();
+  }, []);
+
+  React.useEffect(() => {
+    const handleFunctionalitiesUpdated = (event) => {
+      const normalizedSettings = normalizeAppSpaceFunctionalities(event.detail);
+      setSpaceFunctionalities(normalizedSettings);
+      window.localStorage.setItem(APP_SPACE_SETTINGS_KEY, JSON.stringify(normalizedSettings));
+    };
+
+    window.addEventListener('app-functionalities-updated', handleFunctionalitiesUpdated);
+    return () => window.removeEventListener('app-functionalities-updated', handleFunctionalitiesUpdated);
+  }, []);
+
   const navLinks = [
     { to: '/', label: "Page d'Accueil", icon: <Home className="mr-2 h-4 w-4" /> },
-    { to: '/pointage', label: 'Pointage', icon: <LogIn className="mr-2 h-4 w-4" /> },
-    { to: '/paiement-gros-gain', label: 'Paiement Gros Gain', icon: <Wallet className="mr-2 h-4 w-4" /> },
+    { to: '/pointage', label: 'Pointage', icon: <LogIn className="mr-2 h-4 w-4" />, featureKey: 'pointage' },
+    {
+      to: '/paiement-gros-gain',
+      label: 'Paiement Gros Gain',
+      icon: <Wallet className="mr-2 h-4 w-4" />,
+      featureKey: 'paiement-gros-gain',
+    },
   ];
 
   const dropdownLinks = [
       { to: '/espace-exploitation', label: 'Espace Exploitation', icon: <Briefcase className="mr-2 h-4 w-4" /> },
-      { to: '/espace-chef-agence', label: "Espace Chef d'agence", icon: <Users className="mr-2 h-4 w-4" /> },
-      { to: '/espace-validation-paiement-gain', label: 'Espace Directeur régional', icon: <ShieldCheck className="mr-2 h-4 w-4" /> },
-      { to: '/espace-directeur-general', label: 'Espace Directeur général', icon: <ShieldCheck className="mr-2 h-4 w-4" /> },
-      { to: '/espace-technicien', label: 'Espace Technicien', icon: <Wrench className="mr-2 h-4 w-4" /> },
+      { to: '/espace-chef-agence', label: "Espace Chef d'agence", icon: <Users className="mr-2 h-4 w-4" />, featureKey: 'espace-chef-agence' },
+      { to: '/espace-validation-paiement-gain', label: 'Espace Directeur régional', icon: <ShieldCheck className="mr-2 h-4 w-4" />, featureKey: 'espace-directeur-regional' },
+      { to: '/espace-directeur-general', label: 'Espace Directeur général', icon: <ShieldCheck className="mr-2 h-4 w-4" />, featureKey: 'espace-directeur-general' },
+      { to: '/espace-technicien', label: 'Espace Technicien', icon: <Wrench className="mr-2 h-4 w-4" />, featureKey: 'espace-technicien' },
   ];
+
+  const availableDropdownLinks = dropdownLinks.filter(
+    (link) => !link.featureKey || spaceFunctionalities[link.featureKey] !== false
+  );
+  const availableNavLinks = navLinks.filter(
+    (link) => !link.featureKey || spaceFunctionalities[link.featureKey] !== false
+  );
+
+  React.useEffect(() => {
+    if (!hasLoadedSpaceFunctionalities) return;
+
+    const matchedFeature = getAppSpaceFeatureForPathname(location.pathname);
+    if (!matchedFeature) return;
+
+    if (spaceFunctionalities[matchedFeature.key] === false) {
+      toast({
+        title: 'Espace désactivé',
+        description: `${matchedFeature.label} est actuellement désactivé depuis Profil et Fonctionnalité.`,
+        variant: 'destructive',
+      });
+      navigate('/', { replace: true });
+    }
+  }, [hasLoadedSpaceFunctionalities, location.pathname, navigate, spaceFunctionalities, toast]);
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 dark:from-slate-900 dark:via-purple-900 dark:to-slate-800">
@@ -60,7 +150,7 @@ const Layout = () => {
           </Link>
 
           <nav className="hidden md:flex items-center space-x-4 lg:space-x-6">
-            {navLinks.map(link => (
+            {availableNavLinks.map(link => (
               <Button key={link.to} variant="ghost" onClick={() => navigate(link.to)}>
                 {link.icon} {link.label}
               </Button>
@@ -74,7 +164,7 @@ const Layout = () => {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Navigation Principale</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {dropdownLinks.map(link => (
+                {availableDropdownLinks.map(link => (
                    <DropdownMenuItem key={link.to} onClick={() => navigate(link.to)}>
                     {link.icon}
                     {link.label}
@@ -100,14 +190,14 @@ const Layout = () => {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Menu</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {navLinks.map(link => (
+                {availableNavLinks.map(link => (
                   <DropdownMenuItem key={link.to} onClick={() => navigate(link.to)}>
                     {link.icon} {link.label}
                   </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>Espaces</DropdownMenuLabel>
-                 {dropdownLinks.map(link => (
+                 {availableDropdownLinks.map(link => (
                    <DropdownMenuItem key={link.to} onClick={() => navigate(link.to)}>
                     {link.icon}
                     {link.label}
