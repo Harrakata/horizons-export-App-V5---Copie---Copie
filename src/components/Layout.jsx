@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Toaster } from '@/components/ui/toaster';
-import { Home, Briefcase, Users, Settings, BarChart3, LogIn, Sun, Moon, Menu, Wrench, ShieldCheck, Wallet } from 'lucide-react';
+import { Home, Briefcase, Users, Settings, BarChart3, LogIn, Sun, Moon, Menu, Wrench, ShieldCheck, Wallet, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
@@ -108,6 +108,7 @@ const Layout = () => {
   const dropdownLinks = [
       { to: '/espace-exploitation', label: 'Espace Exploitation', icon: <Briefcase className="mr-2 h-4 w-4" /> },
       { to: '/espace-chef-agence', label: "Espace Chef d'agence", icon: <Users className="mr-2 h-4 w-4" />, featureKey: 'espace-chef-agence' },
+      { to: '/espace-guichetiere/mon-planning', label: 'Espace Guichetière', icon: <User className="mr-2 h-4 w-4" />, featureKey: 'espace-guichetiere' },
       { to: '/espace-validation-paiement-gain', label: 'Espace Directeur régional', icon: <ShieldCheck className="mr-2 h-4 w-4" />, featureKey: 'espace-directeur-regional' },
       { to: '/espace-directeur-general', label: 'Espace Directeur général', icon: <ShieldCheck className="mr-2 h-4 w-4" />, featureKey: 'espace-directeur-general' },
       { to: '/espace-technicien', label: 'Espace Technicien', icon: <Wrench className="mr-2 h-4 w-4" />, featureKey: 'espace-technicien' },

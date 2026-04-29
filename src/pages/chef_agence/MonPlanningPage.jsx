@@ -12,6 +12,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { supabase } from '@/lib/supabaseClient';
 import { Combobox } from '@/components/ui/Combobox';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  REQUEST_STATUS,
+  PLANNING_REQUEST_TYPES,
+  formatDisplayDate,
+  formatDisplayDateTime,
+  getPlanningRequestTypeLabel,
+  getRequestStatusBadgeClass,
+  isMissingSupabaseTableError,
+} from '@/lib/guichetiereSpace';
 
 const MonPlanningPage = () => {
   const { nomAgence, chefInfo } = useOutletContext();
@@ -30,6 +41,7 @@ const MonPlanningPage = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [viewMode, setViewMode] = useState('month');
+  const [planningRequests, setPlanningRequests] = useState([]);
 
   const fetchPlanning = useCallback(async () => {
     if (!nomAgence) return;
@@ -75,10 +87,36 @@ const MonPlanningPage = () => {
     }
   }, [nomAgence, toast]);
 
+  const fetchPlanningRequests = useCallback(async () => {
+    if (!nomAgence) return;
+
+    const { data, error } = await supabase
+      .from('planning_modification_requests')
+      .select('*')
+      .eq('agence_nom', nomAgence)
+      .gte('date_planning', format(startOfMonth(currentMonth), 'yyyy-MM-dd'))
+      .lte('date_planning', format(endOfMonth(currentMonth), 'yyyy-MM-dd'))
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      if (!isMissingSupabaseTableError(error, 'planning_modification_requests')) {
+        toast({
+          title: 'Erreur chargement demandes planning',
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
+      setPlanningRequests([]);
+    } else {
+      setPlanningRequests(data || []);
+    }
+  }, [currentMonth, nomAgence, toast]);
+
   useEffect(() => {
     fetchPlanning();
     fetchGuichetieres();
-  }, [fetchPlanning, fetchGuichetieres]);
+    fetchPlanningRequests();
+  }, [fetchPlanning, fetchGuichetieres, fetchPlanningRequests]);
 
   const days = useMemo(() => {
     const start = viewMode === 'month' ? startOfMonth(currentMonth) : startOfWeek(currentMonth, { weekStartsOn: 1 });
@@ -263,6 +301,114 @@ const MonPlanningPage = () => {
     setIsLoading(false);
   };
 
+  const requestsByDate = useMemo(
+    () =>
+      planningRequests.reduce((accumulator, request) => {
+        if (!accumulator[request.date_planning]) {
+          accumulator[request.date_planning] = [];
+        }
+        accumulator[request.date_planning].push(request);
+        return accumulator;
+      }, {}),
+    [planningRequests]
+  );
+
+  const requestsByPlanningId = useMemo(
+    () =>
+      planningRequests.reduce((accumulator, request) => {
+        if (!accumulator[String(request.planning_id)]) {
+          accumulator[String(request.planning_id)] = request;
+        }
+        return accumulator;
+      }, {}),
+    [planningRequests]
+  );
+
+  const handleProcessPlanningRequest = async (request, nextStatus) => {
+    setIsLoading(true);
+
+    try {
+      if (nextStatus === REQUEST_STATUS.APPROVED) {
+        const { data: planningRow, error: planningError } = await supabase
+          .from('planning')
+          .select('id, date, guichetiereId, agenceNom')
+          .eq('id', request.planning_id)
+          .single();
+
+        if (planningError || !planningRow) {
+          throw planningError || new Error("L'affectation liée à cette demande est introuvable.");
+        }
+
+        if (request.type_demande === PLANNING_REQUEST_TYPES.UNAVAILABILITY) {
+          const { error: deleteError } = await supabase.from('planning').delete().eq('id', planningRow.id);
+          if (deleteError) throw deleteError;
+        }
+
+        if (request.type_demande === PLANNING_REQUEST_TYPES.DATE_CHANGE) {
+          if (!request.date_souhaitee) {
+            throw new Error('La demande ne contient pas de date souhaitée.');
+          }
+
+          const { data: conflictRows, error: conflictError } = await supabase
+            .from('planning')
+            .select('id')
+            .eq('guichetiereId', planningRow.guichetiereId)
+            .eq('date', request.date_souhaitee)
+            .neq('id', planningRow.id);
+
+          if (conflictError) throw conflictError;
+
+          if ((conflictRows || []).length > 0) {
+            throw new Error('Cette guichetière est déjà planifiée à la date demandée.');
+          }
+
+          const { error: updatePlanningError } = await supabase
+            .from('planning')
+            .update({ date: request.date_souhaitee })
+            .eq('id', planningRow.id);
+
+          if (updatePlanningError) throw updatePlanningError;
+        }
+      }
+
+      const commentaireTraitement =
+        nextStatus === REQUEST_STATUS.APPROVED
+          ? request.type_demande === PLANNING_REQUEST_TYPES.UNAVAILABILITY
+            ? 'Indisponibilité validée, créneau retiré du planning.'
+            : `Changement de date validé${request.date_souhaitee ? ` vers le ${formatDisplayDate(request.date_souhaitee)}` : '.'}`
+          : 'Demande refusée par le chef d’agence.';
+
+      const { error: requestError } = await supabase
+        .from('planning_modification_requests')
+        .update({
+          statut: nextStatus,
+          commentaire_traitement: commentaireTraitement,
+          traitee_par: chefInfo?.nomChef || 'Chef d’agence',
+          date_traitement: new Date().toISOString(),
+        })
+        .eq('id', request.id);
+
+      if (requestError) throw requestError;
+
+      toast({
+        title: nextStatus === REQUEST_STATUS.APPROVED ? 'Demande validée' : 'Demande refusée',
+        description: `La demande de ${request.guichetiere_nom || request.guichetiere_matricule} a bien été traitée.`,
+        className: nextStatus === REQUEST_STATUS.APPROVED ? 'bg-green-500 text-white' : 'bg-slate-700 text-white',
+      });
+
+      fetchPlanning();
+      fetchPlanningRequests();
+    } catch (error) {
+      toast({
+        title: 'Traitement impossible',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 md:space-y-6 p-2 md:p-0">
@@ -306,6 +452,7 @@ const MonPlanningPage = () => {
               {days.map((day, dayIdx) => {
                 const dateStr = format(day, 'yyyy-MM-dd');
                 const dayPlanning = planning[dateStr] || [];
+                const dayRequests = requestsByDate[dateStr] || [];
                 const isCurrentMonthDay = viewMode === 'month' ? isSameMonth(day, currentMonth) : true;
                 const isToday = isSameDay(day, new Date());
 
@@ -317,17 +464,25 @@ const MonPlanningPage = () => {
                       ${!isCurrentMonthDay ? 'bg-muted/30 dark:bg-muted/10 text-muted-foreground/50' : ''}
                       ${isToday ? 'ring-2 ring-primary z-10' : ''}
                     `}
-                  >
-                    <time dateTime={dateStr} className={`text-xs md:text-sm font-semibold ${isToday ? 'text-primary' : 'text-foreground'}`}>
-                      {format(day, 'd')}
-                      {viewMode === 'week' && <span className="block text-xs font-normal text-muted-foreground">{format(day, 'EEE', {locale: fr})}</span>}
-                    </time>
+                    >
+                    <div className="flex items-start justify-between gap-2">
+                      <time dateTime={dateStr} className={`text-xs md:text-sm font-semibold ${isToday ? 'text-primary' : 'text-foreground'}`}>
+                        {format(day, 'd')}
+                        {viewMode === 'week' && <span className="block text-xs font-normal text-muted-foreground">{format(day, 'EEE', {locale: fr})}</span>}
+                      </time>
+                      {dayRequests.length > 0 ? (
+                        <Badge className="border-amber-200 bg-amber-50 px-1.5 py-0 text-[10px] text-amber-700">
+                          {dayRequests.length}
+                        </Badge>
+                      ) : null}
+                    </div>
                     <AnimatePresence>
                       {dayPlanning.map(event => {
                         const guichetiere = guichetieresAgence.find(g => g.id === event.guichetiereId);
                         const remplacanteDe = event.remplacante_de_id ? guichetieresAgence.find(g => g.id === event.remplacante_de_id) : null;
                         const bgColor = event.est_remplacante ? 'bg-orange-400/20 dark:bg-orange-600/30' : 'bg-primary/10 dark:bg-primary/20';
                         const textColor = event.est_remplacante ? 'text-orange-700 dark:text-orange-300' : 'text-black dark:text-white';
+                        const linkedRequest = requestsByPlanningId[String(event.planningId)];
                         
                         return (
                           <motion.div
@@ -340,6 +495,11 @@ const MonPlanningPage = () => {
                             <span className={`truncate ${textColor}`}>
                                 {guichetiere ? `${guichetiere.prenom.charAt(0)}. ${guichetiere.nom}` : 'Inconnue'}
                                 {event.est_remplacante && remplacanteDe && <span className="block text-[8px] md:text-[10px] opacity-80">(R: {remplacanteDe.prenom.charAt(0)}. {remplacanteDe.nom})</span>}
+                                {linkedRequest ? (
+                                  <span className="mt-0.5 block text-[8px] md:text-[10px] text-amber-700">
+                                    Demande: {linkedRequest.statut}
+                                  </span>
+                                ) : null}
                             </span>
                             <Button variant="ghost" size="icon" className="h-4 w-4 md:h-5 md:w-5 text-blue-500 hover:text-blue-700" onClick={() => openEditModal(event, day)} disabled={isLoading}>
                               <Edit2 className="h-2.5 w-2.5 md:h-3 md:w-3" />
@@ -358,6 +518,83 @@ const MonPlanningPage = () => {
               })}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-xl glassmorphism">
+        <CardHeader>
+          <CardTitle className="text-2xl text-primary">Demandes de modification des guichetières</CardTitle>
+          <CardDescription>
+            Suivez les demandes envoyées par vos guichetières et validez-les directement depuis cet espace.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableCaption>
+              {planningRequests.length === 0
+                ? 'Aucune demande de modification sur cette période.'
+                : `${planningRequests.length} demande(s) affichée(s).`}
+            </TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Guichetière</TableHead>
+                <TableHead>Date planifiée</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Date souhaitée</TableHead>
+                <TableHead>Motif</TableHead>
+                <TableHead>Statut</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {planningRequests.map((request) => (
+                <TableRow key={request.id}>
+                  <TableCell>{request.guichetiere_nom || request.guichetiere_matricule}</TableCell>
+                  <TableCell>{formatDisplayDate(request.date_planning)}</TableCell>
+                  <TableCell>{getPlanningRequestTypeLabel(request.type_demande)}</TableCell>
+                  <TableCell>{formatDisplayDate(request.date_souhaitee)}</TableCell>
+                  <TableCell className="max-w-[220px] whitespace-normal">
+                    {request.motif || 'Aucun motif'}
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={getRequestStatusBadgeClass(request.statut)}>{request.statut}</Badge>
+                    {request.commentaire_traitement ? (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {request.commentaire_traitement}
+                        <br />
+                        {formatDisplayDateTime(request.date_traitement)}
+                      </p>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>
+                    {request.statut === REQUEST_STATUS.PENDING ? (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleProcessPlanningRequest(request, REQUEST_STATUS.APPROVED)}
+                          disabled={isLoading}
+                        >
+                          Valider
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleProcessPlanningRequest(request, REQUEST_STATUS.REFUSED)}
+                          disabled={isLoading}
+                        >
+                          Refuser
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        Traitée par {request.traitee_par || 'N/A'}
+                      </span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 

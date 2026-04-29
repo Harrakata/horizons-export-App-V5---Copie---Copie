@@ -67,3 +67,15 @@ export const buildGuichetiereDisplayName = (guichetiere) =>
   [guichetiere?.prenom, guichetiere?.nom].filter(Boolean).join(' ').trim() ||
   guichetiere?.matricule ||
   'Guichetière';
+
+export const isMissingSupabaseTableError = (error, tableName) => {
+  if (!error) return false;
+
+  const serializedError = JSON.stringify(error).toLowerCase();
+  return (
+    serializedError.includes(String(tableName || '').toLowerCase()) &&
+    (serializedError.includes('schema cache') ||
+      serializedError.includes('does not exist') ||
+      serializedError.includes('could not find the table'))
+  );
+};

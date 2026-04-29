@@ -13,6 +13,13 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import ConfigurationTab from '@/pages/maintenance/ConfigurationTab';
 import MaintenancePlanningSection from '@/components/maintenance/MaintenancePlanningSection';
+import { formatDisplayDate, formatDisplayDateTime } from '@/lib/guichetiereSpace';
+import {
+  isMissingMaintenancePlanningRequestTableError,
+  MAINTENANCE_REQUEST_STATUSES,
+  getMaintenancePlanningRequestStatusBadgeClass,
+  getMaintenancePlanningRequestTypeLabel,
+} from '@/lib/maintenancePlanningRequests';
 import {
   buildTerminalMonitoringGroups,
   formatMaintenanceDateTime,
@@ -34,6 +41,8 @@ const MaintenanceTerminauxPage = () => {
   const [expandedTerminalIds, setExpandedTerminalIds] = useState({});
   const [selectedInterventionId, setSelectedInterventionId] = useState(null);
   const [maintenanceFollowUpFilter, setMaintenanceFollowUpFilter] = useState(ALL_FILTER_VALUE);
+  const [planningRequests, setPlanningRequests] = useState([]);
+  const [isPlanningRequestTableMissing, setIsPlanningRequestTableMissing] = useState(false);
   const [filters, setFilters] = useState({
     terminalId: ALL_FILTER_VALUE,
     type: ALL_FILTER_VALUE,
@@ -100,6 +109,26 @@ const MaintenanceTerminauxPage = () => {
 
       if (terminalIds.length === 0) {
         setInterventions([]);
+      }
+
+      const planningRequestsResponse = await supabase
+        .from('planning_maintenance_modification_requests')
+        .select('*')
+        .eq('agence_nom', agence.nom || nomAgence)
+        .order('created_at', { ascending: false });
+
+      if (planningRequestsResponse.error) {
+        if (!isMissingMaintenancePlanningRequestTableError(planningRequestsResponse.error)) {
+          throw planningRequestsResponse.error;
+        }
+        setIsPlanningRequestTableMissing(true);
+        setPlanningRequests([]);
+      } else {
+        setIsPlanningRequestTableMissing(false);
+        setPlanningRequests(planningRequestsResponse.data || []);
+      }
+
+      if (terminalIds.length === 0) {
         return;
       }
 
@@ -290,6 +319,9 @@ const MaintenanceTerminauxPage = () => {
   const preventiveRequiredCount = terminalMonitoringGroups.filter(
     (group) => group.followUp.label === 'Faire maintenance préventive'
   ).length;
+  const pendingPlanningRequestsCount = planningRequests.filter(
+    (request) => request.statut === MAINTENANCE_REQUEST_STATUSES.PENDING_CHEF
+  ).length;
 
   const toggleTerminalExpansion = (terminalId) => {
     const terminalKey = String(terminalId);
@@ -297,6 +329,55 @@ const MaintenanceTerminauxPage = () => {
       ...previousState,
       [terminalKey]: !previousState[terminalKey],
     }));
+  };
+
+  const handleProcessPlanningRequest = async (request, approve) => {
+    setIsLoading(true);
+
+    const nextStatus = approve
+      ? MAINTENANCE_REQUEST_STATUSES.PENDING_EXPLOITATION
+      : MAINTENANCE_REQUEST_STATUSES.REFUSED_CHEF;
+
+    const payload = approve
+      ? {
+          statut: nextStatus,
+          commentaire_chef:
+            request.type_demande === 'indisponibilite'
+              ? "Demande transmise à l'Exploitation après validation du chef d'agence."
+              : `Changement de date transmis à l'Exploitation${request.date_souhaitee ? ` pour le ${formatDisplayDate(request.date_souhaitee)}` : '.'}`,
+          traitee_par_chef: chefDetails?.prenom && chefDetails?.nom ? `${chefDetails.prenom} ${chefDetails.nom}` : chefInfo?.nomChef || "Chef d'agence",
+          date_traitement_chef: new Date().toISOString(),
+        }
+      : {
+          statut: nextStatus,
+          commentaire_chef: "Demande refusée par le chef d'agence.",
+          traitee_par_chef: chefDetails?.prenom && chefDetails?.nom ? `${chefDetails.prenom} ${chefDetails.nom}` : chefInfo?.nomChef || "Chef d'agence",
+          date_traitement_chef: new Date().toISOString(),
+        };
+
+    const { error } = await supabase
+      .from('planning_maintenance_modification_requests')
+      .update(payload)
+      .eq('id', request.id);
+
+    if (error) {
+      toast({
+        title: 'Traitement impossible',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: approve ? 'Demande transmise' : 'Demande refusée',
+        description: approve
+          ? "La demande a été validée puis transmise à l'Exploitation."
+          : "La demande a été refusée par le chef d'agence.",
+        className: approve ? 'bg-green-500 text-white' : 'bg-slate-700 text-white',
+      });
+      loadData();
+    }
+
+    setIsLoading(false);
   };
 
   return (
@@ -798,14 +879,103 @@ const MaintenanceTerminauxPage = () => {
         </TabsContent>
 
         <TabsContent value="planning">
-          <MaintenancePlanningSection
-            title={`Planification de Maintenance${agenceRecord?.nom ? ` - ${agenceRecord.nom}` : ''}`}
-            description="Planifiez les passages maintenance de votre agence, affectez les techniciens par matin et après-midi, puis suivez automatiquement les maintenances réellement effectuées."
-            canManage
-            lockedAgenceName={agenceRecord?.nom || nomAgence}
-            lockedRegion={agenceRecord?.region || ''}
-            emptyTitle="Aucune maintenance planifiée pour cette agence."
-          />
+          <div className="space-y-6">
+            <MaintenancePlanningSection
+              title={`Planification de Maintenance${agenceRecord?.nom ? ` - ${agenceRecord.nom}` : ''}`}
+              description="Planifiez les passages maintenance de votre agence, affectez les techniciens par matin et après-midi, puis suivez automatiquement les maintenances réellement effectuées."
+              canManage
+              lockedAgenceName={agenceRecord?.nom || nomAgence}
+              lockedRegion={agenceRecord?.region || ''}
+              emptyTitle="Aucune maintenance planifiée pour cette agence."
+            />
+
+            {isPlanningRequestTableMissing ? (
+              <Card className="border-amber-200 bg-amber-50 shadow-sm">
+                <CardContent className="p-4 text-sm text-amber-800">
+                  La table
+                  {' '}
+                  <code>planning_maintenance_modification_requests</code>
+                  {' '}
+                  n&apos;existe pas encore dans Supabase.
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="shadow-xl glassmorphism">
+                <CardHeader>
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <CardTitle className="text-2xl text-primary">Demandes de modification des techniciens</CardTitle>
+                      <CardDescription>
+                        Validez d’abord les demandes de vos techniciens avant leur transmission à l’Exploitation.
+                      </CardDescription>
+                    </div>
+                    <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
+                      En attente chef : {pendingPlanningRequestsCount}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableCaption>
+                      {planningRequests.length === 0
+                        ? 'Aucune demande de modification maintenance pour cette agence.'
+                        : `${planningRequests.length} demande(s) affichée(s).`}
+                    </TableCaption>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Technicien</TableHead>
+                        <TableHead>Date planifiée</TableHead>
+                        <TableHead>Créneau</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Date souhaitée</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead>Suivi</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {planningRequests.map((request) => (
+                        <TableRow key={request.id}>
+                          <TableCell>{request.technicien_nom || request.technicien_matricule}</TableCell>
+                          <TableCell>{formatDisplayDate(request.date_planification)}</TableCell>
+                          <TableCell>{request.creneau === 'apres_midi' ? 'Après-midi' : 'Matin'}</TableCell>
+                          <TableCell>{getMaintenancePlanningRequestTypeLabel(request.type_demande)}</TableCell>
+                          <TableCell>{formatDisplayDate(request.date_souhaitee)}</TableCell>
+                          <TableCell>
+                            <Badge className={getMaintenancePlanningRequestStatusBadgeClass(request.statut)}>
+                              {request.statut}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-[260px] whitespace-normal text-sm text-muted-foreground">
+                            {request.commentaire_chef || request.commentaire_exploitation || request.motif || 'Aucun commentaire'}
+                            <div className="mt-1 text-xs">
+                              {request.date_traitement_chef ? `Chef : ${formatDisplayDateTime(request.date_traitement_chef)}` : ''}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {request.statut === MAINTENANCE_REQUEST_STATUSES.PENDING_CHEF ? (
+                              <div className="flex justify-end gap-2">
+                                <Button size="sm" onClick={() => handleProcessPlanningRequest(request, true)} disabled={isLoading}>
+                                  Valider
+                                </Button>
+                                <Button size="sm" variant="destructive" onClick={() => handleProcessPlanningRequest(request, false)} disabled={isLoading}>
+                                  Refuser
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                {request.traitee_par_chef || request.traitee_par_exploitation || 'Traitée'}
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
     </motion.div>

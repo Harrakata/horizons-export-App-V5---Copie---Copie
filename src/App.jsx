@@ -22,11 +22,15 @@ import StatistiquesPage from '@/pages/exploitation/StatistiquesPage';
 import PaiementGrosGainPage from '@/pages/PaiementGrosGainPage';
 
 import EspaceChefAgencePage from '@/pages/EspaceChefAgencePage';
+import EspaceGuichetierePage from '@/pages/EspaceGuichetierePage';
 import EspaceMaintenancePage from '@/pages/EspaceMaintenancePage';
 import MesGuichetieresPage from '@/pages/chef_agence/MesGuichetieresPage';
 import MonPlanningPage from '@/pages/chef_agence/MonPlanningPage';
 import MaintenanceTerminauxPage from '@/pages/chef_agence/MaintenanceTerminauxPage';
 import PointsVenteMobiChefPage from '@/pages/chef_agence/PointsVenteMobiChefPage';
+import MonPlanningGuichetierePage from '@/pages/guichetiere/MonPlanningGuichetierePage';
+import MesPointagesPage from '@/pages/guichetiere/MesPointagesPage';
+import MesPointsVenteMobiPage from '@/pages/guichetiere/MesPointsVenteMobiPage';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import EtatPlanningGeneralPage from '@/pages/exploitation/EtatPlanningGeneralPage';
@@ -55,6 +59,13 @@ const App = () => {
             <Route path="/espace-validation-paiement-gain" element={<EspaceValidationPaiementGainPage />} />
             <Route path="/espace-directeur-general" element={<EspaceValidationPaiementGainPage spaceMode="general" />} />
             <Route path="/espace-paiement-gros-gain" element={<Navigate to="/paiement-gros-gain" replace />} />
+            <Route path="/guichetiere" element={<Navigate to="/espace-guichetiere" replace />} />
+            <Route path="/espace-guichetiere" element={<EspaceGuichetierePage />}>
+              <Route index element={<Navigate to="mon-planning" replace />} />
+              <Route path="mon-planning" element={<MonPlanningGuichetierePage />} />
+              <Route path="mes-pointages" element={<MesPointagesPage />} />
+              <Route path="mes-points-vente-mobi" element={<MesPointsVenteMobiPage />} />
+            </Route>
             
             <Route path="/espace-exploitation" element={<EspaceExploitationPage />}>
               <Route index element={<Navigate to="guichetieres" replace />} />

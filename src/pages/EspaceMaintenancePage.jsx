@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,8 +9,15 @@ import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
 import MaintenanceTab from '@/pages/maintenance/MaintenanceTab';
-import MaintenancePlanningSection from '@/components/maintenance/MaintenancePlanningSection';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import MonPlanningMaintenancePage from '@/pages/technicien/MonPlanningMaintenancePage';
+import {
+  APP_SPACE_TAB_SETTINGS_KEY,
+  buildDefaultAppSpaceTabFunctionalities,
+  getFirstEnabledAppSpaceTab,
+  isAppSpaceTabEnabled,
+  normalizeAppSpaceTabFunctionalities,
+} from '@/lib/exploitationProfiles';
 
 const LoginPage = ({ onLogin }) => {
   const { toast } = useToast();
@@ -77,6 +84,15 @@ const EspaceMaintenancePage = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(storedAuth.isAuthenticated || false);
   const [userData, setUserData] = useState(storedAuth.userData || null);
   const [activeSection, setActiveSection] = useState('maintenance');
+  const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
+    try {
+      return normalizeAppSpaceTabFunctionalities(
+        JSON.parse(localStorage.getItem(APP_SPACE_TAB_SETTINGS_KEY) || '{}')
+      );
+    } catch (error) {
+      return buildDefaultAppSpaceTabFunctionalities();
+    }
+  });
 
   const handleLogin = (status, data) => {
     setIsAuthenticated(status);
@@ -90,14 +106,46 @@ const EspaceMaintenancePage = () => {
     navigate('/');
   };
 
-  if (!isAuthenticated) {
-    return <LoginPage onLogin={handleLogin} />;
-  }
+  useEffect(() => {
+    const handleSpaceTabsUpdated = (event) => {
+      const normalizedSettings = normalizeAppSpaceTabFunctionalities(event.detail);
+      setSpaceTabFunctionalities(normalizedSettings);
+      localStorage.setItem(APP_SPACE_TAB_SETTINGS_KEY, JSON.stringify(normalizedSettings));
+    };
 
-  const menuItems = [
+    window.addEventListener('app-space-tabs-updated', handleSpaceTabsUpdated);
+    return () => window.removeEventListener('app-space-tabs-updated', handleSpaceTabsUpdated);
+  }, []);
+
+  const baseMenuItems = [
     { key: 'maintenance', label: 'Maintenance', icon: <Wrench className="h-5 w-5" /> },
     { key: 'planning', label: 'Mon planning de Maintenance', icon: <CalendarClock className="h-5 w-5" /> },
   ];
+
+  const menuItems = useMemo(
+    () =>
+      baseMenuItems.filter((item) =>
+        isAppSpaceTabEnabled(spaceTabFunctionalities, 'espace-technicien', item.key)
+      ),
+    [spaceTabFunctionalities]
+  );
+
+  useEffect(() => {
+    const fallbackTab = getFirstEnabledAppSpaceTab(spaceTabFunctionalities, 'espace-technicien')?.key || null;
+
+    if (!menuItems.length) {
+      setActiveSection('');
+      return;
+    }
+
+    if (!menuItems.some((item) => item.key === activeSection) && fallbackTab) {
+      setActiveSection(fallbackTab);
+    }
+  }, [activeSection, menuItems, spaceTabFunctionalities]);
+
+  if (!isAuthenticated) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
 
   return (
     <div className="flex flex-col gap-8 md:flex-row">
@@ -166,15 +214,14 @@ const EspaceMaintenancePage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          {activeSection === 'planning' ? (
-            <MaintenancePlanningSection
-              title="Mon planning de Maintenance"
-              description="Consultez les maintenances qui vous sont assignées, leur créneau et le suivi automatique des interventions enregistrées."
-              lockedTechnicienId={userData?.id}
-              canManage={false}
-              readOnlyMessage="Le planning vous est affiché en consultation. Les affectations sont créées depuis l’Exploitation ou par le chef d’agence."
-              emptyTitle="Aucune maintenance ne vous est actuellement assignée."
-            />
+          {!menuItems.length ? (
+            <Card className="shadow-xl glassmorphism">
+              <CardContent className="p-6 text-center text-muted-foreground">
+                Aucun onglet n’est actuellement activé pour l’Espace Technicien.
+              </CardContent>
+            </Card>
+          ) : activeSection === 'planning' ? (
+            <MonPlanningMaintenancePage technicien={userData} />
           ) : (
             <MaintenanceTab technicien={userData} />
           )}

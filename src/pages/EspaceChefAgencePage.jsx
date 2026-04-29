@@ -13,8 +13,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 import {
   APP_SPACE_SETTINGS_KEY,
+  APP_SPACE_TAB_SETTINGS_KEY,
   buildDefaultAppSpaceFunctionalities,
+  buildDefaultAppSpaceTabFunctionalities,
+  getFirstEnabledAppSpaceTab,
+  isAppSpaceTabEnabled,
   normalizeAppSpaceFunctionalities,
+  normalizeAppSpaceTabFunctionalities,
 } from '@/lib/exploitationProfiles';
 
 const LoginPageChef = ({ onLogin }) => {
@@ -473,6 +478,15 @@ const EspaceChefAgencePage = () => {
       return buildDefaultAppSpaceFunctionalities();
     }
   });
+  const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
+    try {
+      return normalizeAppSpaceTabFunctionalities(
+        JSON.parse(localStorage.getItem(APP_SPACE_TAB_SETTINGS_KEY) || '{}')
+      );
+    } catch (error) {
+      return buildDefaultAppSpaceTabFunctionalities();
+    }
+  });
   
   // Charger les paramètres de session
   useEffect(() => {
@@ -524,6 +538,17 @@ const EspaceChefAgencePage = () => {
 
     window.addEventListener('app-functionalities-updated', handleFunctionalitiesUpdated);
     return () => window.removeEventListener('app-functionalities-updated', handleFunctionalitiesUpdated);
+  }, []);
+
+  useEffect(() => {
+    const handleSpaceTabsUpdated = (event) => {
+      const normalizedSettings = normalizeAppSpaceTabFunctionalities(event.detail);
+      setSpaceTabFunctionalities(normalizedSettings);
+      localStorage.setItem(APP_SPACE_TAB_SETTINGS_KEY, JSON.stringify(normalizedSettings));
+    };
+
+    window.addEventListener('app-space-tabs-updated', handleSpaceTabsUpdated);
+    return () => window.removeEventListener('app-space-tabs-updated', handleSpaceTabsUpdated);
   }, []);
 
   const handleLogin = (status, chefData) => {
@@ -628,10 +653,30 @@ const EspaceChefAgencePage = () => {
       icon: <Wallet className="h-5 w-5" />,
       featureKey: 'paiement-gros-gain',
     },
-  ].filter((item) => !item.featureKey || spaceFunctionalities[item.featureKey] !== false);
+  ].filter(
+    (item) =>
+      (!item.featureKey || spaceFunctionalities[item.featureKey] !== false) &&
+      isAppSpaceTabEnabled(spaceTabFunctionalities, 'espace-chef-agence', item.path)
+  );
 
   const normalizedPathname = location.pathname.replace(/\/+$/, '');
   const isMenuItemActive = (itemPath) => normalizedPathname === `/espace-chef-agence/${itemPath}`;
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (!normalizedPathname.startsWith('/espace-chef-agence')) return;
+
+    const fallbackPath = getFirstEnabledAppSpaceTab(spaceTabFunctionalities, 'espace-chef-agence')?.key || null;
+    if (!fallbackPath) return;
+
+    if (
+      normalizedPathname === '/espace-chef-agence' ||
+      normalizedPathname === '/espace-chef-agence/' ||
+      !menuItems.some((item) => isMenuItemActive(item.path))
+    ) {
+      navigate(`/espace-chef-agence/${fallbackPath}`, { replace: true });
+    }
+  }, [isAuthenticated, isMenuItemActive, menuItems, navigate, normalizedPathname, spaceTabFunctionalities]);
 
   if (!isAuthenticated) {
     return <LoginPageChef onLogin={handleLogin} />;

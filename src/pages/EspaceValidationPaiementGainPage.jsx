@@ -41,6 +41,13 @@ import {
   WORKFLOW_STAGES,
 } from '@/lib/paiementGainUtils';
 import { buildFullName, recordPaiementGainEvent } from '@/lib/paiementGainService';
+import {
+  APP_SPACE_TAB_SETTINGS_KEY,
+  buildDefaultAppSpaceTabFunctionalities,
+  getFirstEnabledAppSpaceTab,
+  isAppSpaceTabEnabled,
+  normalizeAppSpaceTabFunctionalities,
+} from '@/lib/exploitationProfiles';
 
 const SPACE_CONFIGS = {
   regional: {
@@ -197,6 +204,19 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
   const [actionComment, setActionComment] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
+    try {
+      return normalizeAppSpaceTabFunctionalities(
+        JSON.parse(localStorage.getItem(APP_SPACE_TAB_SETTINGS_KEY) || '{}')
+      );
+    } catch (error) {
+      return buildDefaultAppSpaceTabFunctionalities();
+    }
+  });
+  const currentSpaceKey =
+    spaceConfig.expectedFunction === VALIDATOR_FUNCTIONS.GENERAL
+      ? 'espace-directeur-general'
+      : 'espace-directeur-regional';
 
   const loadData = useCallback(async () => {
     if (!validator?.id) return;
@@ -236,6 +256,17 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
     const intervalId = window.setInterval(loadData, 15000);
     return () => window.clearInterval(intervalId);
   }, [loadData]);
+
+  useEffect(() => {
+    const handleSpaceTabsUpdated = (event) => {
+      const normalizedSettings = normalizeAppSpaceTabFunctionalities(event.detail);
+      setSpaceTabFunctionalities(normalizedSettings);
+      localStorage.setItem(APP_SPACE_TAB_SETTINGS_KEY, JSON.stringify(normalizedSettings));
+    };
+
+    window.addEventListener('app-space-tabs-updated', handleSpaceTabsUpdated);
+    return () => window.removeEventListener('app-space-tabs-updated', handleSpaceTabsUpdated);
+  }, []);
 
   const pendingDemandes = useMemo(
     () =>
@@ -899,7 +930,20 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
       icon: <ClipboardList className="h-5 w-5" />,
       disabled: spaceConfig.expectedFunction === VALIDATOR_FUNCTIONS.GENERAL ? !isGeneralProfile : !isRegionalProfile,
     },
-  ];
+  ].filter((item) => isAppSpaceTabEnabled(spaceTabFunctionalities, currentSpaceKey, item.key));
+
+  useEffect(() => {
+    const fallbackTab = getFirstEnabledAppSpaceTab(spaceTabFunctionalities, currentSpaceKey)?.key || null;
+
+    if (!menuItems.length) {
+      setActiveSection('');
+      return;
+    }
+
+    if (!menuItems.some((item) => item.key === activeSection) && fallbackTab) {
+      setActiveSection(fallbackTab);
+    }
+  }, [activeSection, currentSpaceKey, menuItems, spaceTabFunctionalities]);
 
   return (
     <div className="flex flex-col gap-8 md:flex-row">
@@ -978,7 +1022,15 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          {renderCurrentSection()}
+          {menuItems.length === 0 ? (
+            <Card className="shadow-xl glassmorphism">
+              <CardContent className="p-6 text-center text-muted-foreground">
+                Aucun onglet n’est actuellement activé pour cet espace.
+              </CardContent>
+            </Card>
+          ) : (
+            renderCurrentSection()
+          )}
         </motion.div>
       </main>
     </div>

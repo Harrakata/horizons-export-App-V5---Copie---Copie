@@ -1176,6 +1176,212 @@ BEGIN
 END $$;
 ```
 
+## Table Planning Modification Requests
+
+Pour permettre aux guichetières d’envoyer des demandes d’indisponibilité ou de changement de date à leur chef d’agence, créez la table `planning_modification_requests`.
+
+```sql
+CREATE TABLE IF NOT EXISTS public.planning_modification_requests (
+  id BIGSERIAL PRIMARY KEY,
+  planning_id TEXT NOT NULL,
+  guichetiere_id TEXT NOT NULL,
+  guichetiere_matricule TEXT NOT NULL,
+  guichetiere_nom TEXT,
+  agence_nom TEXT NOT NULL,
+  chef_agence_id TEXT,
+  date_planning DATE NOT NULL,
+  type_demande TEXT NOT NULL CHECK (type_demande IN ('indisponibilite', 'changement_date')),
+  date_souhaitee DATE,
+  motif TEXT,
+  statut TEXT NOT NULL DEFAULT 'En attente' CHECK (statut IN ('En attente', 'Approuvée', 'Refusée', 'Annulée')),
+  commentaire_traitement TEXT,
+  traitee_par TEXT,
+  date_traitement TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_planning_modification_requests_agence
+ON public.planning_modification_requests(agence_nom);
+
+CREATE INDEX IF NOT EXISTS idx_planning_modification_requests_guichetiere
+ON public.planning_modification_requests(guichetiere_matricule);
+
+CREATE INDEX IF NOT EXISTS idx_planning_modification_requests_date
+ON public.planning_modification_requests(date_planning);
+
+CREATE INDEX IF NOT EXISTS idx_planning_modification_requests_statut
+ON public.planning_modification_requests(statut);
+
+ALTER TABLE public.planning_modification_requests ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'planning_modification_requests'
+      AND policyname = 'Allow app access on planning_modification_requests'
+  ) THEN
+    CREATE POLICY "Allow app access on planning_modification_requests"
+      ON public.planning_modification_requests
+      FOR ALL
+      USING (auth.role() IN ('anon', 'authenticated'))
+      WITH CHECK (auth.role() IN ('anon', 'authenticated'));
+  END IF;
+END $$;
+
+DROP TRIGGER IF EXISTS handle_planning_modification_requests_updated_at
+ON public.planning_modification_requests;
+
+CREATE TRIGGER handle_planning_modification_requests_updated_at
+  BEFORE UPDATE ON public.planning_modification_requests
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+```
+
+## Table Planning Maintenance Modification Requests
+
+Pour permettre aux techniciens d’envoyer des demandes de modification de leur planning maintenance, avec validation successive par le chef d’agence puis l’Exploitation, créez la table `planning_maintenance_modification_requests`.
+
+```sql
+CREATE TABLE IF NOT EXISTS public.planning_maintenance_modification_requests (
+  id BIGSERIAL PRIMARY KEY,
+  planning_maintenance_id TEXT NOT NULL,
+  technicien_id TEXT NOT NULL,
+  technicien_matricule TEXT NOT NULL,
+  technicien_nom TEXT,
+  agence_id TEXT,
+  agence_nom TEXT NOT NULL,
+  region TEXT,
+  date_planification DATE NOT NULL,
+  creneau TEXT NOT NULL CHECK (creneau IN ('matin', 'apres_midi')),
+  type_demande TEXT NOT NULL CHECK (type_demande IN ('indisponibilite', 'changement_date')),
+  date_souhaitee DATE,
+  motif TEXT,
+  statut TEXT NOT NULL DEFAULT 'En attente chef d''agence'
+    CHECK (statut IN (
+      'En attente chef d''agence',
+      'En attente exploitation',
+      'Approuvée',
+      'Refusée par le chef d''agence',
+      'Refusée par l''exploitation',
+      'Annulée'
+    )),
+  commentaire_chef TEXT,
+  commentaire_exploitation TEXT,
+  traitee_par_chef TEXT,
+  traitee_par_exploitation TEXT,
+  date_traitement_chef TIMESTAMP WITH TIME ZONE,
+  date_traitement_exploitation TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_planning_maintenance_mod_requests_agence
+ON public.planning_maintenance_modification_requests(agence_nom);
+
+CREATE INDEX IF NOT EXISTS idx_planning_maintenance_mod_requests_technicien
+ON public.planning_maintenance_modification_requests(technicien_matricule);
+
+CREATE INDEX IF NOT EXISTS idx_planning_maintenance_mod_requests_date
+ON public.planning_maintenance_modification_requests(date_planification);
+
+CREATE INDEX IF NOT EXISTS idx_planning_maintenance_mod_requests_statut
+ON public.planning_maintenance_modification_requests(statut);
+
+ALTER TABLE public.planning_maintenance_modification_requests ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'planning_maintenance_modification_requests'
+      AND policyname = 'Allow app access on planning_maintenance_modification_requests'
+  ) THEN
+    CREATE POLICY "Allow app access on planning_maintenance_modification_requests"
+      ON public.planning_maintenance_modification_requests
+      FOR ALL
+      USING (auth.role() IN ('anon', 'authenticated'))
+      WITH CHECK (auth.role() IN ('anon', 'authenticated'));
+  END IF;
+END $$;
+
+DROP TRIGGER IF EXISTS handle_planning_maintenance_modification_requests_updated_at
+ON public.planning_maintenance_modification_requests;
+
+CREATE TRIGGER handle_planning_maintenance_modification_requests_updated_at
+  BEFORE UPDATE ON public.planning_maintenance_modification_requests
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+```
+
+## Table Points Vente Mobi Change Requests
+
+Pour permettre aux guichetières de demander une modification de leur point de vente mobi, créez la table `points_vente_mobi_change_requests`.
+
+```sql
+CREATE TABLE IF NOT EXISTS public.points_vente_mobi_change_requests (
+  id BIGSERIAL PRIMARY KEY,
+  point_vente_uid TEXT NOT NULL,
+  code_point_vente TEXT NOT NULL,
+  guichetiere_matricule TEXT NOT NULL,
+  guichetiere_nom TEXT,
+  current_region TEXT,
+  current_agence_nom TEXT,
+  current_terminal_reference TEXT,
+  requested_region TEXT,
+  requested_agence_nom TEXT,
+  requested_terminal_reference TEXT,
+  commentaire TEXT,
+  statut TEXT NOT NULL DEFAULT 'En attente' CHECK (statut IN ('En attente', 'Approuvée', 'Refusée', 'Annulée')),
+  commentaire_traitement TEXT,
+  traite_par TEXT,
+  date_traitement TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_points_vente_mobi_change_requests_point
+ON public.points_vente_mobi_change_requests(point_vente_uid);
+
+CREATE INDEX IF NOT EXISTS idx_points_vente_mobi_change_requests_guichetiere
+ON public.points_vente_mobi_change_requests(guichetiere_matricule);
+
+CREATE INDEX IF NOT EXISTS idx_points_vente_mobi_change_requests_statut
+ON public.points_vente_mobi_change_requests(statut);
+
+ALTER TABLE public.points_vente_mobi_change_requests ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'points_vente_mobi_change_requests'
+      AND policyname = 'Allow app access on points_vente_mobi_change_requests'
+  ) THEN
+    CREATE POLICY "Allow app access on points_vente_mobi_change_requests"
+      ON public.points_vente_mobi_change_requests
+      FOR ALL
+      USING (auth.role() IN ('anon', 'authenticated'))
+      WITH CHECK (auth.role() IN ('anon', 'authenticated'));
+  END IF;
+END $$;
+
+DROP TRIGGER IF EXISTS handle_points_vente_mobi_change_requests_updated_at
+ON public.points_vente_mobi_change_requests;
+
+CREATE TRIGGER handle_points_vente_mobi_change_requests_updated_at
+  BEFORE UPDATE ON public.points_vente_mobi_change_requests
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+```
+
 ## Configuration du workflow Paiement de Gain
 
 Pour activer la configuration des tranches, seuils et validateurs dans le sous-onglet `Configuration` de `Autorisation de Paiement Gain`, exécutez ce script :
