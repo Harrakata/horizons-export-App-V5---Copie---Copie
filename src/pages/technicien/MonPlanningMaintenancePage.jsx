@@ -70,6 +70,7 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
 
   const monthStart = useMemo(() => startOfMonth(currentMonth), [currentMonth]);
   const monthEnd = useMemo(() => endOfMonth(currentMonth), [currentMonth]);
+  const todayDate = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
 
   const days = useMemo(
     () => eachDayOfInterval({ start: monthStart, end: monthEnd }),
@@ -102,6 +103,7 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
           .from('planning_maintenance')
           .select('*')
           .eq('technicien_id', String(technicien.id))
+          .neq('statut', 'annulee')
           .gte('date_planification', format(monthStart, 'yyyy-MM-dd'))
           .lte('date_planification', format(monthEnd, 'yyyy-MM-dd'))
           .order('date_planification', { ascending: true })
@@ -175,8 +177,21 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
       request.statut === MAINTENANCE_REQUEST_STATUSES.PENDING_CHEF ||
       request.statut === MAINTENANCE_REQUEST_STATUSES.PENDING_EXPLOITATION
   ).length;
+  const isPastPlanningDate = useCallback(
+    (dateValue) => Boolean(dateValue) && String(dateValue) < todayDate,
+    [todayDate]
+  );
 
   const openRequestDialog = (planningEntry) => {
+    if (isPastPlanningDate(planningEntry?.date_planification)) {
+      toast({
+        title: 'Modification impossible',
+        description: 'Vous ne pouvez pas demander une modification sur une maintenance déjà passée.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const currentRequest = requestByPlanningId[String(planningEntry.id)];
     if (
       currentRequest?.statut === MAINTENANCE_REQUEST_STATUSES.PENDING_CHEF ||
@@ -196,6 +211,15 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
 
   const handleSubmitRequest = async () => {
     if (!selectedPlanningEntry || !technicien) return;
+
+    if (isPastPlanningDate(selectedPlanningEntry.date_planification)) {
+      toast({
+        title: 'Date dépassée',
+        description: 'Cette maintenance est déjà passée et ne peut plus être modifiée.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     if (
       requestForm.type_demande === MAINTENANCE_REQUEST_TYPES.DATE_CHANGE &&
@@ -423,6 +447,7 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
                               disabled={
                                 linkedRequest?.statut === MAINTENANCE_REQUEST_STATUSES.PENDING_CHEF ||
                                 linkedRequest?.statut === MAINTENANCE_REQUEST_STATUSES.PENDING_EXPLOITATION ||
+                                isPastPlanningDate(entry.date_planification) ||
                                 isLoading
                               }
                             >
@@ -527,6 +552,7 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
                 <Input
                   type="date"
                   value={requestForm.date_souhaitee}
+                  min={todayDate}
                   onChange={(event) =>
                     setRequestForm((previousState) => ({
                       ...previousState,

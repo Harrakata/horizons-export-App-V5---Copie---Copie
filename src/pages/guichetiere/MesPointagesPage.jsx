@@ -5,6 +5,7 @@ import { BarChart3, CalendarCheck2, Clock3, FileText } from 'lucide-react';
 import { startOfMonth, endOfMonth, format } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
@@ -17,6 +18,8 @@ const MesPointagesPage = () => {
   const [pointages, setPointages] = useState([]);
   const [creneauxCount, setCreneauxCount] = useState(2);
   const [isLoading, setIsLoading] = useState(false);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const currentMonthStart = useMemo(() => startOfMonth(new Date()), []);
   const currentMonthEnd = useMemo(() => endOfMonth(new Date()), []);
@@ -94,6 +97,15 @@ const MesPointagesPage = () => {
       : Math.min(100, Math.round((currentMonthPointages.length / expectedCurrentMonthPointages) * 100));
   const todayPointages = pointages.filter((pointage) => pointage.date === todayDate).length;
   const latestPointage = pointages[0] || null;
+  const filteredPointages = useMemo(
+    () =>
+      pointages.filter((pointage) => {
+        if (dateFrom && pointage.date < dateFrom) return false;
+        if (dateTo && pointage.date > dateTo) return false;
+        return true;
+      }),
+    [dateFrom, dateTo, pointages]
+  );
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -154,15 +166,25 @@ const MesPointagesPage = () => {
           <CardDescription>
             Retrouvez vos derniers pointages et leur créneau associé.
           </CardDescription>
+          <div className="grid gap-4 pt-2 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Date de début</label>
+              <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Date de fin</label>
+              <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
             <TableCaption>
               {isLoading
                 ? 'Chargement des pointages...'
-                : pointages.length === 0
+                : filteredPointages.length === 0
                 ? 'Aucun pointage enregistré.'
-                : `${pointages.length} pointage(s) trouvé(s).`}
+                : `${filteredPointages.length} pointage(s) trouvé(s).`}
             </TableCaption>
             <TableHeader>
               <TableRow>
@@ -174,7 +196,7 @@ const MesPointagesPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pointages.map((pointage) => (
+              {filteredPointages.map((pointage) => (
                 <TableRow key={pointage.id}>
                   <TableCell>{formatDisplayDate(pointage.date)}</TableCell>
                   <TableCell>{formatDisplayDateTime(pointage.time)}</TableCell>

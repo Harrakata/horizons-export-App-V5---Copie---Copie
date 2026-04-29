@@ -13,6 +13,13 @@ import { supabase } from '@/lib/supabaseClient';
 import { motion } from 'framer-motion';
 import SignatureCanvas from 'react-signature-canvas';
 
+const normalizeMaintenanceText = (value) =>
+  String(value ?? '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
 const isMissingInterventionIdError = (error) => {
   const message = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
   return (
@@ -187,6 +194,7 @@ const MaintenanceTab = ({ technicien }) => {
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState({
+    region: '',
     agence: '',
     terminal: '',
     sousEnsemble: '',
@@ -253,7 +261,7 @@ const MaintenanceTab = ({ technicien }) => {
       // Charger les agences
       const { data: agencesData, error: agencesError } = await supabase
         .from('agences')
-        .select('id, nom, nbreTerminaux, codePDV')
+        .select('id, nom, nbreTerminaux, codePDV, region')
         .order('nom', { ascending: true });
       
       if (agencesError) {
@@ -498,6 +506,11 @@ const MaintenanceTab = ({ technicien }) => {
 
     setForm((p) => {
       const updated = { ...p, [field]: value };
+      if (field === 'region') {
+        updated.agence = '';
+        updated.terminal = '';
+        updated.sousEnsemble = '';
+      }
       if (field === 'agence') {
         updated.terminal = '';
         updated.sousEnsemble = '';
@@ -510,7 +523,24 @@ const MaintenanceTab = ({ technicien }) => {
   };
 
   // Préparer les options pour les Combobox
-  const agencesOptions = agences.map(a => ({
+  const regionsOptions = Array.from(
+    new Map(
+      agences
+        .filter((agence) => agence.region)
+        .map((agence) => [
+          normalizeMaintenanceText(agence.region),
+          { value: agence.region, label: agence.region },
+        ])
+    ).values()
+  );
+
+  const filteredAgences = form.region
+    ? agences.filter(
+        (agence) => normalizeMaintenanceText(agence.region) === normalizeMaintenanceText(form.region)
+      )
+    : agences;
+
+  const agencesOptions = filteredAgences.map(a => ({
     value: String(a.id),
     label: `${a.nom} (${a.nbreTerminaux} terminaux)`
   }));
@@ -1387,6 +1417,7 @@ const MaintenanceTab = ({ technicien }) => {
   const resetForm = () => {
     clearValidationDraft();
     setForm({
+      region: '',
       agence: '',
       terminal: '',
       sousEnsemble: '',
@@ -1516,6 +1547,19 @@ const MaintenanceTab = ({ technicien }) => {
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-primary">Sélection du Terminal</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+                  <Label htmlFor="region">Région</Label>
+                  <Combobox
+                    options={regionsOptions}
+                    value={form.region}
+                    onSelect={handleChange('region')}
+                    placeholder="Choisir une région"
+                    searchPlaceholder="Rechercher une région..."
+                    emptyText="Aucune région trouvée."
+                    disabled={isLoading}
+                  />
+            </div>
+
             <div className="space-y-2">
                   <Label htmlFor="agence">Agence *</Label>
                   <Combobox

@@ -25,7 +25,7 @@ export const getMaintenanceInterventionStatusClass = (status) => {
   return 'border-slate-200 bg-slate-100 text-slate-700';
 };
 
-export const getMaintenanceFollowUp = (latestIntervention) => {
+export const getMaintenanceFollowUp = (latestIntervention, referenceDate = new Date()) => {
   if (!latestIntervention?.date_intervention) {
     return {
       label: 'Faire maintenance préventive',
@@ -43,7 +43,10 @@ export const getMaintenanceFollowUp = (latestIntervention) => {
     };
   }
 
-  const isRecent = Date.now() - interventionDate.getTime() <= ONE_MONTH_IN_MS;
+  const safeReferenceDate =
+    referenceDate instanceof Date ? referenceDate : new Date(referenceDate || Date.now());
+  const referenceTimestamp = Number.isNaN(safeReferenceDate.getTime()) ? Date.now() : safeReferenceDate.getTime();
+  const isRecent = referenceTimestamp - interventionDate.getTime() <= ONE_MONTH_IN_MS;
 
   if (isRecent) {
     return {
@@ -83,7 +86,7 @@ const getLatestInterventionForReference = (interventions, terminalId, reference)
       return secondDate - firstDate;
     })[0] || null;
 
-export const buildTerminalSousEnsembleRows = (terminaux, interventions, agencesById = {}) =>
+export const buildTerminalSousEnsembleRows = (terminaux, interventions, agencesById = {}, referenceDate = new Date()) =>
   (terminaux || []).flatMap((terminal) => {
     const sousEnsembles = getTerminalSousEnsembles(terminal);
     const agence = agencesById[String(terminal.agence_id)] || null;
@@ -113,7 +116,7 @@ export const buildTerminalSousEnsembleRows = (terminaux, interventions, agencesB
           sousEnsembleLabel: 'Terminal',
           sousEnsembleReference: 'Non renseigne',
           latestIntervention: latestTerminalIntervention,
-          followUp: getMaintenanceFollowUp(latestTerminalIntervention),
+          followUp: getMaintenanceFollowUp(latestTerminalIntervention, referenceDate),
         },
       ];
     }
@@ -133,7 +136,7 @@ export const buildTerminalSousEnsembleRows = (terminaux, interventions, agencesB
         sousEnsembleLabel: sousEnsemble.label,
         sousEnsembleReference: sousEnsemble.reference,
         latestIntervention,
-        followUp: getMaintenanceFollowUp(latestIntervention),
+        followUp: getMaintenanceFollowUp(latestIntervention, referenceDate),
       };
     });
   });
@@ -173,8 +176,13 @@ const getTerminalFollowUp = (rows) => {
   };
 };
 
-export const buildTerminalMonitoringGroups = (terminaux, interventions, agencesById = {}) => {
-  const rows = buildTerminalSousEnsembleRows(terminaux, interventions, agencesById);
+export const buildTerminalMonitoringGroups = (
+  terminaux,
+  interventions,
+  agencesById = {},
+  referenceDate = new Date()
+) => {
+  const rows = buildTerminalSousEnsembleRows(terminaux, interventions, agencesById, referenceDate);
   const groupsByTerminalId = rows.reduce((accumulator, row) => {
     const key = String(row.terminalId);
 

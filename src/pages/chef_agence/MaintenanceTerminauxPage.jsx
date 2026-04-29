@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import ConfigurationTab from '@/pages/maintenance/ConfigurationTab';
+import MaintenanceAnalyticsSection from '@/components/maintenance/MaintenanceAnalyticsSection';
 import MaintenancePlanningSection from '@/components/maintenance/MaintenancePlanningSection';
 import { formatDisplayDate, formatDisplayDateTime } from '@/lib/guichetiereSpace';
 import {
@@ -319,6 +320,14 @@ const MaintenanceTerminauxPage = () => {
   const preventiveRequiredCount = terminalMonitoringGroups.filter(
     (group) => group.followUp.label === 'Faire maintenance préventive'
   ).length;
+  const scopedTerminalIds = useMemo(
+    () => new Set(filteredTerminalMonitoringGroups.map((group) => String(group.terminalId))),
+    [filteredTerminalMonitoringGroups]
+  );
+  const scopedTerminauxForCharts = useMemo(
+    () => terminaux.filter((terminal) => scopedTerminalIds.has(String(terminal.id))),
+    [scopedTerminalIds, terminaux]
+  );
   const pendingPlanningRequestsCount = planningRequests.filter(
     (request) => request.statut === MAINTENANCE_REQUEST_STATUSES.PENDING_CHEF
   ).length;
@@ -458,6 +467,17 @@ const MaintenanceTerminauxPage = () => {
               </CardContent>
             </Card>
           </div>
+
+          <MaintenanceAnalyticsSection
+            title="Analyse des non-conformités maintenance"
+            description="Répartition des terminaux et sous-ensembles à traiter sur votre agence, avec l’évolution des retards de maintenance."
+            groups={filteredTerminalMonitoringGroups}
+            terminaux={scopedTerminauxForCharts}
+            interventions={interventions}
+            agenciesById={{ [String(agenceRecord?.id || '')]: agenceRecord }}
+            availableDimensions={['terminal', 'sous_ensemble']}
+            showAdvancedCharts
+          />
 
           <Card className="shadow-xl glassmorphism">
             <CardHeader className="space-y-4">

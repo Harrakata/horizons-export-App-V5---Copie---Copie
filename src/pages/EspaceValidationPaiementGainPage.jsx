@@ -218,6 +218,20 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
       ? 'espace-directeur-general'
       : 'espace-directeur-regional';
 
+  useEffect(() => {
+    const storedValidator = getStoredValidatorForSpace(
+      spaceConfig.storageKey,
+      spaceConfig.expectedFunction
+    );
+
+    setValidator(storedValidator);
+    setDemandes([]);
+    setEvents([]);
+    setSelectedDemandeId(null);
+    setActionComment('');
+    setActiveSection('paiement');
+  }, [spaceConfig.expectedFunction, spaceConfig.storageKey]);
+
   const loadData = useCallback(async () => {
     if (!validator?.id) return;
 

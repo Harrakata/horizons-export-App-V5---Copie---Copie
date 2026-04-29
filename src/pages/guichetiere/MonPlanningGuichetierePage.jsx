@@ -69,6 +69,7 @@ const MonPlanningGuichetierePage = () => {
 
   const monthStart = useMemo(() => startOfMonth(currentMonth), [currentMonth]);
   const monthEnd = useMemo(() => endOfMonth(currentMonth), [currentMonth]);
+  const todayDate = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
 
   const days = useMemo(
     () => eachDayOfInterval({ start: monthStart, end: monthEnd }),
@@ -167,8 +168,21 @@ const MonPlanningGuichetierePage = () => {
 
   const monthPlanningCount = planningEntries.length;
   const pendingRequestsCount = requests.filter((request) => request.statut === REQUEST_STATUS.PENDING).length;
+  const isPastPlanningDate = useCallback(
+    (dateValue) => Boolean(dateValue) && String(dateValue) < todayDate,
+    [todayDate]
+  );
 
   const openRequestDialog = (planningEntry) => {
+    if (isPastPlanningDate(planningEntry?.date)) {
+      toast({
+        title: 'Modification impossible',
+        description: 'Vous ne pouvez pas demander une modification sur une date de planning déjà dépassée.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const currentRequest = requestByPlanningId[String(planningEntry.id)];
     if (currentRequest?.statut === REQUEST_STATUS.PENDING) {
       toast({
@@ -189,6 +203,15 @@ const MonPlanningGuichetierePage = () => {
 
   const handleSubmitRequest = async () => {
     if (!selectedPlanningEntry || !guichetiereInfo) return;
+
+    if (isPastPlanningDate(selectedPlanningEntry.date)) {
+      toast({
+        title: 'Date dépassée',
+        description: 'Cette date de planning est dépassée et ne peut plus être modifiée.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     if (
       requestForm.type_demande === PLANNING_REQUEST_TYPES.DATE_CHANGE &&
@@ -393,7 +416,11 @@ const MonPlanningGuichetierePage = () => {
                               size="icon"
                               className="h-7 w-7 text-blue-600 hover:text-blue-700"
                               onClick={() => openRequestDialog(entry)}
-                              disabled={linkedRequest?.statut === REQUEST_STATUS.PENDING || isLoading}
+                              disabled={
+                                linkedRequest?.statut === REQUEST_STATUS.PENDING ||
+                                isPastPlanningDate(entry.date) ||
+                                isLoading
+                              }
                             >
                               <Edit3 className="h-3.5 w-3.5" />
                             </Button>
@@ -494,7 +521,7 @@ const MonPlanningGuichetierePage = () => {
                   id="date-souhaitee-planning"
                   type="date"
                   value={requestForm.date_souhaitee}
-                  min={selectedPlanningEntry?.date || ''}
+                  min={todayDate}
                   onChange={(event) =>
                     setRequestForm((prev) => ({ ...prev, date_souhaitee: event.target.value }))
                   }

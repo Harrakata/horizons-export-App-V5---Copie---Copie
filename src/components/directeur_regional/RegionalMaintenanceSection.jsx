@@ -10,6 +10,8 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import MaintenancePlanningSection from '@/components/maintenance/MaintenancePlanningSection';
+import MaintenanceAnalyticsSection from '@/components/maintenance/MaintenanceAnalyticsSection';
+import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { supabase } from '@/lib/supabaseClient';
 import {
   buildTerminalMonitoringGroups,
@@ -200,6 +202,14 @@ const RegionalMaintenanceSection = ({ regionName = '', allowAllRegions = false, 
   const preventiveRequiredCount = filteredMaintenanceGroups.filter(
     (group) => group.followUp.label === 'Faire maintenance préventive'
   ).length;
+  const scopedTerminalIds = useMemo(
+    () => new Set(filteredMaintenanceGroups.map((group) => String(group.terminalId))),
+    [filteredMaintenanceGroups]
+  );
+  const scopedRegionalTerminaux = useMemo(
+    () => regionalTerminaux.filter((terminal) => scopedTerminalIds.has(String(terminal.id))),
+    [regionalTerminaux, scopedTerminalIds]
+  );
 
   const toggleTerminalExpansion = (terminalId) => {
     const terminalKey = String(terminalId);
@@ -248,34 +258,39 @@ const RegionalMaintenanceSection = ({ regionName = '', allowAllRegions = false, 
 
         <TabsContent value="suivi" className="space-y-6">
           <div className="grid gap-4 md:grid-cols-3">
-            <Card className="shadow-sm">
-              <CardContent className="flex items-center gap-3 p-5">
-                <Wrench className="h-8 w-8 text-primary" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Terminaux suivis</p>
-                  <p className="text-2xl font-bold">{filteredMaintenanceGroups.length}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="flex items-center gap-3 p-5">
-                <CalendarClock className="h-8 w-8 text-emerald-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Maintenance à jour</p>
-                  <p className="text-2xl font-bold">{upToDateCount}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="flex items-center gap-3 p-5">
-                <CalendarClock className="h-8 w-8 text-red-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Préventives à planifier</p>
-                  <p className="text-2xl font-bold">{preventiveRequiredCount}</p>
-                </div>
-              </CardContent>
-            </Card>
+            <KpiStatCard
+              icon={<Wrench />}
+              label="Terminaux suivis"
+              value={filteredMaintenanceGroups.length}
+              helper="Périmètre courant après application des filtres."
+              tone="primary"
+            />
+            <KpiStatCard
+              icon={<CalendarClock />}
+              label="Maintenance à jour"
+              value={upToDateCount}
+              helper="Terminaux conformes sur le dernier mois."
+              tone="emerald"
+            />
+            <KpiStatCard
+              icon={<CalendarClock />}
+              label="Préventives à planifier"
+              value={preventiveRequiredCount}
+              helper="Terminaux qui nécessitent une action préventive."
+              tone="red"
+            />
           </div>
+
+          <MaintenanceAnalyticsSection
+            title="Analyse des non-conformités maintenance"
+            description="Répartition des terminaux à traiter et évolution des retards de maintenance sur la période."
+            groups={filteredMaintenanceGroups}
+            terminaux={scopedRegionalTerminaux}
+            interventions={regionalInterventions}
+            agenciesById={agencesById}
+            availableDimensions={allowAllRegions ? ['region', 'agence', 'terminal', 'sous_ensemble'] : ['agence', 'terminal', 'sous_ensemble']}
+            showAdvancedCharts
+          />
 
           <Card className="shadow-xl glassmorphism">
             <CardHeader className="space-y-4">

@@ -336,6 +336,44 @@ const MesPointsVenteMobiPage = () => {
 
       <Card className="shadow-xl glassmorphism">
         <CardHeader>
+          <CardTitle className="text-2xl text-primary">Mes demandes de modification</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableCaption>
+              {requests.length === 0 ? 'Aucune demande envoyée.' : `${requests.length} demande(s) enregistrée(s).`}
+            </TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Point de vente</TableHead>
+                <TableHead>Nouvelle agence souhaitée</TableHead>
+                <TableHead>Nouveau terminal</TableHead>
+                <TableHead>Statut</TableHead>
+                <TableHead>Traitement</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {requests.map((request) => (
+                <TableRow key={request.id}>
+                  <TableCell>{request.code_point_vente}</TableCell>
+                  <TableCell>{request.requested_agence_nom || 'Aucune'}</TableCell>
+                  <TableCell>{request.requested_terminal_reference || 'Aucun'}</TableCell>
+                  <TableCell>
+                    <Badge className={getRequestStatusBadgeClass(request.statut)}>{request.statut}</Badge>
+                  </TableCell>
+                  <TableCell className="max-w-[260px] whitespace-normal text-xs text-muted-foreground">
+                    {request.commentaire_traitement || request.commentaire || 'En attente de traitement'}
+                    <div>{formatDisplayDateTime(request.date_traitement)}</div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-xl glassmorphism">
+        <CardHeader>
           <CardTitle className="text-2xl text-primary">Historique des affectations</CardTitle>
         </CardHeader>
         <CardContent>
@@ -365,44 +403,6 @@ const MesPointsVenteMobiPage = () => {
                     <Badge className={pointVente.statut === 'Actif' ? 'border-green-200 bg-green-50 text-green-700' : 'border-slate-200 bg-slate-100 text-slate-700'}>
                       {pointVente.statut}
                     </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-xl glassmorphism">
-        <CardHeader>
-          <CardTitle className="text-2xl text-primary">Mes demandes de modification</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableCaption>
-              {requests.length === 0 ? 'Aucune demande envoyée.' : `${requests.length} demande(s) enregistrée(s).`}
-            </TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Point de vente</TableHead>
-                <TableHead>Nouvelle agence souhaitée</TableHead>
-                <TableHead>Nouveau terminal</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead>Traitement</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {requests.map((request) => (
-                <TableRow key={request.id}>
-                  <TableCell>{request.code_point_vente}</TableCell>
-                  <TableCell>{request.requested_agence_nom || 'Aucune'}</TableCell>
-                  <TableCell>{request.requested_terminal_reference || 'Aucun'}</TableCell>
-                  <TableCell>
-                    <Badge className={getRequestStatusBadgeClass(request.statut)}>{request.statut}</Badge>
-                  </TableCell>
-                  <TableCell className="max-w-[260px] whitespace-normal text-xs text-muted-foreground">
-                    {request.commentaire_traitement || request.commentaire || 'En attente de traitement'}
-                    <div>{formatDisplayDateTime(request.date_traitement)}</div>
                   </TableCell>
                 </TableRow>
               ))}

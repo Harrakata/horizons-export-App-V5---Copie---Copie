@@ -1,57 +1,27 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ClipboardCheck, Clock3, Search, Users } from 'lucide-react';
+import { BarChart3, ClipboardCheck, Clock3, PieChart, Search, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
+import StatsChartCard from '@/components/analytics/StatsChartCard';
+import KpiStatCard from '@/components/analytics/KpiStatCard';
+import { ANALYTICS_GRANULARITY_OPTIONS } from '@/lib/analytics';
+import {
+  buildPointageAgencyRows,
+  buildPointageDistributionData,
+  buildPointageTrendData,
+  formatPointageDateTime,
+  getPointageStatusMeta,
+  normalizePointageText,
+} from '@/lib/pointageMonitoring';
 import { supabase } from '@/lib/supabaseClient';
 import { fetchRegions, normalizeRegionText, resolveRegionName } from '@/lib/regions';
 
 const ALL_FILTER_VALUE = '__all__';
-
-const normalizeText = (value) =>
-  String(value ?? '')
-    .trim()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-
-const formatPointageDateTime = (value) => {
-  if (!value) return 'N/A';
-  const parsedDate = new Date(value);
-  return Number.isNaN(parsedDate.getTime()) ? 'N/A' : parsedDate.toLocaleString('fr-FR');
-};
-
-const getPointageStatusMeta = (count, expectedCount) => {
-  if (expectedCount === 0) {
-    return {
-      label: 'Aucun planning',
-      className: 'border-slate-200 bg-slate-100 text-slate-700',
-    };
-  }
-
-  if (count === 0) {
-    return {
-      label: 'En attente',
-      className: 'border-amber-200 bg-amber-50 text-amber-700',
-    };
-  }
-
-  if (count < expectedCount) {
-    return {
-      label: 'En cours',
-      className: 'border-blue-200 bg-blue-50 text-blue-700',
-    };
-  }
-
-  return {
-    label: 'Complet',
-    className: 'border-green-200 bg-green-50 text-green-700',
-  };
-};
 
 const RegionalPointageSection = ({ regionName = '', allowAllRegions = false }) => {
   const { toast } = useToast();
@@ -65,7 +35,18 @@ const RegionalPointageSection = ({ regionName = '', allowAllRegions = false }) =
   const [selectedAgenceId, setSelectedAgenceId] = useState(ALL_FILTER_VALUE);
   const [selectedDetailAgence, setSelectedDetailAgence] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [distributionDimension, setDistributionDimension] = useState(allowAllRegions ? 'region' : 'agence');
+  const [trendGranularity, setTrendGranularity] = useState('week');
   const [isLoading, setIsLoading] = useState(false);
+
+  const effectiveRegionName = useMemo(
+    () => resolveRegionName(regions, regionName) || regionName || '',
+    [regionName, regions]
+  );
+
+  useEffect(() => {
+    setDistributionDimension(allowAllRegions ? 'region' : 'agence');
+  }, [allowAllRegions]);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -86,17 +67,17 @@ const RegionalPointageSection = ({ regionName = '', allowAllRegions = false }) =
     }
 
     const nextRegions = regionsData || [];
-    const effectiveRegionName = resolveRegionName(nextRegions, regionName) || regionName || '';
-    const regionalAgences = !effectiveRegionName && allowAllRegions
+    const nextEffectiveRegionName = resolveRegionName(nextRegions, regionName) || regionName || '';
+    const regionalAgences = !nextEffectiveRegionName && allowAllRegions
       ? agencesData || []
       : (agencesData || []).filter(
-          (agence) => normalizeRegionText(agence.region) === normalizeRegionText(effectiveRegionName)
+          (agence) => normalizeRegionText(agence.region) === normalizeRegionText(nextEffectiveRegionName)
         );
 
     setRegions(nextRegions);
     setAgences(regionalAgences);
 
-    if ((!effectiveRegionName && !allowAllRegions) || regionalAgences.length === 0) {
+    if ((!nextEffectiveRegionName && !allowAllRegions) || regionalAgences.length === 0) {
       setPlanningEntries([]);
       setPointages([]);
       setGuichetieresById({});
@@ -105,6 +86,12 @@ const RegionalPointageSection = ({ regionName = '', allowAllRegions = false }) =
     }
 
     const agenceNames = regionalAgences.map((agence) => agence.nom);
+    const selectedDateReference = new Date(`${selectedDate}T00:00:00`);
+    const safeSelectedDate = Number.isNaN(selectedDateReference.getTime()) ? new Date() : selectedDateReference;
+    const historyStartDate = new Date(safeSelectedDate);
+    historyStartDate.setMonth(historyStartDate.getMonth() - 11);
+    const historyStart = historyStartDate.toISOString().slice(0, 10);
+    const historyEnd = selectedDate;
 
     const [
       { data: planningData, error: planningError },
@@ -114,12 +101,14 @@ const RegionalPointageSection = ({ regionName = '', allowAllRegions = false }) =
       supabase
         .from('planning')
         .select('id, date, agenceNom, guichetiereId, remplacante_de_id, est_remplacante')
-        .eq('date', selectedDate)
+        .gte('date', historyStart)
+        .lte('date', historyEnd)
         .in('agenceNom', agenceNames),
       supabase
         .from('pointages')
         .select('*')
-        .eq('date', selectedDate)
+        .gte('date', historyStart)
+        .lte('date', historyEnd)
         .in('agence', agenceNames),
       supabase.from('app_settings').select('value').eq('key', 'general').single(),
     ]);
@@ -178,72 +167,30 @@ const RegionalPointageSection = ({ regionName = '', allowAllRegions = false }) =
     loadData();
   }, [loadData]);
 
-  const effectiveRegionName = useMemo(
-    () => resolveRegionName(regions, regionName) || regionName || '',
-    [regionName, regions]
+  const selectedDatePlanningEntries = useMemo(
+    () => planningEntries.filter((entry) => entry.date === selectedDate),
+    [planningEntries, selectedDate]
+  );
+
+  const selectedDatePointages = useMemo(
+    () => pointages.filter((pointage) => pointage.date === selectedDate),
+    [pointages, selectedDate]
   );
 
   const pointageRows = useMemo(
     () =>
-      agences
-        .map((agence) => {
-          const agencyPlanning = planningEntries.filter(
-            (entry) => normalizeText(entry.agenceNom) === normalizeText(agence.nom)
-          );
-          const uniqueGuichetieres = Array.from(
-            new Map(
-              agencyPlanning.map((entry) => {
-                const guichetiere = guichetieresById[String(entry.guichetiereId)] || null;
-                const key = String(entry.guichetiereId || guichetiere?.matricule || entry.id);
-                return [
-                  key,
-                  {
-                    ...entry,
-                    guichetiere,
-                  },
-                ];
-              })
-            ).values()
-          );
-
-          const agencyPointages = pointages.filter(
-            (pointage) => normalizeText(pointage.agence) === normalizeText(agence.nom)
-          );
-          const expectedCount = uniqueGuichetieres.length * creneauxCount;
-          const completionRate = expectedCount === 0 ? 0 : Math.min(100, Math.round((agencyPointages.length / expectedCount) * 100));
-          const latestPointage = [...agencyPointages].sort(
-            (firstPointage, secondPointage) =>
-              new Date(secondPointage.time || 0).getTime() - new Date(firstPointage.time || 0).getTime()
-          )[0] || null;
-
-          return {
-            agenceId: String(agence.id),
-            agenceNom: agence.nom,
-            codePDV: agence.codePDV || 'N/A',
-            plannedGuichetieres: uniqueGuichetieres,
-            plannedCount: uniqueGuichetieres.length,
-            pointagesCount: agencyPointages.length,
-            expectedCount,
-            completionRate,
-            latestPointage,
-            pointages: agencyPointages,
-            statusMeta: getPointageStatusMeta(agencyPointages.length, expectedCount),
-            searchBlob: normalizeText(
-              [
-                agence.nom,
-                agence.codePDV,
-                ...uniqueGuichetieres.map((entry) =>
-                  [entry.guichetiere?.matricule, entry.guichetiere?.prenom, entry.guichetiere?.nom].join(' ')
-                ),
-              ].join(' ')
-            ),
-          };
-        })
+      buildPointageAgencyRows({
+        agences,
+        planningEntries: selectedDatePlanningEntries,
+        pointages: selectedDatePointages,
+        guichetieresById,
+        creneauxCount,
+      })
         .filter((row) =>
           selectedAgenceId === ALL_FILTER_VALUE ? true : String(row.agenceId) === String(selectedAgenceId)
         )
-        .filter((row) => !searchTerm || row.searchBlob.includes(normalizeText(searchTerm))),
-    [agences, creneauxCount, guichetieresById, planningEntries, pointages, searchTerm, selectedAgenceId]
+        .filter((row) => !searchTerm || row.searchBlob.includes(normalizePointageText(searchTerm))),
+    [agences, creneauxCount, guichetieresById, searchTerm, selectedAgenceId, selectedDatePlanningEntries, selectedDatePointages]
   );
 
   useEffect(() => {
@@ -270,6 +217,7 @@ const RegionalPointageSection = ({ regionName = '', allowAllRegions = false }) =
     const totalPointages = pointageRows.reduce((total, row) => total + row.pointagesCount, 0);
     const totalExpected = pointageRows.reduce((total, row) => total + row.expectedCount, 0);
     const globalRate = totalExpected === 0 ? 0 : Math.min(100, Math.round((totalPointages / totalExpected) * 100));
+    const totalNonConformities = pointageRows.reduce((total, row) => total + row.nonConformityCount, 0);
 
     return {
       agenciesCount: pointageRows.length,
@@ -277,8 +225,76 @@ const RegionalPointageSection = ({ regionName = '', allowAllRegions = false }) =
       totalPointages,
       totalExpected,
       globalRate,
+      totalNonConformities,
     };
   }, [pointageRows]);
+
+  const selectedAgenceName = useMemo(
+    () => agences.find((agence) => String(agence.id) === String(selectedAgenceId))?.nom || null,
+    [agences, selectedAgenceId]
+  );
+
+  const scopedPlanningHistory = useMemo(
+    () =>
+      selectedAgenceName
+        ? planningEntries.filter((entry) => normalizePointageText(entry.agenceNom) === normalizePointageText(selectedAgenceName))
+        : planningEntries,
+    [planningEntries, selectedAgenceName]
+  );
+
+  const scopedPointagesHistory = useMemo(
+    () =>
+      selectedAgenceName
+        ? pointages.filter((pointage) => normalizePointageText(pointage.agence) === normalizePointageText(selectedAgenceName))
+        : pointages,
+    [pointages, selectedAgenceName]
+  );
+
+  const distributionOptions = allowAllRegions
+    ? [
+        { value: 'region', label: 'Région' },
+        { value: 'agence', label: 'Agence' },
+      ]
+    : [{ value: 'agence', label: 'Agence' }];
+
+  const distributionData = useMemo(
+    () =>
+      buildPointageDistributionData(
+        pointageRows,
+        distributionDimension === 'region'
+          ? (row) => row.regionNom || 'Région non renseignée'
+          : (row) => row.agenceNom || 'Agence non renseignée'
+      ),
+    [distributionDimension, pointageRows]
+  );
+
+  const trendData = useMemo(
+    () =>
+      buildPointageTrendData({
+        planningEntries: scopedPlanningHistory,
+        pointages: scopedPointagesHistory,
+        creneauxCount,
+        granularity: trendGranularity,
+        referenceDate: new Date(`${selectedDate}T00:00:00`),
+      }),
+    [creneauxCount, pointages, scopedPlanningHistory, scopedPointagesHistory, selectedDate, trendGranularity]
+  );
+
+  const complianceData = useMemo(
+    () => [
+      {
+        label: 'Pointages enregistrés',
+        value: stats.totalPointages,
+      },
+      {
+        label: 'Pointages manquants',
+        value: Math.max(stats.totalExpected - stats.totalPointages, 0),
+      },
+    ],
+    [stats.totalExpected, stats.totalPointages]
+  );
+
+  const rankingData = useMemo(() => distributionData.slice(0, 8), [distributionData]);
 
   if (!effectiveRegionName && !allowAllRegions) {
     return (
@@ -312,43 +328,104 @@ const RegionalPointageSection = ({ regionName = '', allowAllRegions = false }) =
       </Card>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <Users className="h-8 w-8 text-primary" />
-            <div>
-              <p className="text-sm text-muted-foreground">Agences suivies</p>
-              <p className="text-2xl font-bold">{stats.agenciesCount}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <ClipboardCheck className="h-8 w-8 text-emerald-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Guichetières planifiées</p>
-              <p className="text-2xl font-bold">{stats.plannedGuichetieres}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <Clock3 className="h-8 w-8 text-blue-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Pointages enregistrés</p>
-              <p className="text-2xl font-bold">{stats.totalPointages}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <ClipboardCheck className="h-8 w-8 text-amber-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Taux global</p>
-              <p className="text-2xl font-bold">{stats.globalRate}%</p>
-            </div>
-          </CardContent>
-        </Card>
+        <KpiStatCard
+          icon={<Users />}
+          label="Agences suivies"
+          value={stats.agenciesCount}
+          helper="Agences visibles dans le périmètre et les filtres courants."
+          tone="primary"
+        />
+        <KpiStatCard
+          icon={<ClipboardCheck />}
+          label="Guichetières planifiées"
+          value={stats.plannedGuichetieres}
+          helper="Effectif attendu selon le planning du jour."
+          tone="emerald"
+        />
+        <KpiStatCard
+          icon={<Clock3 />}
+          label="Pointages enregistrés"
+          value={stats.totalPointages}
+          helper="Pointages réellement remontés sur la date affichée."
+          tone="blue"
+        />
+        <KpiStatCard
+          icon={<ClipboardCheck />}
+          label="Non-conformités"
+          value={stats.totalNonConformities}
+          helper="Écarts entre pointages attendus et saisis."
+          tone="amber"
+        />
       </div>
+
+      <Card className="shadow-xl glassmorphism">
+        <CardHeader className="space-y-4">
+          <div>
+            <CardTitle className="text-2xl text-primary">Analyse des non-conformités</CardTitle>
+            <CardDescription>
+              Répartition des écarts de pointage et évolution des non-conformités sur la période observée.
+            </CardDescription>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Répartition par</p>
+              <Select value={distributionDimension} onValueChange={setDistributionDimension}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir une vue" />
+                </SelectTrigger>
+                <SelectContent>
+                  {distributionOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Granularité de la courbe</p>
+              <Select value={trendGranularity} onValueChange={setTrendGranularity}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir une granularité" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ANALYTICS_GRANULARITY_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-4 xl:grid-cols-2">
+          <StatsChartCard
+            type="pie"
+            title="Camembert des non-conformités"
+            description="Volume des pointages manquants sur la date affichée."
+            data={distributionData}
+          />
+          <StatsChartCard
+            type="line"
+            title="Évolution des non-conformités"
+            description="Écart entre pointages attendus et pointages saisis sur la période."
+            data={trendData}
+          />
+          <StatsChartCard
+            type="bar"
+            title="Classement des zones les plus exposées"
+            description="Les agences ou régions qui concentrent le plus de non-conformités."
+            data={rankingData}
+          />
+          <StatsChartCard
+            type="progress"
+            title="Couverture globale des pointages"
+            description="Répartition entre pointages effectivement remontés et pointages encore manquants."
+            data={complianceData}
+          />
+        </CardContent>
+      </Card>
 
       <Card className="shadow-xl glassmorphism">
         <CardHeader className="space-y-4">
@@ -425,7 +502,9 @@ const RegionalPointageSection = ({ regionName = '', allowAllRegions = false }) =
                   <TableCell>
                     <div className="flex flex-col">
                       <span className="font-medium">{row.agenceNom}</span>
-                      <span className="text-xs text-muted-foreground">Code PDV: {row.codePDV}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {row.regionNom} • Code PDV: {row.codePDV}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>{row.plannedCount}</TableCell>
@@ -499,7 +578,7 @@ const RegionalPointageSection = ({ regionName = '', allowAllRegions = false }) =
                     selectedAgenceRow.plannedGuichetieres.map((entry) => {
                       const guichetiere = entry.guichetiere;
                       const guichetierePointages = selectedAgenceRow.pointages.filter(
-                        (pointage) => normalizeText(pointage.guichetiereMatricule) === normalizeText(guichetiere?.matricule)
+                        (pointage) => normalizePointageText(pointage.guichetiereMatricule) === normalizePointageText(guichetiere?.matricule)
                       );
                       const statusMeta = getPointageStatusMeta(guichetierePointages.length, creneauxCount);
                       const latestPointage = [...guichetierePointages].sort(

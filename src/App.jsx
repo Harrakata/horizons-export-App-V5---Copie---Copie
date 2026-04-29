@@ -27,6 +27,7 @@ import EspaceMaintenancePage from '@/pages/EspaceMaintenancePage';
 import MesGuichetieresPage from '@/pages/chef_agence/MesGuichetieresPage';
 import MonPlanningPage from '@/pages/chef_agence/MonPlanningPage';
 import MaintenanceTerminauxPage from '@/pages/chef_agence/MaintenanceTerminauxPage';
+import SuiviPointageChefPage from '@/pages/chef_agence/SuiviPointagePage';
 import PointsVenteMobiChefPage from '@/pages/chef_agence/PointsVenteMobiChefPage';
 import MonPlanningGuichetierePage from '@/pages/guichetiere/MonPlanningGuichetierePage';
 import MesPointagesPage from '@/pages/guichetiere/MesPointagesPage';
@@ -34,6 +35,7 @@ import MesPointsVenteMobiPage from '@/pages/guichetiere/MesPointsVenteMobiPage';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import EtatPlanningGeneralPage from '@/pages/exploitation/EtatPlanningGeneralPage';
+import SuiviPointageExploitationPage from '@/pages/exploitation/SuiviPointagePage';
 
 
 const PlaceholderPage = ({ title }) => (
@@ -74,6 +76,7 @@ const App = () => {
               <Route path="guichetieres" element={<GuichetieresPageExploitation />} />
               <Route path="techniciens" element={<TechniciensPage />} />
               <Route path="maintenance-terminaux" element={<MaintenanceTerminauxExploitationPage />} />
+              <Route path="suivi-pointage" element={<SuiviPointageExploitationPage />} />
               <Route path="terminaux-mobi" element={<TerminauxMobiPage />} />
               <Route path="points-vente-mobi" element={<PointsVenteMobiPage />} />
               <Route path="regions" element={<RegionsPage />} />
@@ -91,6 +94,7 @@ const App = () => {
               <Route path="mes-guichetieres" element={<MesGuichetieresPage />} />
               <Route path="mon-planning" element={<MonPlanningPage />} />
               <Route path="maintenance-terminaux" element={<MaintenanceTerminauxPage />} />
+              <Route path="suivi-pointage" element={<SuiviPointageChefPage />} />
               <Route path="points-vente-mobi" element={<PointsVenteMobiChefPage />} />
               <Route path="paiement-gros-gain" element={<PaiementGrosGainPage />} />
             </Route>
