@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Calendar, ChevronLeft, ChevronRight, PlusCircle, Copy, Edit2, Trash2, UserPlus, Repeat } from 'lucide-react';
+import { Calendar, CalendarDays, ChevronLeft, ChevronRight, PlusCircle, Copy, Edit2, Trash2, UserPlus, Repeat } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, isSameMonth, addWeeks, subWeeks, startOfWeek, endOfWeek, parseISO, isWithinInterval } from 'date-fns';
