@@ -20,6 +20,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
+import KpiStatCard from '@/components/analytics/KpiStatCard';
 import {
   REQUEST_STATUS,
   formatDisplayDate,
@@ -265,35 +266,27 @@ const MesPointsVenteMobiPage = () => {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="flex items-center gap-3 p-5">
-            <MapPin className="h-8 w-8 text-primary" />
-            <div>
-              <p className="text-sm text-muted-foreground">Affectations actives</p>
-              <p className="text-2xl font-bold">{activePoints.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-5">
-            <History className="h-8 w-8 text-blue-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Historique total</p>
-              <p className="text-2xl font-bold">{pointsVente.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-5">
-            <Send className="h-8 w-8 text-amber-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Demandes en attente</p>
-              <p className="text-2xl font-bold">
-                {requests.filter((request) => request.statut === REQUEST_STATUS.PENDING).length}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <KpiStatCard
+          icon={MapPin}
+          label="Affectations actives"
+          value={activePoints.length}
+          helper="Points de vente actuellement rattachés à votre profil."
+          tone="primary"
+        />
+        <KpiStatCard
+          icon={History}
+          label="Historique total"
+          value={pointsVente.length}
+          helper="Versions et affectations enregistrées dans le temps."
+          tone="blue"
+        />
+        <KpiStatCard
+          icon={Send}
+          label="Demandes en attente"
+          value={requests.filter((request) => request.statut === REQUEST_STATUS.PENDING).length}
+          helper="Demandes de modification encore en attente de traitement."
+          tone="amber"
+        />
       </div>
 
       <Card className="shadow-xl glassmorphism">

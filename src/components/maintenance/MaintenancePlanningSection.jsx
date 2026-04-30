@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { supabase } from '@/lib/supabaseClient';
 import { buildRegionOptions, fetchRegions } from '@/lib/regions';
 import { formatMaintenanceDateTime, getMaintenanceInterventionTypeLabel, normalizeMaintenanceText } from '@/lib/maintenanceMonitoring';
@@ -620,42 +621,34 @@ const MaintenancePlanningSection = ({
           )}
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Card className="shadow-sm">
-              <CardContent className="flex items-center gap-3 p-5">
-                <ClipboardList className="h-8 w-8 text-primary" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Plannings actifs</p>
-                  <p className="text-2xl font-bold">{planningStats.totalCount}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="flex items-center gap-3 p-5">
-                <CheckCircle2 className="h-8 w-8 text-green-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Maintenances effectuées</p>
-                  <p className="text-2xl font-bold">{planningStats.completedCount}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="flex items-center gap-3 p-5">
-                <ShieldAlert className="h-8 w-8 text-red-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Maintenances non effectuées</p>
-                  <p className="text-2xl font-bold">{planningStats.missedCount}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="flex items-center gap-3 p-5">
-                <TimerReset className="h-8 w-8 text-blue-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Taux de réalisation</p>
-                  <p className="text-2xl font-bold">{planningStats.completionRate}%</p>
-                </div>
-              </CardContent>
-            </Card>
+            <KpiStatCard
+              icon={ClipboardList}
+              label="Plannings actifs"
+              value={planningStats.totalCount}
+              helper="Créneaux de maintenance actuellement visibles sur la période."
+              tone="primary"
+            />
+            <KpiStatCard
+              icon={CheckCircle2}
+              label="Maintenances effectuées"
+              value={planningStats.completedCount}
+              helper="Créneaux couverts par une intervention réalisée."
+              tone="emerald"
+            />
+            <KpiStatCard
+              icon={ShieldAlert}
+              label="Maintenances non effectuées"
+              value={planningStats.missedCount}
+              helper="Créneaux échus sans intervention constatée."
+              tone="red"
+            />
+            <KpiStatCard
+              icon={TimerReset}
+              label="Taux de réalisation"
+              value={`${planningStats.completionRate}%`}
+              helper="Pourcentage de créneaux réellement exécutés."
+              tone="blue"
+            />
           </div>
 
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

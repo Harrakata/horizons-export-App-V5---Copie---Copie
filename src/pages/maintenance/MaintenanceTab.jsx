@@ -12,6 +12,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { motion } from 'framer-motion';
 import SignatureCanvas from 'react-signature-canvas';
+import { Building2, CalendarClock, Globe, Wrench } from 'lucide-react';
+import KpiStatCard from '@/components/analytics/KpiStatCard';
 
 const normalizeMaintenanceText = (value) =>
   String(value ?? '')
@@ -600,6 +602,10 @@ const MaintenanceTab = ({ technicien }) => {
   const currentDetailValue = form.typeIntervention === 'curative' ? (form.panne || 'N/A') : (form.piece || 'Aucune');
   const remplacementValue = form.remplace === 'oui' ? (form.remplacement || 'N/A') : 'Aucun remplacement';
   const validationReadyCount = [technicienSignature, chefAgenceSignature].filter(Boolean).length;
+  const availableRegionsCount = regionsOptions.length;
+  const availableAgencesCount = filteredAgences.length;
+  const availableTerminauxCount = terminaux.length;
+  const recentInterventionsCount = recentInterventions.length;
   const validationStatusText = chefAgence
     ? `${validationReadyCount}/2 signatures validées`
     : "Chef d'agence non associé";
@@ -1533,8 +1539,39 @@ const MaintenanceTab = ({ technicien }) => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mt-4"
+      className="mt-4 space-y-6"
     >
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <KpiStatCard
+          icon={Globe}
+          label="Régions disponibles"
+          value={availableRegionsCount}
+          helper="Régions proposées pour orienter l’intervention."
+          tone="blue"
+        />
+        <KpiStatCard
+          icon={Building2}
+          label="Agences filtrées"
+          value={availableAgencesCount}
+          helper="Agences disponibles selon la région sélectionnée."
+          tone="violet"
+        />
+        <KpiStatCard
+          icon={Wrench}
+          label="Terminaux ciblables"
+          value={availableTerminauxCount}
+          helper="Terminaux actifs de l’agence actuellement choisie."
+          tone="emerald"
+        />
+        <KpiStatCard
+          icon={CalendarClock}
+          label="Interventions récentes"
+          value={recentInterventionsCount}
+          helper="Historique récent chargé pour le périmètre courant."
+          tone="amber"
+        />
+      </div>
+
       <Card className="shadow-lg glassmorphism">
       <CardHeader>
           <CardTitle className="text-xl text-primary">Fiche de Maintenance</CardTitle>

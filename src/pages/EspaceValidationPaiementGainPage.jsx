@@ -23,6 +23,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+import KpiStatCard from '@/components/analytics/KpiStatCard';
 import RegionalMaintenanceSection from '@/components/directeur_regional/RegionalMaintenanceSection';
 import RegionalPointageSection from '@/components/directeur_regional/RegionalPointageSection';
 import { supabase } from '@/lib/supabaseClient';
@@ -608,35 +609,27 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <Clock3 className="h-8 w-8 text-amber-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Demandes à traiter</p>
-              <p className="text-2xl font-bold">{pendingDemandes.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <FileText className="h-8 w-8 text-primary" />
-            <div>
-              <p className="text-sm text-muted-foreground">Demandes suivies</p>
-              <p className="text-2xl font-bold">{assignedDemandes.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <CheckCircle2 className="h-8 w-8 text-green-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Actions enregistrées</p>
-              <p className="text-2xl font-bold">{handledCount}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <KpiStatCard
+          icon={Clock3}
+          label="Demandes à traiter"
+          value={pendingDemandes.length}
+          helper="Demandes en attente de décision sur votre périmètre."
+          tone="amber"
+        />
+        <KpiStatCard
+          icon={FileText}
+          label="Demandes suivies"
+          value={assignedDemandes.length}
+          helper="Demandes entrant dans votre circuit de validation."
+          tone="primary"
+        />
+        <KpiStatCard
+          icon={CheckCircle2}
+          label="Actions enregistrées"
+          value={handledCount}
+          helper="Actions de validation ou de refus déjà traitées."
+          tone="emerald"
+        />
       </div>
 
       <Tabs defaultValue="pending" className="space-y-6">

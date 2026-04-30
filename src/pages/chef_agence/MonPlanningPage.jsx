@@ -14,6 +14,7 @@ import { Combobox } from '@/components/ui/Combobox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import KpiStatCard from '@/components/analytics/KpiStatCard';
 import {
   REQUEST_STATUS,
   PLANNING_REQUEST_TYPES,
@@ -324,6 +325,15 @@ const MonPlanningPage = () => {
     [planningRequests]
   );
 
+  const monthPlanningCount = useMemo(
+    () => Object.values(planning).reduce((sum, items) => sum + items.length, 0),
+    [planning]
+  );
+  const guichetieresCount = guichetieresAgence.length;
+  const pendingRequestsCount = planningRequests.filter(
+    (request) => request.statut === REQUEST_STATUS.PENDING
+  ).length;
+
   const handleProcessPlanningRequest = async (request, nextStatus) => {
     setIsLoading(true);
 
@@ -412,6 +422,30 @@ const MonPlanningPage = () => {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 md:space-y-6 p-2 md:p-0">
+      <div className="grid gap-4 md:grid-cols-3">
+        <KpiStatCard
+          icon={CalendarDays}
+          label="Affectations du mois"
+          value={monthPlanningCount}
+          helper="Créneaux planifiés sur la période affichée."
+          tone="primary"
+        />
+        <KpiStatCard
+          icon={UserPlus}
+          label="Guichetières suivies"
+          value={guichetieresCount}
+          helper="Guichetières rattachées à l’agence du chef."
+          tone="blue"
+        />
+        <KpiStatCard
+          icon={Repeat}
+          label="Demandes en attente"
+          value={pendingRequestsCount}
+          helper="Demandes de modification à traiter sur cette période."
+          tone="amber"
+        />
+      </div>
+
       <Card className="shadow-xl glassmorphism">
         <CardHeader className="p-3 md:p-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4">

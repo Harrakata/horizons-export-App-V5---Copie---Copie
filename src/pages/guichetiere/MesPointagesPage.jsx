@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
+import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { formatDisplayDate, formatDisplayDateTime } from '@/lib/guichetiereSpace';
 
 const MesPointagesPage = () => {
@@ -122,42 +123,34 @@ const MesPointagesPage = () => {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardContent className="flex items-center gap-3 p-5">
-            <CalendarCheck2 className="h-8 w-8 text-primary" />
-            <div>
-              <p className="text-sm text-muted-foreground">Jours planifiés ce mois</p>
-              <p className="text-2xl font-bold">{currentMonthPlanningCount}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-5">
-            <Clock3 className="h-8 w-8 text-amber-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Pointages aujourd’hui</p>
-              <p className="text-2xl font-bold">{todayPointages}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-5">
-            <BarChart3 className="h-8 w-8 text-blue-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Taux de complétude</p>
-              <p className="text-2xl font-bold">{completionRate}%</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-5">
-            <FileText className="h-8 w-8 text-green-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Dernier pointage</p>
-              <p className="text-sm font-semibold">{latestPointage ? formatDisplayDateTime(latestPointage.time) : 'Aucun'}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <KpiStatCard
+          icon={CalendarCheck2}
+          label="Jours planifiés ce mois"
+          value={currentMonthPlanningCount}
+          helper="Nombre de journées programmées sur le mois en cours."
+          tone="primary"
+        />
+        <KpiStatCard
+          icon={Clock3}
+          label="Pointages aujourd’hui"
+          value={todayPointages}
+          helper="Pointages effectivement enregistrés sur la journée."
+          tone="amber"
+        />
+        <KpiStatCard
+          icon={BarChart3}
+          label="Taux de complétude"
+          value={`${completionRate}%`}
+          helper="Part des pointages réalisés par rapport aux créneaux attendus."
+          tone="blue"
+        />
+        <KpiStatCard
+          icon={FileText}
+          label="Dernier pointage"
+          value={latestPointage ? formatDisplayDateTime(latestPointage.time) : 'Aucun'}
+          helper="Dernière trace de pointage enregistrée."
+          tone="emerald"
+        />
       </div>
 
       <Card className="shadow-xl glassmorphism">

@@ -28,6 +28,7 @@ import { Combobox } from '@/components/ui/Combobox';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
+import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { buildRegionOptions, fetchRegions } from '@/lib/regions';
 import {
   buildProcedureSummary,
@@ -1039,37 +1040,35 @@ const PaiementGrosGainPage = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <FileText className="h-8 w-8 text-primary" />
-            <div>
-              <p className="text-sm text-muted-foreground">
-                {isChefAgenceWorkspace ? 'Demandes suivies' : 'Demandes créées'}
-              </p>
-              <p className="text-2xl font-bold">{isChefAgenceWorkspace ? chefWorkspaceHistoryDemandes.length : ownDemandes.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <Clock3 className="h-8 w-8 text-amber-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">
-                {isChefAgenceWorkspace ? 'Demandes à traiter' : 'Autorisations à payer'}
-              </p>
-              <p className="text-2xl font-bold">{isChefAgenceWorkspace ? chefActionDemandes.length : authorizedDemandes.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <CheckCircle2 className="h-8 w-8 text-green-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Paiements finalisés</p>
-              <p className="text-2xl font-bold">{paidDemandes.length}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <KpiStatCard
+          icon={FileText}
+          label={isChefAgenceWorkspace ? 'Demandes suivies' : 'Demandes créées'}
+          value={isChefAgenceWorkspace ? chefWorkspaceHistoryDemandes.length : ownDemandes.length}
+          helper={
+            isChefAgenceWorkspace
+              ? "Demandes liées à l'agence du chef d’agence."
+              : 'Historique personnel des demandes saisies.'
+          }
+          tone="primary"
+        />
+        <KpiStatCard
+          icon={Clock3}
+          label={isChefAgenceWorkspace ? 'Demandes à traiter' : 'Autorisations à payer'}
+          value={isChefAgenceWorkspace ? chefActionDemandes.length : authorizedDemandes.length}
+          helper={
+            isChefAgenceWorkspace
+              ? 'Demandes en attente de validation ou de paiement final.'
+              : 'Autorisations validées encore en attente de règlement.'
+          }
+          tone="amber"
+        />
+        <KpiStatCard
+          icon={CheckCircle2}
+          label="Paiements finalisés"
+          value={paidDemandes.length}
+          helper="Demandes définitivement payées et clôturées."
+          tone="emerald"
+        />
       </div>
 
       {isChefAgenceWorkspace ? (

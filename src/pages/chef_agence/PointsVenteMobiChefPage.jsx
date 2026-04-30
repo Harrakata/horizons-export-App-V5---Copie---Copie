@@ -9,6 +9,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
+import KpiStatCard from '@/components/analytics/KpiStatCard';
 
 const ALL_FILTER_VALUE = '__all__';
 
@@ -191,33 +192,27 @@ const PointsVenteMobiChefPage = () => {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <MapPin className="h-8 w-8 text-primary" />
-            <div>
-              <p className="text-sm text-muted-foreground">Points actifs</p>
-              <p className="text-2xl font-bold">{activePoints.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <History className="h-8 w-8 text-blue-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Versions historiques</p>
-              <p className="text-2xl font-bold">{agencePoints.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <Building2 className="h-8 w-8 text-green-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Inactifs</p>
-              <p className="text-2xl font-bold">{agencePoints.filter((pointVente) => pointVente.statut === 'Inactif').length}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <KpiStatCard
+          icon={MapPin}
+          label="Points actifs"
+          value={activePoints.length}
+          helper="Affectations actives rattachées à votre agence."
+          tone="primary"
+        />
+        <KpiStatCard
+          icon={History}
+          label="Versions historiques"
+          value={agencePoints.length}
+          helper="Historique complet des évolutions du parc de points de vente."
+          tone="blue"
+        />
+        <KpiStatCard
+          icon={Building2}
+          label="Inactifs"
+          value={agencePoints.filter((pointVente) => pointVente.statut === 'Inactif').length}
+          helper="Versions clôturées ou anciennes sur votre agence."
+          tone="emerald"
+        />
       </div>
 
       <Card className="shadow-xl glassmorphism">

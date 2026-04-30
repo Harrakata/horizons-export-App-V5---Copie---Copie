@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { Edit, PlusCircle, Power, Settings2, SlidersHorizontal } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import {
@@ -370,33 +371,27 @@ const PaiementGainWorkflowConfigSection = ({
       )}
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <Settings2 className="h-8 w-8 text-emerald-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Workflows actifs</p>
-              <p className="text-2xl font-bold">{activeConfigs.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <SlidersHorizontal className="h-8 w-8 text-blue-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Configurations totales</p>
-              <p className="text-2xl font-bold">{workflowConfigs.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center gap-3 p-5">
-            <Power className="h-8 w-8 text-slate-500" />
-            <div>
-              <p className="text-sm text-muted-foreground">Workflows inactifs</p>
-              <p className="text-2xl font-bold">{inactiveConfigs}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <KpiStatCard
+          icon={Settings2}
+          label="Workflows actifs"
+          value={activeConfigs.length}
+          helper="Règles de validation actuellement activées."
+          tone="emerald"
+        />
+        <KpiStatCard
+          icon={SlidersHorizontal}
+          label="Configurations totales"
+          value={workflowConfigs.length}
+          helper="Nombre total de règles disponibles dans le référentiel."
+          tone="blue"
+        />
+        <KpiStatCard
+          icon={Power}
+          label="Workflows inactifs"
+          value={inactiveConfigs}
+          helper="Règles conservées mais désactivées."
+          tone="red"
+        />
       </div>
 
       <Card className="shadow-xl glassmorphism">

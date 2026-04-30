@@ -62,6 +62,7 @@ const App = () => {
             <Route path="/espace-directeur-general" element={<EspaceValidationPaiementGainPage spaceMode="general" />} />
             <Route path="/espace-paiement-gros-gain" element={<Navigate to="/paiement-gros-gain" replace />} />
             <Route path="/guichetiere" element={<Navigate to="/espace-guichetiere" replace />} />
+            <Route path="/chef-agence" element={<Navigate to="/espace-chef-agence/mon-planning" replace />} />
             <Route path="/espace-guichetiere" element={<EspaceGuichetierePage />}>
               <Route index element={<Navigate to="mon-planning" replace />} />
               <Route path="mon-planning" element={<MonPlanningGuichetierePage />} />

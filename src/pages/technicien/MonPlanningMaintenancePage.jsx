@@ -38,6 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { supabase } from '@/lib/supabaseClient';
 import { formatDisplayDate, formatDisplayDateTime } from '@/lib/guichetiereSpace';
 import {
@@ -329,33 +330,27 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
       )}
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="flex items-center gap-3 p-5">
-            <Wrench className="h-8 w-8 text-primary" />
-            <div>
-              <p className="text-sm text-muted-foreground">Maintenances planifiées</p>
-              <p className="text-2xl font-bold">{monthPlanningCount}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-5">
-            <AlertTriangle className="h-8 w-8 text-amber-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Demandes en attente</p>
-              <p className="text-2xl font-bold">{pendingRequestsCount}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-5">
-            <Edit3 className="h-8 w-8 text-blue-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Historique des demandes</p>
-              <p className="text-2xl font-bold">{requests.length}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <KpiStatCard
+          icon={Wrench}
+          label="Maintenances planifiées"
+          value={monthPlanningCount}
+          helper="Interventions maintenance prévues sur la période affichée."
+          tone="primary"
+        />
+        <KpiStatCard
+          icon={AlertTriangle}
+          label="Demandes en attente"
+          value={pendingRequestsCount}
+          helper="Demandes de modification encore en cours de validation."
+          tone="amber"
+        />
+        <KpiStatCard
+          icon={Edit3}
+          label="Historique des demandes"
+          value={requests.length}
+          helper="Nombre total de demandes de modification enregistrées."
+          tone="blue"
+        />
       </div>
 
       <Card className="shadow-xl glassmorphism">

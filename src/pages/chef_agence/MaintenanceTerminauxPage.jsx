@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
+import KpiStatCard from '@/components/analytics/KpiStatCard';
 import ConfigurationTab from '@/pages/maintenance/ConfigurationTab';
 import MaintenanceAnalyticsSection from '@/components/maintenance/MaintenanceAnalyticsSection';
 import MaintenancePlanningSection from '@/components/maintenance/MaintenancePlanningSection';
@@ -421,51 +422,41 @@ const MaintenanceTerminauxPage = () => {
 
         <TabsContent value="suivi" className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-            <Card className="shadow-sm">
-              <CardContent className="flex items-center gap-3 p-5">
-                <Activity className="h-8 w-8 text-primary" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Terminaux de l’agence</p>
-                  <p className="text-2xl font-bold">{terminaux.length}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="flex items-center gap-3 p-5">
-                <Wrench className="h-8 w-8 text-blue-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Interventions enregistrées</p>
-                  <p className="text-2xl font-bold">{interventions.length}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="flex items-center gap-3 p-5">
-                <CalendarClock className="h-8 w-8 text-green-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Interventions terminées</p>
-                  <p className="text-2xl font-bold">{termineesCount}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="flex items-center gap-3 p-5">
-                <CalendarClock className="h-8 w-8 text-emerald-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Terminaux à jour</p>
-                  <p className="text-2xl font-bold">{maintenanceUpToDateCount}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="flex items-center gap-3 p-5">
-                <Wrench className="h-8 w-8 text-red-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Terminaux à traiter</p>
-                  <p className="text-2xl font-bold">{preventiveRequiredCount}</p>
-                </div>
-              </CardContent>
-            </Card>
+            <KpiStatCard
+              icon={Activity}
+              label="Terminaux de l’agence"
+              value={terminaux.length}
+              helper="Volume total de terminaux rattachés à votre agence."
+              tone="primary"
+            />
+            <KpiStatCard
+              icon={Wrench}
+              label="Interventions enregistrées"
+              value={interventions.length}
+              helper="Historique des passages et opérations de maintenance."
+              tone="blue"
+            />
+            <KpiStatCard
+              icon={CalendarClock}
+              label="Interventions terminées"
+              value={termineesCount}
+              helper="Interventions clôturées avec un statut terminé."
+              tone="violet"
+            />
+            <KpiStatCard
+              icon={CalendarClock}
+              label="Terminaux à jour"
+              value={maintenanceUpToDateCount}
+              helper="Terminaux couverts par une maintenance récente."
+              tone="emerald"
+            />
+            <KpiStatCard
+              icon={Wrench}
+              label="Terminaux à traiter"
+              value={preventiveRequiredCount}
+              helper="Terminaux nécessitant une action préventive ou corrective."
+              tone="red"
+            />
           </div>
 
           <MaintenanceAnalyticsSection

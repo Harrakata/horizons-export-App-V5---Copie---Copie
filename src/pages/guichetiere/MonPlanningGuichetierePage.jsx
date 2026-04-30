@@ -39,6 +39,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
+import KpiStatCard from '@/components/analytics/KpiStatCard';
 import {
   PLANNING_REQUEST_TYPES,
   REQUEST_STATUS,
@@ -290,6 +291,30 @@ const MonPlanningGuichetierePage = () => {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-3">
+        <KpiStatCard
+          icon={CalendarDays}
+          label="Jours planifiés"
+          value={monthPlanningCount}
+          helper="Journées de travail prévues sur la période affichée."
+          tone="primary"
+        />
+        <KpiStatCard
+          icon={AlertTriangle}
+          label="Demandes en attente"
+          value={pendingRequestsCount}
+          helper="Demandes de modification encore à valider par le chef."
+          tone="amber"
+        />
+        <KpiStatCard
+          icon={Edit3}
+          label="Historique des demandes"
+          value={requests.length}
+          helper="Nombre total de demandes envoyées depuis votre espace."
+          tone="blue"
+        />
+      </div>
+
       <Card className="shadow-xl glassmorphism">
         <CardHeader>
           <CardTitle className="flex items-center text-3xl font-bold text-primary">
@@ -300,38 +325,8 @@ const MonPlanningGuichetierePage = () => {
             Consultez votre planning mensuel et envoyez vos demandes d’indisponibilité ou de changement
             de date à votre chef d’agence.
           </CardDescription>
-        </CardHeader>
-      </Card>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="flex items-center gap-3 p-5">
-            <CalendarDays className="h-8 w-8 text-primary" />
-            <div>
-              <p className="text-sm text-muted-foreground">Jours planifiés</p>
-              <p className="text-2xl font-bold">{monthPlanningCount}</p>
-            </div>
-          </CardContent>
+          </CardHeader>
         </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-5">
-            <AlertTriangle className="h-8 w-8 text-amber-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Demandes en attente</p>
-              <p className="text-2xl font-bold">{pendingRequestsCount}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-5">
-            <Edit3 className="h-8 w-8 text-blue-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Historique des demandes</p>
-              <p className="text-2xl font-bold">{requests.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       <Card className="shadow-xl glassmorphism">
         <CardHeader>
