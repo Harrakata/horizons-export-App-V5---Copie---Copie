@@ -139,8 +139,10 @@ const Layout = () => {
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 dark:from-slate-900 dark:via-purple-900 dark:to-slate-800">
-      <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between">
+      <header className="sticky top-0 z-40 w-full relative overflow-hidden border-b border-primary/20 bg-background/95 shadow-[0_4px_24px_-6px_rgba(15,23,42,0.14)] backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/8 via-primary/4 to-transparent" />
+        <div className="container relative flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center space-x-2">
             <motion.div whileHover={{ rotate: [0, 10, -10, 0], scale: 1.1 }}>
               <img  alt="Logo Star3000+" class="h-10 w-auto" src="https://pzmapmxjkkqhuiamdvjd.supabase.co/storage/v1/object/public/pmu-mali-storage//326291198_1368954473860231_6856823940381691525_n.jpg" />

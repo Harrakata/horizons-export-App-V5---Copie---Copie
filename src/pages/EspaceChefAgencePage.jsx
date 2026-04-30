@@ -685,71 +685,77 @@ const EspaceChefAgencePage = () => {
 
   return (
     <div className="flex flex-col md:flex-row gap-8">
-      <motion.aside 
+      <motion.aside
         initial={{ x: -100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
         className="md:w-72"
       >
-        <Card className="shadow-lg sticky top-20 glassmorphism">
-          <CardHeader>
-            <div className="flex items-center gap-4">
-              <Avatar className="h-14 w-14 border-2 border-primary/20">
-                {chefAgenceInfo?.photo_url ? (
-                  <AvatarImage src={chefAgenceInfo.photo_url} alt={chefAgenceInfo.nomChef} />
-                ) : null}
-                <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                  {chefAgenceInfo?.nomChef?.split(' ').map(n => n[0]).join('') || 'CA'}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <CardTitle className="text-xl text-primary">Chef d'Agence</CardTitle>
-            {chefAgenceInfo && (
-                  <CardDescription className="text-sm">
-                    {chefAgenceInfo.nomChef} <br />
-                Agence: {chefAgenceInfo.nomAgence}
-              </CardDescription>
-            )}
+        <div className="sticky top-20 space-y-3">
+          <Card className="relative overflow-hidden border border-primary/20 bg-white/92 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+            <CardContent className="relative p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white text-primary ring-1 ring-primary/20 shadow-[0_8px_20px_-10px_rgba(15,23,42,0.35)]">
+                  <span className="text-lg font-black">
+                    {chefAgenceInfo?.nomChef?.split(' ').map(n => n[0]).join('') || 'CA'}
+                  </span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">Chef d'Agence</p>
+                  <p className="mt-0.5 truncate text-sm font-bold text-foreground">{chefAgenceInfo?.nomChef}</p>
+                  <p className="text-[0.68rem] text-muted-foreground">Agence : {chefAgenceInfo?.nomAgence}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="relative overflow-hidden border border-primary/20 bg-white/92 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.18)] backdrop-blur">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+            <CardContent className="relative p-3">
+              <nav className="space-y-0.5">
+                {menuItems.map((item) => {
+                  const isActive = isMenuItemActive(item.path);
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
+                        isActive
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:bg-black/5 hover:text-foreground'
+                      }`}
+                    >
+                      {item.icon && React.cloneElement(item.icon, { className: 'h-4 w-4 shrink-0' })}
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </CardContent>
+          </Card>
+
+          {sessionExpiring && (
+            <div className="flex items-center gap-2 rounded-xl border border-yellow-200 bg-yellow-50 p-3">
+              <Timer className="h-4 w-4 shrink-0 text-yellow-600" />
+              <div className="text-xs font-medium text-yellow-800">
+                <div>Session expirante</div>
+                <div>{formatTimeRemaining()}</div>
               </div>
             </div>
-          </CardHeader>
-          <CardContent className="flex flex-col h-full">
-            <nav className="flex flex-col space-y-2 flex-grow">
-              {menuItems.map((item) => (
-                <Button
-                  key={item.path}
-                  asChild
-                  variant={isMenuItemActive(item.path) ? 'default' : 'ghost'}
-                  className={`justify-start text-base py-3 ${isMenuItemActive(item.path) ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'hover:bg-muted/50'}`}
-                >
-                  <Link to={item.path}>
-                    {item.icon && React.cloneElement(item.icon, { className: 'mr-3 h-5 w-5' })}
-                    {item.label}
-                  </Link>
-                </Button>
-              ))}
-            </nav>
-            <div className="mt-auto pt-4">
-              {sessionExpiring && (
-                <div className="mb-4 p-2 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 rounded-md flex items-center">
-                  <Timer className="h-4 w-4 mr-2 text-yellow-600 dark:text-yellow-400" />
-                  <div className="text-xs font-medium">
-                    <div>Session expirante</div>
-                    <div>{formatTimeRemaining()}</div>
-                  </div>
-                </div>
-              )}
-              <Button
-                variant="outline"
-                className="w-full justify-start text-base py-3 hover:bg-destructive/10 hover:text-destructive"
-                onClick={handleLogout}
-              >
-                <LogOut className="mr-3 h-5 w-5 text-red-500" />
-                Se déconnecter
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          )}
+
+          <Button
+            variant="outline"
+            className="w-full justify-start text-sm hover:bg-destructive/10 hover:text-destructive border-border/50"
+            onClick={handleLogout}
+          >
+            <LogOut className="mr-3 h-4 w-4 text-red-500" />
+            Se déconnecter
+          </Button>
+        </div>
       </motion.aside>
       <main className="flex-1">
         <motion.div

@@ -239,59 +239,61 @@ const EspaceGuichetierePage = () => {
         transition={{ duration: 0.5 }}
         className="md:w-72"
       >
-        <Card className="sticky top-20 shadow-lg glassmorphism">
-          <CardHeader>
-            <div className="flex items-center gap-4">
-              <Avatar className="h-14 w-14 border-2 border-primary/20">
-                {guichetiereInfo?.photo_url ? (
-                  <AvatarImage src={guichetiereInfo.photo_url} alt={guichetiereInfo.nomComplet} />
-                ) : null}
-                <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                  {guichetiereInfo?.nomComplet?.split(' ').map((part) => part[0]).join('') || 'G'}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <CardTitle className="text-xl text-primary">Guichetière</CardTitle>
-                <CardDescription className="text-sm">
-                  {guichetiereInfo?.nomComplet}
-                  <br />
-                  Agence: {guichetiereInfo?.nomAgence}
-                </CardDescription>
+        <div className="sticky top-20 space-y-3">
+          <Card className="relative overflow-hidden border border-primary/20 bg-white/92 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+            <CardContent className="relative p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white text-primary ring-1 ring-primary/20 shadow-[0_8px_20px_-10px_rgba(15,23,42,0.35)]">
+                  <span className="text-lg font-black">
+                    {guichetiereInfo?.nomComplet?.split(' ').map((part) => part[0]).join('') || 'G'}
+                  </span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">Guichetière</p>
+                  <p className="mt-0.5 truncate text-sm font-bold text-foreground">{guichetiereInfo?.nomComplet}</p>
+                  <p className="text-[0.68rem] text-muted-foreground">Agence : {guichetiereInfo?.nomAgence}</p>
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="flex flex-col h-full">
-            <nav className="flex flex-col flex-grow space-y-2">
-              {menuItems.map((item) => (
-                <Button
-                  key={item.path}
-                  asChild
-                  variant={isMenuItemActive(item.path) ? 'default' : 'ghost'}
-                  className={`justify-start py-3 text-base ${
-                    isMenuItemActive(item.path)
-                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                      : 'hover:bg-muted/50'
-                  }`}
-                >
-                  <Link to={item.path}>
-                    {React.cloneElement(item.icon, { className: 'mr-3 h-5 w-5' })}
-                    {item.label}
-                  </Link>
-                </Button>
-              ))}
-            </nav>
-            <div className="mt-auto pt-4">
-              <Button
-                variant="outline"
-                className="w-full justify-start py-3 text-base hover:bg-destructive/10 hover:text-destructive"
-                onClick={handleLogout}
-              >
-                <LogOut className="mr-3 h-5 w-5 text-red-500" />
-                Se déconnecter
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          <Card className="relative overflow-hidden border border-primary/20 bg-white/92 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.18)] backdrop-blur">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+            <CardContent className="relative p-3">
+              <nav className="space-y-0.5">
+                {menuItems.map((item) => {
+                  const isActive = isMenuItemActive(item.path);
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
+                        isActive
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:bg-black/5 hover:text-foreground'
+                      }`}
+                    >
+                      {React.cloneElement(item.icon, { className: 'h-4 w-4 shrink-0' })}
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </CardContent>
+          </Card>
+
+          <Button
+            variant="outline"
+            className="w-full justify-start text-sm hover:bg-destructive/10 hover:text-destructive border-border/50"
+            onClick={handleLogout}
+          >
+            <LogOut className="mr-3 h-4 w-4 text-red-500" />
+            Se déconnecter
+          </Button>
+        </div>
       </motion.aside>
 
       <main className="flex-1">
