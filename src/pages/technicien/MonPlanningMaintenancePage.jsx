@@ -376,88 +376,89 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border-l border-t border-border bg-border">
-            {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((dayName) => (
-              <div
-                key={dayName}
-                className="border-b border-r bg-card py-2 text-center text-sm font-medium text-muted-foreground"
-              >
-                {dayName}
-              </div>
-            ))}
-            {days.map((day, index) => {
-              const dateStr = format(day, 'yyyy-MM-dd');
-              const dayPlanning = planningByDate[dateStr] || [];
-              const isCurrentMonthDay = isSameMonth(day, currentMonth);
-              const requestCount = dayPlanning.reduce((count, entry) => {
-                const linkedRequest = requestByPlanningId[String(entry.id)];
-                return linkedRequest ? count + 1 : count;
-              }, 0);
-
-              return (
-                <div
-                  key={dateStr}
-                  className={`relative min-h-[130px] border-b border-r bg-card p-2 ${
-                    index === 0 ? colStartClasses : ''
-                  } ${!isCurrentMonthDay ? 'bg-muted/20 text-muted-foreground/50' : ''} ${
-                    isSameDay(day, new Date()) ? 'z-10 ring-2 ring-primary' : ''
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <time dateTime={dateStr} className="text-sm font-semibold">
-                      {format(day, 'd')}
-                    </time>
-                    {requestCount > 0 ? (
-                      <Badge className="border-amber-200 bg-amber-50 text-amber-700">{requestCount}</Badge>
-                    ) : null}
-                  </div>
-
-                  <AnimatePresence>
-                    {dayPlanning.map((entry) => {
-                      const linkedRequest = requestByPlanningId[String(entry.id)];
-
-                      return (
-                        <motion.div
-                          key={entry.id}
-                          initial={{ opacity: 0, y: -8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, x: -8 }}
-                          className="mt-2 rounded-md bg-primary/10 p-2 text-xs text-black dark:text-white"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div>
-                              <p className="font-semibold">{entry.agence_nom || 'Agence'}</p>
-                              <p className="text-[11px] text-muted-foreground">
-                                {getMaintenancePlanningShiftLabel(entry.creneau)}
-                              </p>
-                              {linkedRequest ? (
-                                <Badge className={`mt-1 ${getMaintenancePlanningRequestStatusBadgeClass(linkedRequest.statut)}`}>
-                                  {linkedRequest.statut}
-                                </Badge>
-                              ) : null}
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-blue-600 hover:text-blue-700"
-                              onClick={() => openRequestDialog(entry)}
-                              disabled={
-                                linkedRequest?.statut === MAINTENANCE_REQUEST_STATUSES.PENDING_CHEF ||
-                                linkedRequest?.statut === MAINTENANCE_REQUEST_STATUSES.PENDING_EXPLOITATION ||
-                                isPastPlanningDate(entry.date_planification) ||
-                                isLoading
-                              }
-                            >
-                              <Edit3 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </AnimatePresence>
+          <div className="overflow-hidden rounded-lg border border-border shadow-sm">
+            {/* En-tête jours */}
+            <div className="grid grid-cols-7 bg-muted/60">
+              {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((dayName) => (
+                <div key={dayName} className="py-2 text-center text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
+                  {dayName}
                 </div>
-              );
-            })}
+              ))}
+            </div>
+            {/* Grille compacte */}
+            <div className="grid grid-cols-7 divide-x divide-y divide-border">
+              {days.map((day, index) => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                const dayPlanning = planningByDate[dateStr] || [];
+                const isCurrentMonthDay = isSameMonth(day, currentMonth);
+                const isToday = isSameDay(day, new Date());
+                const isWeekend = [0, 6].includes(getDay(day));
+                const requestCount = dayPlanning.reduce((count, entry) => {
+                  const linkedRequest = requestByPlanningId[String(entry.id)];
+                  return linkedRequest ? count + 1 : count;
+                }, 0);
+
+                return (
+                  <div
+                    key={dateStr}
+                    className={`group flex min-h-[90px] flex-col
+                      ${index === 0 ? colStartClasses : ''}
+                      ${!isCurrentMonthDay ? 'bg-muted/10' : isWeekend ? 'bg-slate-50/40' : 'bg-card'}
+                    `}
+                  >
+                    {/* Header compact */}
+                    <div className={`flex items-center justify-between px-1.5 py-1 ${isToday ? 'bg-primary text-white' : isWeekend && isCurrentMonthDay ? 'bg-muted/20' : ''}`}>
+                      <time dateTime={dateStr} className={`text-xs font-bold ${isToday ? 'text-white' : !isCurrentMonthDay ? 'text-muted-foreground/30' : 'text-foreground'}`}>
+                        {format(day, 'd')}
+                      </time>
+                      {requestCount > 0 && (
+                        <span className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold ${isToday ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'}`}>
+                          {requestCount}
+                        </span>
+                      )}
+                    </div>
+                    {/* Corps compact */}
+                    <div className="flex-1 px-1.5 py-1 space-y-0.5">
+                      <AnimatePresence>
+                        {dayPlanning.map((entry) => {
+                          const linkedRequest = requestByPlanningId[String(entry.id)];
+                          const isPast = isPastPlanningDate(entry.date_planification);
+                          const isPending =
+                            linkedRequest?.statut === MAINTENANCE_REQUEST_STATUSES.PENDING_CHEF ||
+                            linkedRequest?.statut === MAINTENANCE_REQUEST_STATUSES.PENDING_EXPLOITATION;
+
+                          return (
+                            <motion.div
+                              key={entry.id}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              className="flex cursor-pointer items-center gap-1 transition-opacity hover:opacity-70"
+                              onClick={() => !isPending && !isPast && openRequestDialog(entry)}
+                            >
+                              <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[0.5rem] font-bold text-white
+                                ${isPast ? 'bg-muted-foreground/40' : isToday ? 'bg-white/90 !text-primary' : 'bg-primary'}
+                              `}>
+                                <Wrench className="h-2.5 w-2.5" />
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className={`truncate text-[0.6rem] font-medium leading-tight ${!isCurrentMonthDay ? 'text-muted-foreground/40' : 'text-foreground'}`}>
+                                  {entry.agence_nom || 'Agence'}
+                                </p>
+                                <p className="text-[0.55rem] text-muted-foreground/70 leading-tight">
+                                  {getMaintenancePlanningShiftLabel(entry.creneau)}
+                                </p>
+                              </div>
+                              {linkedRequest && <span className="ml-auto shrink-0 text-[0.5rem] text-amber-600">!</span>}
+                            </motion.div>
+                          );
+                        })}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </CardContent>
       </Card>

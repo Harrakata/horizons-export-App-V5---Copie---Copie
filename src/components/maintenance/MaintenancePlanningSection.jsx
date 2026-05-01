@@ -816,42 +816,58 @@ const MaintenancePlanningSection = ({
           {isLoading && filteredRows.length === 0 ? (
             <p className="py-8 text-center text-muted-foreground">Chargement du planning maintenance...</p>
           ) : (
-            <div className="overflow-hidden rounded-lg border bg-border">
-              <div className="grid grid-cols-7 gap-px">
-                {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((dayName) => (
-                  <div key={dayName} className="bg-card py-2 text-center text-sm font-medium text-muted-foreground">
+            <div className="overflow-hidden rounded-lg border border-border shadow-sm">
+              {/* En-tête jours */}
+              <div className="grid grid-cols-7 bg-muted/60">
+                {(viewMode === 'week'
+                  ? calendarDays.map(d => format(d, 'EEE', { locale: fr }))
+                  : ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+                ).map((dayName, i) => (
+                  <div key={i} className="py-2 text-center text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
                     {dayName}
                   </div>
                 ))}
-
+              </div>
+              {/* Grille compacte */}
+              <div className="grid grid-cols-7 divide-x divide-y divide-border">
                 {calendarDays.map((day, dayIndex) => {
                   const dateKey = extractMaintenancePlanningDateKey(day);
                   const dayRows = filteredRowsByDate[dateKey] || [];
                   const isCurrentMonthDay = viewMode === 'month' ? isSameMonth(day, currentCalendarDate) : true;
                   const isToday = isSameDay(day, new Date());
+                  const isWeekend = [0, 6].includes(getDay(day));
 
                   return (
                     <div
                       key={dateKey}
-                      className={`relative min-h-[120px] bg-card p-2 ${
-                        viewMode === 'month' && dayIndex === 0 ? colStartClass : ''
-                      } ${!isCurrentMonthDay ? 'bg-muted/30 text-muted-foreground/50' : ''} ${isToday ? 'ring-2 ring-primary z-10' : ''}`}
+                      className={`group flex min-h-[90px] flex-col
+                        ${viewMode === 'month' && dayIndex === 0 ? colStartClass : ''}
+                        ${!isCurrentMonthDay ? 'bg-muted/10' : isWeekend ? 'bg-slate-50/40' : 'bg-card'}
+                      `}
                     >
-                      <time dateTime={dateKey} className={`text-sm font-semibold ${isToday ? 'text-primary' : 'text-foreground'}`}>
-                        {format(day, 'd')}
-                        {viewMode === 'week' && (
-                          <span className="block text-xs font-normal text-muted-foreground">
-                            {format(day, 'EEE', { locale: fr })}
-                          </span>
+                      {/* Header compact */}
+                      <div className={`flex items-center justify-between px-1.5 py-1 ${isToday ? 'bg-primary' : isWeekend && isCurrentMonthDay ? 'bg-muted/20' : ''}`}>
+                        <time dateTime={dateKey} className={`text-xs font-bold ${isToday ? 'text-white' : !isCurrentMonthDay ? 'text-muted-foreground/30' : 'text-foreground'}`}>
+                          {format(day, 'd')}
+                        </time>
+                        {isCurrentMonthDay && canManage && (
+                          <button
+                            type="button"
+                            className={`flex h-4 w-4 items-center justify-center rounded opacity-0 transition-all group-hover:opacity-100 ${isToday ? 'text-white/70 hover:bg-white/20' : 'text-muted-foreground/30 hover:bg-primary/10 hover:text-primary'}`}
+                            onClick={() => openCreateDialogForDate(day)}
+                            disabled={isLoading}
+                          >
+                            <PlusCircle className="h-3 w-3" />
+                          </button>
                         )}
-                      </time>
-
-                      <div className="mt-2 space-y-1">
+                      </div>
+                      {/* Corps compact */}
+                      <div className="flex-1 px-1.5 py-1 space-y-0.5">
                         {dayRows.map((row) => (
                           <motion.div
                             key={row.id}
-                            initial={{ opacity: 0, y: -6 }}
-                            animate={{ opacity: 1, y: 0 }}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
                             role="button"
                             tabIndex={0}
                             onClick={() => setSelectedPlanningId(row.id)}
@@ -861,49 +877,39 @@ const MaintenancePlanningSection = ({
                                 setSelectedPlanningId(row.id);
                               }
                             }}
-                            className={`w-full rounded-md border px-2 py-1 text-left text-[11px] transition ${
-                              String(selectedPlanningId) === String(row.id)
-                                ? 'border-primary bg-primary/10'
-                                : 'border-transparent bg-emerald-50 hover:border-primary/30 hover:bg-primary/5'
-                            }`}
+                            className="flex cursor-pointer items-center gap-1 transition-opacity hover:opacity-70"
                           >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="truncate font-medium text-slate-900">
+                            <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[0.5rem] font-bold text-white
+                              ${String(selectedPlanningId) === String(row.id)
+                                ? 'bg-primary ring-2 ring-primary/30'
+                                : isToday ? 'bg-white/90 !text-primary' : 'bg-emerald-500'}
+                            `}>
+                              <Wrench className="h-2.5 w-2.5" />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className={`truncate text-[0.6rem] font-medium leading-tight ${!isCurrentMonthDay ? 'text-muted-foreground/40' : 'text-foreground'}`}>
                                 {showAgenceColumn ? row.agenceNom : row.technicienNom}
-                              </span>
-                              {canManage && (
-                                <button
-                                  type="button"
-                                  className="shrink-0 text-blue-500 hover:text-blue-700"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    openDialog(row);
-                                  }}
-                                  disabled={isLoading}
-                                >
-                                  <Pencil className="h-3 w-3" />
-                                </button>
-                              )}
+                              </p>
+                              <p className="truncate text-[0.55rem] leading-tight text-muted-foreground/70">
+                                {row.creneauLabel}
+                              </p>
                             </div>
-                            <p className="truncate text-[10px] text-muted-foreground">
-                              {row.creneauLabel} • {showTechnicienColumn ? row.technicienNom : row.agenceNom}
-                            </p>
+                            {canManage && (
+                              <button
+                                type="button"
+                                className="shrink-0 text-muted-foreground/30 opacity-0 transition-all group-hover:opacity-100 hover:text-blue-500"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  openDialog(row);
+                                }}
+                                disabled={isLoading}
+                              >
+                                <Pencil className="h-2.5 w-2.5" />
+                              </button>
+                            )}
                           </motion.div>
                         ))}
                       </div>
-
-                      {isCurrentMonthDay && canManage && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="absolute bottom-1 right-1 h-7 w-7 text-primary hover:bg-primary/10"
-                          onClick={() => openCreateDialogForDate(day)}
-                          disabled={isLoading}
-                        >
-                          <PlusCircle className="h-5 w-5" />
-                        </Button>
-                      )}
                     </div>
                   );
                 })}

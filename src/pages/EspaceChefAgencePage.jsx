@@ -670,14 +670,12 @@ const EspaceChefAgencePage = () => {
     const fallbackPath = getFirstEnabledAppSpaceTab(spaceTabFunctionalities, 'espace-chef-agence')?.key || null;
     if (!fallbackPath) return;
 
-    if (
-      normalizedPathname === '/espace-chef-agence' ||
-      normalizedPathname === '/espace-chef-agence/' ||
-      !menuItems.some((item) => isMenuItemActive(item.path))
-    ) {
+    const validPaths = menuItems.map((item) => `/espace-chef-agence/${item.path}`);
+
+    if (!validPaths.includes(normalizedPathname)) {
       navigate(`/espace-chef-agence/${fallbackPath}`, { replace: true });
     }
-  }, [isAuthenticated, isMenuItemActive, menuItems, navigate, normalizedPathname, spaceTabFunctionalities]);
+  }, [isAuthenticated, menuItems, navigate, normalizedPathname, spaceTabFunctionalities]);
 
   if (!isAuthenticated) {
     return <LoginPageChef onLogin={handleLogin} />;
@@ -734,6 +732,16 @@ const EspaceChefAgencePage = () => {
                   );
                 })}
               </nav>
+              <div className="mt-1 border-t pt-1">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-red-500 transition-all hover:bg-red-50 hover:text-red-600"
+                >
+                  <LogOut className="h-4 w-4 shrink-0" />
+                  Se déconnecter
+                </button>
+              </div>
             </CardContent>
           </Card>
 
@@ -746,15 +754,6 @@ const EspaceChefAgencePage = () => {
               </div>
             </div>
           )}
-
-          <Button
-            variant="outline"
-            className="w-full justify-start text-sm hover:bg-destructive/10 hover:text-destructive border-border/50"
-            onClick={handleLogout}
-          >
-            <LogOut className="mr-3 h-4 w-4 text-red-500" />
-            Se déconnecter
-          </Button>
         </div>
       </motion.aside>
       <main className="flex-1">

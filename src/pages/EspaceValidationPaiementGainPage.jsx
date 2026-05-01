@@ -1012,6 +1012,16 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
                   );
                 })}
               </nav>
+              <div className="mt-1 border-t pt-1">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-red-500 transition-all hover:bg-red-50 hover:text-red-600"
+                >
+                  <LogOut className="h-4 w-4 shrink-0" />
+                  Se déconnecter
+                </button>
+              </div>
             </CardContent>
           </Card>
 
@@ -1020,15 +1030,6 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
               Les onglets Maintenance et Suivi Pointage sont disponibles uniquement pour un directeur régional avec région assignée.
             </div>
           )}
-
-          <Button
-            variant="outline"
-            className="w-full justify-start text-sm hover:bg-destructive/10 hover:text-destructive border-border/50"
-            onClick={handleLogout}
-          >
-            <LogOut className="mr-3 h-4 w-4 text-red-500" />
-            Déconnexion
-          </Button>
         </div>
       </motion.aside>
 

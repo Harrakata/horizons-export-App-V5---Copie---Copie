@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Calendar, CalendarDays, ChevronLeft, ChevronRight, PlusCircle, Copy, Edit2, Trash2, UserPlus, Repeat } from 'lucide-react';
+import { Calendar, CalendarDays, ChevronLeft, ChevronRight, PlusCircle, Copy, Trash2, UserPlus, Repeat } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, isSameMonth, addWeeks, subWeeks, startOfWeek, endOfWeek, parseISO, isWithinInterval } from 'date-fns';
@@ -484,6 +484,14 @@ const MonPlanningPage = () => {
               </h2>
               <Button variant="outline" size="icon" onClick={handleNext} disabled={isLoading} className="h-8 w-8 md:h-9 md:w-9"><ChevronRight className="h-4 w-4" /></Button>
               <Button size="sm" variant="outline" onClick={handleToday} disabled={isLoading} className="text-xs md:text-sm">Aujourd'hui</Button>
+              <input
+                type="date"
+                disabled={isLoading}
+                value={format(currentMonth, 'yyyy-MM-dd')}
+                onChange={(e) => { if (e.target.value) setCurrentMonth(parseISO(e.target.value)); }}
+                className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                title="Aller à une date"
+              />
             </div>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={() => handleCopyPrevious('week')} disabled={isLoading} className="text-xs md:text-sm"><Copy className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" /> Copier Sem.</Button>
@@ -495,77 +503,94 @@ const MonPlanningPage = () => {
           {isLoading && Object.keys(planning).length === 0 ? (
             <p className="text-center text-muted-foreground py-8 text-sm md:text-base">Chargement du planning...</p>
           ) : (
-            <div className={`grid ${viewMode === 'month' ? 'grid-cols-7' : 'grid-cols-7'} gap-px border-l border-t border-border bg-border overflow-hidden rounded-lg`}>
-              {viewMode === 'month' && ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(dayName => (
-                <div key={dayName} className="py-1 md:py-2 text-center font-medium text-xs md:text-sm text-muted-foreground bg-card border-r border-b">{dayName}</div>
-              ))}
-              {days.map((day, dayIdx) => {
-                const dateStr = format(day, 'yyyy-MM-dd');
-                const dayPlanning = planning[dateStr] || [];
-                const dayRequests = requestsByDate[dateStr] || [];
-                const isCurrentMonthDay = viewMode === 'month' ? isSameMonth(day, currentMonth) : true;
-                const isToday = isSameDay(day, new Date());
+            <div className="overflow-hidden rounded-lg border border-border shadow-sm">
+              {/* En-tête jours */}
+              <div className="grid grid-cols-7 bg-muted/60">
+                {(viewMode === 'week'
+                  ? days.map(d => format(d, 'EEE', { locale: fr }))
+                  : ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+                ).map((dayName, i) => (
+                  <div key={i} className="py-2 text-center text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">{dayName}</div>
+                ))}
+              </div>
+              {/* Grille compacte */}
+              <div className="grid grid-cols-7 divide-x divide-y divide-border">
+                {days.map((day, dayIdx) => {
+                  const dateStr = format(day, 'yyyy-MM-dd');
+                  const dayPlanning = planning[dateStr] || [];
+                  const dayRequests = requestsByDate[dateStr] || [];
+                  const isCurrentMonthDay = viewMode === 'month' ? isSameMonth(day, currentMonth) : true;
+                  const isToday = isSameDay(day, new Date());
+                  const isWeekend = [0, 6].includes(getDay(day));
 
-                return (
-                  <div
-                    key={day.toString()}
-                    className={`p-1 md:p-2 min-h-[80px] sm:min-h-[100px] md:min-h-[120px] bg-card border-r border-b relative flex flex-col
-                      ${viewMode === 'month' && dayIdx === 0 ? colStartClasses : ''}
-                      ${!isCurrentMonthDay ? 'bg-muted/30 dark:bg-muted/10 text-muted-foreground/50' : ''}
-                      ${isToday ? 'ring-2 ring-primary z-10' : ''}
-                    `}
+                  return (
+                    <div
+                      key={day.toString()}
+                      className={`group flex min-h-[90px] flex-col
+                        ${viewMode === 'month' && dayIdx === 0 ? colStartClasses : ''}
+                        ${!isCurrentMonthDay ? 'bg-muted/10' : isWeekend ? 'bg-slate-50/40' : 'bg-card'}
+                      `}
                     >
-                    <div className="flex items-start justify-between gap-2">
-                      <time dateTime={dateStr} className={`text-xs md:text-sm font-semibold ${isToday ? 'text-primary' : 'text-foreground'}`}>
-                        {format(day, 'd')}
-                        {viewMode === 'week' && <span className="block text-xs font-normal text-muted-foreground">{format(day, 'EEE', {locale: fr})}</span>}
-                      </time>
-                      {dayRequests.length > 0 ? (
-                        <Badge className="border-amber-200 bg-amber-50 px-1.5 py-0 text-[10px] text-amber-700">
-                          {dayRequests.length}
-                        </Badge>
-                      ) : null}
-                    </div>
-                    <AnimatePresence>
-                      {dayPlanning.map(event => {
-                        const guichetiere = guichetieresAgence.find(g => g.id === event.guichetiereId);
-                        const remplacanteDe = event.remplacante_de_id ? guichetieresAgence.find(g => g.id === event.remplacante_de_id) : null;
-                        const bgColor = event.est_remplacante ? 'bg-orange-400/20 dark:bg-orange-600/30' : 'bg-primary/10 dark:bg-primary/20';
-                        const textColor = event.est_remplacante ? 'text-orange-700 dark:text-orange-300' : 'text-black dark:text-white';
-                        const linkedRequest = requestsByPlanningId[String(event.planningId)];
-                        
-                        return (
-                          <motion.div
-                            key={event.planningId}
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, x: -10 }}
-                            className={`mt-1 p-1 rounded-md text-[10px] md:text-xs flex justify-between items-center ${bgColor}`}
-                          >
-                            <span className={`truncate ${textColor}`}>
-                                {guichetiere ? `${guichetiere.prenom.charAt(0)}. ${guichetiere.nom}` : 'Inconnue'}
-                                {event.est_remplacante && remplacanteDe && <span className="block text-[8px] md:text-[10px] opacity-80">(R: {remplacanteDe.prenom.charAt(0)}. {remplacanteDe.nom})</span>}
-                                {linkedRequest ? (
-                                  <span className="mt-0.5 block text-[8px] md:text-[10px] text-amber-700">
-                                    Demande: {linkedRequest.statut}
-                                  </span>
-                                ) : null}
+                      {/* Header compact */}
+                      <div className={`flex items-center justify-between px-1.5 py-1 ${isToday ? 'bg-primary text-white' : !isCurrentMonthDay ? '' : isWeekend ? 'bg-muted/20' : ''}`}>
+                        <time dateTime={dateStr} className={`text-xs font-bold ${isToday ? 'text-white' : !isCurrentMonthDay ? 'text-muted-foreground/30' : 'text-foreground'}`}>
+                          {format(day, 'd')}
+                        </time>
+                        <div className="flex items-center gap-0.5">
+                          {dayRequests.length > 0 && (
+                            <span className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold ${isToday ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'}`}>
+                              {dayRequests.length}
                             </span>
-                            <Button variant="ghost" size="icon" className="h-4 w-4 md:h-5 md:w-5 text-blue-500 hover:text-blue-700" onClick={() => openEditModal(event, day)} disabled={isLoading}>
-                              <Edit2 className="h-2.5 w-2.5 md:h-3 md:w-3" />
-                            </Button>
-                          </motion.div>
-                        );
-                      })}
-                    </AnimatePresence>
-                    {isCurrentMonthDay && (
-                      <Button variant="ghost" size="icon" className="absolute bottom-0.5 right-0.5 md:bottom-1 md:right-1 h-6 w-6 md:h-7 md:w-7 text-primary hover:bg-primary/10" onClick={() => openAddModal(day)} disabled={isLoading}>
-                        <PlusCircle className="h-4 w-4 md:h-5 md:w-5" />
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
+                          )}
+                          {isCurrentMonthDay && (
+                            <button
+                              className={`flex h-4 w-4 items-center justify-center rounded opacity-0 transition-all group-hover:opacity-100 ${isToday ? 'text-white/70 hover:bg-white/20' : 'text-muted-foreground/30 hover:bg-primary/10 hover:text-primary'}`}
+                              onClick={() => openAddModal(day)}
+                              disabled={isLoading}
+                            >
+                              <PlusCircle className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {/* Corps compact */}
+                      <div className="flex-1 px-1.5 py-1 space-y-0.5">
+                        <AnimatePresence>
+                          {dayPlanning.map(event => {
+                            const guichetiere = guichetieresAgence.find(g => g.id === event.guichetiereId);
+                            const linkedRequest = requestsByPlanningId[String(event.planningId)];
+                            const initials = guichetiere
+                              ? `${guichetiere.prenom.charAt(0)}${guichetiere.nom.charAt(0)}`.toUpperCase()
+                              : '?';
+                            const name = guichetiere ? `${guichetiere.prenom.charAt(0)}. ${guichetiere.nom}` : 'Inconnue';
+
+                            return (
+                              <motion.div
+                                key={event.planningId}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="flex cursor-pointer items-center gap-1 transition-opacity hover:opacity-70"
+                                onClick={() => openEditModal(event, day)}
+                              >
+                                <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[0.5rem] font-bold text-white
+                                  ${event.est_remplacante ? 'bg-orange-400' : isToday ? 'bg-white/90 !text-primary' : 'bg-primary'}
+                                `}>
+                                  {initials}
+                                </span>
+                                <span className={`truncate text-[0.6rem] font-medium leading-tight ${!isCurrentMonthDay ? 'text-muted-foreground/40' : 'text-foreground'}`}>
+                                  {name}
+                                </span>
+                                {linkedRequest && <span className="ml-auto shrink-0 text-[0.5rem] text-amber-600">!</span>}
+                              </motion.div>
+                            );
+                          })}
+                        </AnimatePresence>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </CardContent>
