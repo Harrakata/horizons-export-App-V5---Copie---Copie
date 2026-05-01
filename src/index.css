@@ -120,6 +120,17 @@
   z-index: 1;
 }
 
+/* Les éléments flottants (dialog, dropdown, select, popover) gardent leur position fixed/absolute
+   même si glassmorphism leur est appliqué — on réimpose via data-attributes Radix */
+[data-radix-popper-content-wrapper],
+[role="dialog"][data-state],
+[data-radix-dialog-content],
+[data-radix-dropdown-menu-content],
+[data-radix-select-content],
+[data-radix-popover-content] {
+  position: fixed !important;
+}
+
 /* Custom scrollbar (optional, for aesthetics) */
 ::-webkit-scrollbar {
   width: 8px;
