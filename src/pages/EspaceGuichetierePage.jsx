@@ -237,7 +237,7 @@ const EspaceGuichetierePage = () => {
         initial={{ x: -100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className="md:w-72"
+        className="md:w-72 md:shrink-0"
       >
         <div className="sticky top-20 space-y-3">
           <Card className="relative overflow-hidden border border-primary/20 bg-white/92 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
@@ -296,7 +296,7 @@ const EspaceGuichetierePage = () => {
         </div>
       </motion.aside>
 
-      <main className="flex-1">
+      <main className="flex-1 min-w-0 overflow-hidden">
         <motion.div
           key={location.pathname}
           initial={{ opacity: 0, y: 20 }}

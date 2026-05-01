@@ -149,7 +149,7 @@ const MesPointagesPage = () => {
         <KpiStatCard
           icon={FileText}
           label="Dernier pointage"
-          value={latestPointage ? formatDisplayDateTime(latestPointage.time) : 'Aucun'}
+          value={latestPointage && !Number.isNaN(new Date(latestPointage.time).getTime()) ? format(new Date(latestPointage.time), 'dd/MM  HH:mm') : 'Aucun'}
           helper="Dernière trace de pointage enregistrée."
           tone="emerald"
         />

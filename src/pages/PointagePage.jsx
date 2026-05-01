@@ -111,7 +111,9 @@ const PointagePage = () => {
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] p-3 md:p-8 text-center"
       >
-        <Card className="w-full max-w-lg shadow-xl glassmorphism p-4 md:p-8">
+        <Card className="relative overflow-hidden w-full max-w-lg border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur p-4 md:p-8">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
           <AlertTriangle className="h-10 w-10 md:h-16 md:w-16 text-primary mx-auto mb-3 md:mb-6" />
           <CardTitle className="text-xl md:text-3xl font-bold text-primary mb-2 md:mb-4">Accès Chef d'Agence Requis</CardTitle>
           <p className="text-sm md:text-lg text-muted-foreground mb-4 md:mb-8">
@@ -132,7 +134,7 @@ const PointagePage = () => {
 
 
   return (
-    <div className="container mx-auto px-2 py-4 sm:p-4 md:p-8">
+    <div className="space-y-6">
       {isSessionExpired && isChefAgenceLoggedIn && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -160,37 +162,49 @@ const PointagePage = () => {
         </motion.div>
       )}
       
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="text-center mb-3 md:mb-6"
+        className="mb-3 md:mb-6"
       >
-        <h1 className="text-xl sm:text-2xl md:text-4xl font-bold text-primary mb-1 md:mb-2 flex items-center justify-center">
-          <CalendarCheck2 className="mr-2 md:mr-3 h-6 w-6 sm:h-7 sm:w-7 md:h-10 md:w-10" /> 
-          Pointage<span className="hidden xs:inline"> de Présence</span>
-        </h1>
-        <p className="text-base sm:text-lg text-muted-foreground">
-          Agence: <span className="font-semibold text-primary">{nomAgenceAffichee}</span>
-        </p>
-        <p className="text-xs sm:text-sm md:text-lg text-muted-foreground">
-           Date: <span className="font-medium text-primary">{todayFormatted}</span> | Heure: <span className="font-medium text-primary">{format(currentTime, 'HH:mm:ss')}</span>
-        </p>
-        {chefAgenceInfo && (
-          <div className="flex items-center justify-center mt-2">
-            <Avatar className="h-8 w-8 sm:h-10 sm:w-10 border-2 border-primary/20 mr-2">
-              {chefAgenceInfo.photo_url ? (
-                <AvatarImage src={chefAgenceInfo.photo_url} alt={chefAgenceInfo.nomChef} />
-              ) : null}
-              <AvatarFallback className="bg-primary/10 text-primary font-medium text-xs sm:text-sm">
-                {chefAgenceInfo.nomChef?.split(' ').map(n => n[0]).join('') || 'CA'}
-              </AvatarFallback>
-            </Avatar>
-            <p className="text-[10px] xs:text-xs sm:text-sm text-muted-foreground">
-              <span className="hidden xs:inline">Connecté en tant que:</span> {chefAgenceInfo.nomChef}
-            </p>
-          </div>
-        )}
+        <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+          <CardContent className="relative py-5 px-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h1 className="flex items-center text-3xl font-bold text-primary">
+                  <CalendarCheck2 className="mr-3 h-8 w-8" />
+                  Pointage
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Agence : <span className="font-semibold text-foreground">{nomAgenceAffichee}</span>
+                </p>
+              </div>
+              <div className="flex flex-col items-start md:items-end gap-2">
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">{todayFormatted}</span>
+                  <span className="mx-2 text-muted-foreground/40">|</span>
+                  <span className="font-mono font-semibold text-primary">{format(currentTime, 'HH:mm:ss')}</span>
+                </p>
+                {chefAgenceInfo && (
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8 border-2 border-primary/20">
+                      {chefAgenceInfo.photo_url ? (
+                        <AvatarImage src={chefAgenceInfo.photo_url} alt={chefAgenceInfo.nomChef} />
+                      ) : null}
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                        {chefAgenceInfo.nomChef?.split(' ').map(n => n[0]).join('') || 'CA'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <p className="text-sm font-medium text-foreground">{chefAgenceInfo.nomChef}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </motion.div>
 
       <motion.div
@@ -199,55 +213,57 @@ const PointagePage = () => {
         transition={{ duration: 0.5, delay: 0.1 }}
         className="mb-3 md:mb-6"
       >
-        <div className="flex justify-between items-center mb-2">
-          <h2 className="text-lg sm:text-xl font-semibold text-primary flex items-center">
-            <Clock className="mr-2 h-4 w-4 sm:h-5 sm:w-5" /> 
-            <span className="hidden xs:inline">Chronologie des</span> Pointages
-          </h2>
-          <Button 
-            variant="ghost" 
-            size={isMobile ? "xs" : "sm"}
-            onClick={() => {
-              setExpandedTimeline(!expandedTimeline);
-              if (resetSessionTimeout) resetSessionTimeout();
-            }}
-            className="text-muted-foreground flex items-center text-xs"
-          >
-            {expandedTimeline ? (
-              <>
-                {!isMobile && "Réduire"} <ChevronUp className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
-              </>
-            ) : (
-              <>
-                {!isMobile && "Développer"} <ChevronDown className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
-              </>
-            )}
-          </Button>
-        </div>
-
-        <PointageTimeline 
-            currentTime={currentTime} 
-            creneaux={creneauxPointageSettings} 
-            guichetieresPlanifiees={guichetieresPlanifieesAujourdhui}
-            pointagesData={pointagesJournaliersAgence}
-            currentCreneauIndex={currentCreneauIndex}
-        />
-
-        {expandedTimeline && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mt-3 sm:mt-4"
-          >
-            <PointageGuichetieresSummary 
+        <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+          <CardHeader className="relative px-3 sm:px-6 pt-3 sm:pt-5 pb-2">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-lg sm:text-xl font-semibold text-primary flex items-center">
+                <Clock className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                <span className="hidden xs:inline">Chronologie des</span> Pointages
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size={isMobile ? "xs" : "sm"}
+                onClick={() => {
+                  setExpandedTimeline(!expandedTimeline);
+                  if (resetSessionTimeout) resetSessionTimeout();
+                }}
+                className="text-muted-foreground flex items-center text-xs"
+              >
+                {expandedTimeline ? (
+                  <>{!isMobile && "Réduire"} <ChevronUp className="ml-1 h-3 w-3 sm:h-4 sm:w-4" /></>
+                ) : (
+                  <>{!isMobile && "Développer"} <ChevronDown className="ml-1 h-3 w-3 sm:h-4 sm:w-4" /></>
+                )}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="relative px-3 sm:px-6 pb-3 sm:pb-5">
+            <PointageTimeline
+              currentTime={currentTime}
+              creneaux={creneauxPointageSettings}
               guichetieresPlanifiees={guichetieresPlanifieesAujourdhui}
               pointagesData={pointagesJournaliersAgence}
-              creneauxPointageSettings={creneauxPointageSettings}
               currentCreneauIndex={currentCreneauIndex}
             />
-          </motion.div>
-        )}
+            {expandedTimeline && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-3 sm:mt-4"
+              >
+                <PointageGuichetieresSummary
+                  guichetieresPlanifiees={guichetieresPlanifieesAujourdhui}
+                  pointagesData={pointagesJournaliersAgence}
+                  creneauxPointageSettings={creneauxPointageSettings}
+                  currentCreneauIndex={currentCreneauIndex}
+                />
+              </motion.div>
+            )}
+          </CardContent>
+        </Card>
       </motion.div>
 
       <div className="grid md:grid-cols-3 gap-3 md:gap-6">
@@ -257,8 +273,10 @@ const PointagePage = () => {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="md:col-span-2"
         >
-          <Card className="shadow-xl glassmorphism">
-            <CardHeader className="px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4">
+          <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+            <CardHeader className="relative px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4">
                 <div className="flex justify-between items-center">
                     <CardTitle className="text-lg sm:text-xl md:text-2xl text-primary">Processus de Pointage</CardTitle>
                     <div className="flex space-x-1">
@@ -281,13 +299,15 @@ const PointagePage = () => {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
         >
-          <Card className="shadow-xl glassmorphism">
-            <CardHeader className="px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4">
+          <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+            <CardHeader className="relative px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4">
               <CardTitle className="text-base sm:text-lg md:text-xl text-primary flex items-center">
                 <Info className="mr-2 h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" /> Statut Quotidien
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-2 sm:p-4">
+            <CardContent className="relative p-2 sm:p-4">
               <PointageStatus 
                 guichetieresPlanifiees={guichetieresPlanifieesAujourdhui}
                 pointagesData={pointagesJournaliersAgence}

@@ -1027,22 +1027,14 @@ const PaiementGrosGainPage = () => {
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <CardTitle className="flex items-center text-3xl font-bold text-primary">
-                <Wallet className="mr-3 h-7 w-7" />
-                Paiement Gros Gain
-              </CardTitle>
-              <CardDescription>
-                Agence connectée : <span className="font-medium text-foreground">{connectedAgencyName}</span>
-              </CardDescription>
-            </div>
-            <div className="shrink-0 rounded-xl border bg-background/70 px-4 py-3 text-sm shadow-sm">
-              <p className="font-semibold">{chefInfo.nomChef}</p>
-              <p className="text-muted-foreground">Chef d’agence</p>
-              <p className="text-muted-foreground">{connectedAgencyName}</p>
-              <p className="text-xs text-muted-foreground">{connectedAgencyRegion}</p>
-            </div>
+          <div>
+            <CardTitle className="flex items-center text-3xl font-bold text-primary">
+              <Wallet className="mr-3 h-7 w-7" />
+              Paiement Gros Gain
+            </CardTitle>
+            <CardDescription>
+              Agence connectée : <span className="font-medium text-foreground">{connectedAgencyName}</span>
+            </CardDescription>
           </div>
         </CardHeader>
       </Card>
@@ -1081,7 +1073,7 @@ const PaiementGrosGainPage = () => {
 
       {isChefAgenceWorkspace ? (
         <Tabs defaultValue="pending" className="space-y-6">
-          <TabsList className="grid w-full max-w-xl grid-cols-2">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="pending">Demandes à traiter</TabsTrigger>
             <TabsTrigger value="history">Historique</TabsTrigger>
           </TabsList>
@@ -1351,7 +1343,7 @@ const PaiementGrosGainPage = () => {
         </Tabs>
       ) : (
         <Tabs defaultValue="demande" className="space-y-6">
-        <TabsList className="grid w-full max-w-2xl grid-cols-2">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="demande">Demande de Paiement de Gain</TabsTrigger>
           <TabsTrigger value="autorisation">Autorisation de Paiement de Gain</TabsTrigger>
         </TabsList>

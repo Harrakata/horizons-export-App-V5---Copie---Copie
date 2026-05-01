@@ -138,74 +138,160 @@ const Layout = () => {
   }, [hasLoadedSpaceFunctionalities, location.pathname, navigate, spaceFunctionalities, toast]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 dark:from-slate-900 dark:via-purple-900 dark:to-slate-800">
+    <div className="flex min-h-screen flex-col bg-white dark:bg-slate-900">
       <header className="sticky top-0 z-40 w-full relative overflow-hidden border-b border-primary/20 bg-background/95 shadow-[0_4px_24px_-6px_rgba(15,23,42,0.14)] backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/8 via-primary/4 to-transparent" />
         <div className="container relative flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center space-x-2">
-            <motion.div whileHover={{ rotate: [0, 10, -10, 0], scale: 1.1 }}>
-              <img  alt="Logo Star3000+" class="h-10 w-auto" src="https://pzmapmxjkkqhuiamdvjd.supabase.co/storage/v1/object/public/pmu-mali-storage//326291198_1368954473860231_6856823940381691525_n.jpg" />
+          <Link to="/" className="flex items-center gap-3 group">
+            <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} className="relative">
+              <div className="h-10 w-10 rounded-xl overflow-hidden ring-2 ring-primary/30 shadow-md shadow-primary/20 group-hover:ring-primary/50 transition-all">
+                <img
+                  alt="Star3000+"
+                  className="h-full w-full object-cover"
+                  src="https://pzmapmxjkkqhuiamdvjd.supabase.co/storage/v1/object/public/pmu-mali-storage//326291198_1368954473860231_6856823940381691525_n.jpg"
+                />
+              </div>
+              <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-primary ring-2 ring-background flex items-center justify-center">
+                <span className="h-1.5 w-1.5 rounded-full bg-white" />
+              </span>
             </motion.div>
-            <span className="font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-primary to-pink-500 dark:to-pink-400">
-              Star3000+
-            </span>
+            <div className="flex flex-col leading-none">
+              <span className="font-extrabold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/90 to-emerald-500">
+                Star3000+
+              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80 mt-0.5">
+                PMC
+              </span>
+            </div>
           </Link>
 
-          <nav className="hidden md:flex items-center space-x-4 lg:space-x-6">
-            {availableNavLinks.map(link => (
-              <Button key={link.to} variant="ghost" onClick={() => navigate(link.to)}>
-                {link.icon} {link.label}
-              </Button>
-            ))}
+          <nav className="hidden md:flex items-center gap-2">
+            {availableNavLinks.map(link => {
+              const isActive = link.to === '/' ? location.pathname === '/' : location.pathname.startsWith(link.to);
+              return (
+                <button
+                  key={link.to}
+                  onClick={() => navigate(link.to)}
+                  className={`relative overflow-hidden inline-flex items-center gap-2 rounded-xl border px-2.5 py-1.5 text-sm font-semibold shadow-sm transition-all ${
+                    isActive
+                      ? 'border-primary/40 bg-primary/12 text-primary shadow-md'
+                      : 'border-primary/20 bg-white/80 text-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-primary'
+                  }`}
+                >
+                  <span className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[0.5rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white ring-1 ring-primary/20 text-primary shadow-sm">
+                    {React.cloneElement(link.icon, { className: 'h-3.5 w-3.5' })}
+                  </span>
+                  {link.label}
+                </button>
+              );
+            })}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost">
-                  Espaces <Menu className="ml-2 h-4 w-4" />
-                </Button>
+                <button className="relative overflow-hidden inline-flex items-center gap-2 rounded-xl border border-primary/20 bg-white/80 px-2.5 py-1.5 text-sm font-semibold text-foreground shadow-sm transition-all hover:border-primary/30 hover:bg-primary/5 hover:text-primary">
+                  <span className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[0.5rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white ring-1 ring-primary/20 text-primary shadow-sm">
+                    <Menu className="h-3.5 w-3.5" />
+                  </span>
+                  Espaces
+                </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Navigation Principale</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {availableDropdownLinks.map(link => (
-                   <DropdownMenuItem key={link.to} onClick={() => navigate(link.to)}>
-                    {link.icon}
-                    {link.label}
-                  </DropdownMenuItem>
-                ))}
+              <DropdownMenuContent align="end" className="w-64 overflow-hidden border border-primary/20 bg-primary/5 p-0 shadow-[0_8px_30px_-8px_rgba(15,23,42,0.2)] backdrop-blur">
+                <div className="relative">
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+                  <div className="flex items-center gap-2.5 px-3 pb-2.5 pt-3.5">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.6rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white ring-1 ring-primary/20 shadow-sm text-primary">
+                      <Menu className="h-4 w-4" />
+                    </div>
+                    <span className="text-sm font-bold text-foreground">Navigation Principale</span>
+                  </div>
+                  <div className="mx-3 mb-2 h-px bg-primary/15" />
+                  <div className="space-y-0.5 px-2 pb-2">
+                    {availableDropdownLinks.map(link => {
+                      const isActive = location.pathname.startsWith(link.to);
+                      return (
+                        <DropdownMenuItem
+                          key={link.to}
+                          onClick={() => navigate(link.to)}
+                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all cursor-pointer ${
+                            isActive
+                              ? 'bg-primary text-primary-foreground shadow-sm'
+                              : 'text-foreground/80 hover:bg-primary/10 hover:text-primary'
+                          }`}
+                        >
+                          {link.icon}
+                          {link.label}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </div>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
-              {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </Button>
+            <button
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+              className="relative overflow-hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-gradient-to-br from-primary/20 via-primary/10 to-white text-primary ring-1 ring-primary/20 shadow-sm transition-all hover:from-primary/30 hover:border-primary/35"
+            >
+              <span className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+              {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
           </nav>
           
-          <div className="md:hidden flex items-center">
-            <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme" className="mr-2">
-              {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </Button>
+          <div className="md:hidden flex items-center gap-2">
+            <button
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/5 text-primary transition-all hover:border-primary/35 hover:bg-primary/10"
+            >
+              {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-6 w-6" />
-                </Button>
+                <button className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/5 text-primary transition-all hover:border-primary/35 hover:bg-primary/10">
+                  <Menu className="h-4 w-4" />
+                </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Menu</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {availableNavLinks.map(link => (
-                  <DropdownMenuItem key={link.to} onClick={() => navigate(link.to)}>
-                    {link.icon} {link.label}
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Espaces</DropdownMenuLabel>
-                 {availableDropdownLinks.map(link => (
-                   <DropdownMenuItem key={link.to} onClick={() => navigate(link.to)}>
-                    {link.icon}
-                    {link.label}
-                  </DropdownMenuItem>
-                ))}
+              <DropdownMenuContent align="end" className="w-64 overflow-hidden border border-primary/20 bg-primary/5 p-0 shadow-[0_8px_30px_-8px_rgba(15,23,42,0.2)] backdrop-blur">
+                <div className="relative">
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+                  <div className="flex items-center gap-2.5 px-3 pb-2 pt-3.5">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.6rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white ring-1 ring-primary/20 shadow-sm text-primary">
+                      <Menu className="h-4 w-4" />
+                    </div>
+                    <span className="text-sm font-bold text-foreground">Menu</span>
+                  </div>
+                  <div className="mx-3 mb-1 h-px bg-primary/15" />
+                  <div className="space-y-0.5 px-2 pb-1">
+                    {availableNavLinks.map(link => {
+                      const isActive = link.to === '/' ? location.pathname === '/' : location.pathname.startsWith(link.to);
+                      return (
+                        <DropdownMenuItem key={link.to} onClick={() => navigate(link.to)}
+                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all cursor-pointer ${isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground/80 hover:bg-primary/10 hover:text-primary'}`}
+                        >
+                          {link.icon}{link.label}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </div>
+                  <div className="mx-3 my-1 h-px bg-primary/15" />
+                  <div className="px-3 pb-1 pt-0.5">
+                    <p className="text-xs font-bold text-primary/60 uppercase tracking-wide">Espaces</p>
+                  </div>
+                  <div className="space-y-0.5 px-2 pb-2">
+                    {availableDropdownLinks.map(link => {
+                      const isActive = location.pathname.startsWith(link.to);
+                      return (
+                        <DropdownMenuItem key={link.to} onClick={() => navigate(link.to)}
+                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all cursor-pointer ${isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground/80 hover:bg-primary/10 hover:text-primary'}`}
+                        >
+                          {link.icon}{link.label}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </div>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

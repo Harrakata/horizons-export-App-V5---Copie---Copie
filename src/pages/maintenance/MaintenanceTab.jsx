@@ -12,7 +12,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { motion } from 'framer-motion';
 import SignatureCanvas from 'react-signature-canvas';
-import { Building2, CalendarClock, Globe, Wrench } from 'lucide-react';
+import { Building2, CalendarClock, Globe, Wrench, ClipboardList } from 'lucide-react';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 
 const normalizeMaintenanceText = (value) =>
@@ -1541,6 +1541,20 @@ const MaintenanceTab = ({ technicien }) => {
       animate={{ opacity: 1, y: 0 }}
       className="mt-4 space-y-6"
     >
+      <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+        <CardHeader className="relative">
+          <CardTitle className="flex items-center text-3xl font-bold text-primary">
+            <ClipboardList className="mr-3 h-8 w-8" />
+            Faire une Maintenance
+          </CardTitle>
+          <CardDescription>
+            Saisissez et archivez une intervention de maintenance sur un terminal.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <KpiStatCard
           icon={Globe}

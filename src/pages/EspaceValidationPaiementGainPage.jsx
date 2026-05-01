@@ -634,7 +634,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
       </div>
 
       <Tabs defaultValue="pending" className="space-y-6">
-        <TabsList className="grid w-full max-w-xl grid-cols-2">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="pending">Demandes à valider</TabsTrigger>
           <TabsTrigger value="history">Historique</TabsTrigger>
         </TabsList>

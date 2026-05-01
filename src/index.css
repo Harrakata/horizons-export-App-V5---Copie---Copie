@@ -76,15 +76,48 @@
 }
 
 .glassmorphism {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid hsl(var(--primary) / 0.2);
+  box-shadow: 0 22px 60px -30px rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: hsl(var(--card));
+}
+
+/* Rail dégradé en haut */
+.glassmorphism::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 6px;
+  background: linear-gradient(to right, hsl(var(--primary)), hsl(var(--primary) / 0.8), hsl(var(--primary) / 0.35));
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Fond teinté accent */
+.glassmorphism::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--primary) / 0.04), transparent);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .dark .glassmorphism {
-  background: rgba(30, 30, 40, 0.25); /* Darker transparent background */
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: hsl(var(--card));
+  border-color: hsl(var(--primary) / 0.3);
+  box-shadow: 0 22px 60px -30px rgba(15, 23, 42, 0.5);
+}
+
+/* Le contenu des cards glassmorphism reste au-dessus des pseudo-éléments */
+.glassmorphism > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* Custom scrollbar (optional, for aesthetics) */

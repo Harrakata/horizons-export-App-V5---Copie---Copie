@@ -407,7 +407,7 @@ const MaintenanceTerminauxPage = () => {
       </Card>
 
       <Tabs defaultValue="suivi" className="space-y-6">
-        <TabsList className="grid w-full max-w-3xl grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="configuration">Configuration des Terminaux</TabsTrigger>
           <TabsTrigger value="suivi">Suivi des Terminaux</TabsTrigger>
           <TabsTrigger value="planning">Planification de Maintenance</TabsTrigger>
