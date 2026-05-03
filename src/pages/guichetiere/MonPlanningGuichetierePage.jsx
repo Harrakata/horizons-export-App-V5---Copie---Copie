@@ -336,117 +336,107 @@ const MonPlanningGuichetierePage = () => {
         />
       </div>
 
-      <Card className="shadow-xl glassmorphism">
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <CardTitle className="text-2xl text-primary">Calendrier</CardTitle>
-              <CardDescription>{guichetiereInfo?.nomAgence}</CardDescription>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth((prev) => viewMode === 'month' ? subMonths(prev, 1) : subWeeks(prev, 1))}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <h2 className="text-base font-semibold text-foreground whitespace-nowrap">
-                {format(currentMonth, viewMode === 'month' ? 'MMMM yyyy' : "'Sem. du' dd MMMM yyyy", { locale: fr })}
-              </h2>
-              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth((prev) => viewMode === 'month' ? addMonths(prev, 1) : addWeeks(prev, 1))}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm" className="text-xs" onClick={() => setCurrentMonth(new Date())}>Aujourd'hui</Button>
-              <input
-                type="date"
-                value={format(currentMonth, 'yyyy-MM-dd')}
-                onChange={(e) => { if (e.target.value) setCurrentMonth(parseISO(e.target.value)); }}
-                className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                title="Aller à une date"
-              />
-              <div className="flex gap-2">
-                <Button size="sm" variant={viewMode === 'month' ? 'default' : 'outline'} onClick={() => setViewMode('month')}>Mois</Button>
-                <Button size="sm" variant={viewMode === 'week' ? 'default' : 'outline'} onClick={() => setViewMode('week')}>Semaine</Button>
+      <Card className="shadow-sm">
+        {/* Barre de contrôle unifiée */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth((prev) => viewMode === 'month' ? subMonths(prev, 1) : subWeeks(prev, 1))} disabled={isLoading}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="min-w-[120px] text-center text-sm font-semibold text-foreground whitespace-nowrap">
+              {format(currentMonth, viewMode === 'month' ? 'MMMM yyyy' : "'Sem.' dd MMM", { locale: fr })}
+            </span>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth((prev) => viewMode === 'month' ? addMonths(prev, 1) : addWeeks(prev, 1))} disabled={isLoading}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs" onClick={() => setCurrentMonth(new Date())} disabled={isLoading}>
+              Aujourd'hui
+            </Button>
+            <input
+              type="date"
+              disabled={isLoading}
+              value={format(currentMonth, 'yyyy-MM-dd')}
+              onChange={(e) => { if (e.target.value) setCurrentMonth(parseISO(e.target.value)); }}
+              className="h-7 rounded-md border border-input bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              title="Aller à une date"
+            />
+          </div>
+          <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5">
+            <Button size="sm" variant={viewMode === 'month' ? 'default' : 'ghost'} className="h-7 px-3 text-xs" onClick={() => setViewMode('month')} disabled={isLoading}>Mois</Button>
+            <Button size="sm" variant={viewMode === 'week' ? 'default' : 'ghost'} className="h-7 px-3 text-xs" onClick={() => setViewMode('week')} disabled={isLoading}>Semaine</Button>
+          </div>
+        </div>
+        <CardContent className="p-2 md:p-4">
+          {isLoading && planningEntries.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Chargement du planning...</p>
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-border shadow-sm">
+              {/* En-tête jours */}
+              <div className="grid grid-cols-7 bg-muted/60">
+                {(viewMode === 'week'
+                  ? days.map((d) => format(d, 'EEE', { locale: fr }))
+                  : ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+                ).map((dayName, i) => (
+                  <div key={i} className="py-2 text-center text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">{dayName}</div>
+                ))}
+              </div>
+              {/* Grille unifiée mois + semaine */}
+              <div className="grid grid-cols-7 divide-x divide-y divide-border">
+                {days.map((day, dayIdx) => {
+                  const dateStr = format(day, 'yyyy-MM-dd');
+                  const dayPlanning = planningByDate[dateStr] || [];
+                  const isCurrentMonthDay = viewMode === 'month' ? isSameMonth(day, currentMonth) : true;
+                  const isToday = isSameDay(day, new Date());
+                  const isWeekend = [0, 6].includes(getDay(day));
+
+                  return (
+                    <div
+                      key={dateStr}
+                      className={`group flex min-h-[90px] flex-col
+                        ${viewMode === 'month' && dayIdx === 0 ? colStartClasses : ''}
+                        ${!isCurrentMonthDay ? 'bg-muted/10' : isWeekend ? 'bg-slate-50/40' : 'bg-card'}
+                      `}
+                    >
+                      {/* Header compact */}
+                      <div className={`flex items-center px-1.5 py-1 ${isToday ? 'bg-primary text-white' : !isCurrentMonthDay ? '' : isWeekend ? 'bg-muted/20' : ''}`}>
+                        <time dateTime={dateStr} className={`text-xs font-bold ${isToday ? 'text-white' : !isCurrentMonthDay ? 'text-muted-foreground/30' : 'text-foreground'}`}>
+                          {format(day, 'd')}
+                        </time>
+                      </div>
+                      {/* Corps compact */}
+                      <div className="flex-1 space-y-0.5 px-1.5 py-1">
+                        <AnimatePresence>
+                          {dayPlanning.map((entry) => {
+                            const linkedRequest = requestByPlanningId[String(entry.id)];
+                            const isPast = isPastPlanningDate(entry.date);
+                            return (
+                              <motion.div
+                                key={entry.id}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className={`flex cursor-pointer items-center gap-1 transition-opacity hover:opacity-70 ${isPast ? 'opacity-50' : ''}`}
+                                onClick={() => openRequestDialog(entry)}
+                              >
+                                <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[0.5rem] font-bold text-white
+                                  ${linkedRequest?.statut === REQUEST_STATUS.PENDING ? 'bg-amber-400' : isToday ? 'bg-white/90 !text-primary' : 'bg-primary'}
+                                `}>
+                                  {linkedRequest?.statut === REQUEST_STATUS.PENDING ? '!' : '✓'}
+                                </span>
+                                <span className={`truncate text-[0.6rem] font-medium leading-tight ${!isCurrentMonthDay ? 'text-muted-foreground/40' : 'text-foreground'}`}>
+                                  {entry.agenceNom || nomAgence}
+                                </span>
+                              </motion.div>
+                            );
+                          })}
+                        </AnimatePresence>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-2 md:p-4">
-          <div className="overflow-hidden rounded-lg border border-border shadow-sm">
-            {/* En-tête jours */}
-            <div className="grid grid-cols-7 bg-muted/60">
-              {(viewMode === 'week'
-                ? days.map((d) => format(d, 'EEE', { locale: fr }))
-                : ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
-              ).map((dayName, i) => (
-                <div key={i} className="py-2 text-center text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
-                  {dayName}
-                </div>
-              ))}
-            </div>
-            {/* Grille compacte */}
-            <div className="grid grid-cols-7 divide-x divide-y divide-border">
-              {days.map((day, dayIdx) => {
-                const dateStr = format(day, 'yyyy-MM-dd');
-                const dayPlanning = planningByDate[dateStr] || [];
-                const isCurrentMonthDay = viewMode === 'month' ? isSameMonth(day, currentMonth) : true;
-                const isToday = isSameDay(day, new Date());
-                const isWeekend = [0, 6].includes(getDay(day));
-                const requestCount = dayPlanning.reduce((count, entry) => {
-                  const linkedRequest = requestByPlanningId[String(entry.id)];
-                  return linkedRequest ? count + 1 : count;
-                }, 0);
-                return (
-                  <div
-                    key={dateStr}
-                    className={`group flex min-h-[90px] flex-col
-                      ${viewMode === 'month' && dayIdx === 0 ? colStartClasses : ''}
-                      ${!isCurrentMonthDay ? 'bg-muted/10' : isWeekend ? 'bg-slate-50/40' : 'bg-card'}
-                    `}
-                  >
-                    {/* Header strip */}
-                    <div className={`flex items-center justify-between px-1.5 py-1 ${isToday ? 'bg-primary text-white' : isWeekend ? 'bg-muted/20' : ''}`}>
-                      <time dateTime={dateStr} className={`text-xs font-bold ${isToday ? 'text-white' : !isCurrentMonthDay ? 'text-muted-foreground/30' : 'text-foreground'}`}>
-                        {format(day, 'd')}
-                      </time>
-                      {requestCount > 0 && (
-                        <span className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold ${isToday ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'}`}>
-                          {requestCount}
-                        </span>
-                      )}
-                    </div>
-                    {/* Corps compact */}
-                    <div className="flex-1 space-y-0.5 px-1.5 py-1">
-                      <AnimatePresence>
-                        {dayPlanning.map((entry) => {
-                          const linkedRequest = requestByPlanningId[String(entry.id)];
-                          const isPast = isPastPlanningDate(entry.date);
-                          const agenceName = entry.agenceNom || nomAgence || '';
-                          const initial = agenceName.charAt(0).toUpperCase() || '?';
-                          const canRequest = !isPast && linkedRequest?.statut !== REQUEST_STATUS.PENDING;
-                          return (
-                            <motion.div
-                              key={entry.id}
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              exit={{ opacity: 0 }}
-                              className={`flex items-center gap-1 transition-opacity ${canRequest ? 'cursor-pointer hover:opacity-70' : 'cursor-default opacity-60'}`}
-                              onClick={() => canRequest && openRequestDialog(entry)}
-                            >
-                              <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[0.5rem] font-bold text-white ${isPast ? 'bg-muted-foreground/40' : isToday ? 'bg-white/90 !text-primary' : 'bg-primary'}`}>
-                                {initial}
-                              </span>
-                              <span className={`truncate text-[0.6rem] font-medium leading-tight ${!isCurrentMonthDay ? 'text-muted-foreground/40' : 'text-foreground'}`}>
-                                {agenceName}
-                              </span>
-                              {linkedRequest && <span className="ml-auto shrink-0 text-[0.5rem] text-amber-600">!</span>}
-                            </motion.div>
-                          );
-                        })}
-                      </AnimatePresence>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 

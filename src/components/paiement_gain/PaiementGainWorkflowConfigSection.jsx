@@ -135,13 +135,9 @@ const PaiementGainWorkflowConfigSection = ({
     ? 'bg-gradient-to-r from-primary to-emerald-600 text-white hover:from-primary/90 hover:to-emerald-600/90'
     : 'bg-slate-200 text-slate-500 hover:bg-slate-200 hover:text-slate-500 cursor-not-allowed';
 
-  const editButtonClassName = canWriteCurrentPage
-    ? 'text-blue-500 hover:text-blue-700'
-    : 'text-slate-300 hover:text-slate-300 cursor-not-allowed';
-
-  const statusButtonClassName = canWriteCurrentPage
-    ? ''
-    : 'text-slate-400 hover:text-slate-400 cursor-not-allowed';
+  const editButtonClassName = canWriteCurrentPage && !isLoading && !isMissingTable
+    ? 'h-8 w-8 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-400 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950'
+    : 'h-8 w-8 cursor-not-allowed opacity-40';
 
   const activeConfigs = useMemo(
     () => workflowConfigs.filter((config) => config.statut === WORKFLOW_CONFIG_STATUSES.ACTIVE),
@@ -685,21 +681,29 @@ const PaiementGainWorkflowConfigSection = ({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1.5">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="icon"
                           onClick={() => openDialog(config)}
+                          title="Modifier"
                           className={editButtonClassName}
                           disabled={isLoading || !canWriteCurrentPage || isMissingTable}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="icon"
                           onClick={() => handleToggleStatus(config)}
-                          className={statusButtonClassName}
+                          title={config.statut === WORKFLOW_CONFIG_STATUSES.ACTIVE ? 'Désactiver' : 'Activer'}
+                          className={
+                            !canWriteCurrentPage || isLoading || isMissingTable
+                              ? 'h-8 w-8 cursor-not-allowed opacity-40'
+                              : config.statut === WORKFLOW_CONFIG_STATUSES.ACTIVE
+                                ? 'h-8 w-8 border-red-200 text-red-500 hover:bg-red-50 hover:border-red-400 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950'
+                                : 'h-8 w-8 border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-400 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950'
+                          }
                           disabled={isLoading || !canWriteCurrentPage || isMissingTable}
                         >
                           <Power className="h-4 w-4" />

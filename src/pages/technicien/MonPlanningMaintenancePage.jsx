@@ -2,15 +2,19 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   addMonths,
+  addWeeks,
   eachDayOfInterval,
   endOfMonth,
+  endOfWeek,
   format,
   getDay,
   isSameDay,
   isSameMonth,
   parseISO,
   startOfMonth,
+  startOfWeek,
   subMonths,
+  subWeeks,
 } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -61,6 +65,7 @@ const defaultRequestForm = {
 const MonPlanningMaintenancePage = ({ technicien }) => {
   const { toast } = useToast();
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [viewMode, setViewMode] = useState('month');
   const [planningEntries, setPlanningEntries] = useState([]);
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -73,10 +78,11 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
   const monthEnd = useMemo(() => endOfMonth(currentMonth), [currentMonth]);
   const todayDate = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
 
-  const days = useMemo(
-    () => eachDayOfInterval({ start: monthStart, end: monthEnd }),
-    [monthEnd, monthStart]
-  );
+  const days = useMemo(() => {
+    const start = viewMode === 'month' ? monthStart : startOfWeek(currentMonth, { weekStartsOn: 1 });
+    const end = viewMode === 'month' ? monthEnd : endOfWeek(currentMonth, { weekStartsOn: 1 });
+    return eachDayOfInterval({ start, end });
+  }, [currentMonth, viewMode, monthStart, monthEnd]);
 
   const colStartClasses = useMemo(() => {
     const firstDayOfWeek = getDay(monthStart);
@@ -270,7 +276,7 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
       }
 
       toast({
-        title: 'Erreur d’envoi',
+        title: "Erreur d’envoi",
         description: error.message,
         variant: 'destructive',
       });
@@ -355,111 +361,140 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
         />
       </div>
 
-      <Card className="shadow-xl glassmorphism">
-        <CardHeader>
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <CardTitle className="text-2xl text-primary">Calendrier</CardTitle>
-              <CardDescription>{technicien?.matricule || 'Technicien connecté'}</CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={() => setCurrentMonth((prev) => subMonths(prev, 1))}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="min-w-[180px] text-center text-lg font-semibold">
-                {format(currentMonth, 'MMMM yyyy', { locale: fr })}
-              </div>
-              <Button variant="outline" size="icon" onClick={() => setCurrentMonth((prev) => addMonths(prev, 1))}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+      <Card className="shadow-sm">
+        {/* Barre de contrôle unifiée */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Button
+              variant="ghost" size="icon" className="h-8 w-8"
+              onClick={() => setCurrentMonth((prev) => viewMode === 'month' ? subMonths(prev, 1) : subWeeks(prev, 1))}
+              disabled={isLoading}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="min-w-[120px] text-center text-sm font-semibold text-foreground whitespace-nowrap">
+              {format(currentMonth, viewMode === 'month' ? 'MMMM yyyy' : "'Sem.' dd MMM", { locale: fr })}
+            </span>
+            <Button
+              variant="ghost" size="icon" className="h-8 w-8"
+              onClick={() => setCurrentMonth((prev) => viewMode === 'month' ? addMonths(prev, 1) : addWeeks(prev, 1))}
+              disabled={isLoading}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline" size="sm" className="h-7 px-2.5 text-xs"
+              onClick={() => setCurrentMonth(new Date())}
+              disabled={isLoading}
+            >
+              Aujourd'hui
+            </Button>
+            <input
+              type="date"
+              disabled={isLoading}
+              value={format(currentMonth, 'yyyy-MM-dd')}
+              onChange={(e) => { if (e.target.value) setCurrentMonth(parseISO(e.target.value)); }}
+              className="h-7 rounded-md border border-input bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              title="Aller à une date"
+            />
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-hidden rounded-lg border border-border shadow-sm">
-            {/* En-tête jours */}
-            <div className="grid grid-cols-7 bg-muted/60">
-              {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((dayName) => (
-                <div key={dayName} className="py-2 text-center text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
-                  {dayName}
-                </div>
-              ))}
-            </div>
-            {/* Grille compacte */}
-            <div className="grid grid-cols-7 divide-x divide-y divide-border">
-              {days.map((day, index) => {
-                const dateStr = format(day, 'yyyy-MM-dd');
-                const dayPlanning = planningByDate[dateStr] || [];
-                const isCurrentMonthDay = isSameMonth(day, currentMonth);
-                const isToday = isSameDay(day, new Date());
-                const isWeekend = [0, 6].includes(getDay(day));
-                const requestCount = dayPlanning.reduce((count, entry) => {
-                  const linkedRequest = requestByPlanningId[String(entry.id)];
-                  return linkedRequest ? count + 1 : count;
-                }, 0);
-
-                return (
-                  <div
-                    key={dateStr}
-                    className={`group flex min-h-[90px] flex-col
-                      ${index === 0 ? colStartClasses : ''}
-                      ${!isCurrentMonthDay ? 'bg-muted/10' : isWeekend ? 'bg-slate-50/40' : 'bg-card'}
-                    `}
-                  >
-                    {/* Header compact */}
-                    <div className={`flex items-center justify-between px-1.5 py-1 ${isToday ? 'bg-primary text-white' : isWeekend && isCurrentMonthDay ? 'bg-muted/20' : ''}`}>
-                      <time dateTime={dateStr} className={`text-xs font-bold ${isToday ? 'text-white' : !isCurrentMonthDay ? 'text-muted-foreground/30' : 'text-foreground'}`}>
-                        {format(day, 'd')}
-                      </time>
-                      {requestCount > 0 && (
-                        <span className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold ${isToday ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'}`}>
-                          {requestCount}
-                        </span>
-                      )}
-                    </div>
-                    {/* Corps compact */}
-                    <div className="flex-1 px-1.5 py-1 space-y-0.5">
-                      <AnimatePresence>
-                        {dayPlanning.map((entry) => {
-                          const linkedRequest = requestByPlanningId[String(entry.id)];
-                          const isPast = isPastPlanningDate(entry.date_planification);
-                          const isPending =
-                            linkedRequest?.statut === MAINTENANCE_REQUEST_STATUSES.PENDING_CHEF ||
-                            linkedRequest?.statut === MAINTENANCE_REQUEST_STATUSES.PENDING_EXPLOITATION;
-
-                          return (
-                            <motion.div
-                              key={entry.id}
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              exit={{ opacity: 0 }}
-                              className="flex cursor-pointer items-center gap-1 transition-opacity hover:opacity-70"
-                              onClick={() => !isPending && !isPast && openRequestDialog(entry)}
-                            >
-                              <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[0.5rem] font-bold text-white
-                                ${isPast ? 'bg-muted-foreground/40' : isToday ? 'bg-white/90 !text-primary' : 'bg-primary'}
-                              `}>
-                                <Wrench className="h-2.5 w-2.5" />
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <p className={`truncate text-[0.6rem] font-medium leading-tight ${!isCurrentMonthDay ? 'text-muted-foreground/40' : 'text-foreground'}`}>
-                                  {entry.agence_nom || 'Agence'}
-                                </p>
-                                <p className="text-[0.55rem] text-muted-foreground/70 leading-tight">
-                                  {getMaintenancePlanningShiftLabel(entry.creneau)}
-                                </p>
-                              </div>
-                              {linkedRequest && <span className="ml-auto shrink-0 text-[0.5rem] text-amber-600">!</span>}
-                            </motion.div>
-                          );
-                        })}
-                      </AnimatePresence>
-                    </div>
+          <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5">
+            <Button size="sm" variant={viewMode === 'month' ? 'default' : 'ghost'} className="h-7 px-3 text-xs" onClick={() => setViewMode('month')} disabled={isLoading}>Mois</Button>
+            <Button size="sm" variant={viewMode === 'week' ? 'default' : 'ghost'} className="h-7 px-3 text-xs" onClick={() => setViewMode('week')} disabled={isLoading}>Semaine</Button>
+          </div>
+        </div>
+        <CardContent className="p-2 md:p-4">
+          {isLoading && planningEntries.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Chargement du planning...</p>
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-border shadow-sm">
+              {/* En-tête jours */}
+              <div className="grid grid-cols-7 bg-muted/60">
+                {(viewMode === 'week'
+                  ? days.map((d) => format(d, 'EEE', { locale: fr }))
+                  : ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+                ).map((dayName, i) => (
+                  <div key={i} className="py-2 text-center text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
+                    {dayName}
                   </div>
-                );
-              })}
+                ))}
+              </div>
+              {/* Grille unifiée mois + semaine */}
+              <div className="grid grid-cols-7 divide-x divide-y divide-border">
+                {days.map((day, dayIdx) => {
+                  const dateStr = format(day, 'yyyy-MM-dd');
+                  const dayPlanning = planningByDate[dateStr] || [];
+                  const isCurrentMonthDay = viewMode === 'month' ? isSameMonth(day, currentMonth) : true;
+                  const isToday = isSameDay(day, new Date());
+                  const isWeekend = [0, 6].includes(getDay(day));
+                  const requestCount = dayPlanning.reduce((count, entry) => {
+                    const linkedRequest = requestByPlanningId[String(entry.id)];
+                    return linkedRequest ? count + 1 : count;
+                  }, 0);
+
+                  return (
+                    <div
+                      key={dateStr}
+                      className={`group flex min-h-[90px] flex-col
+                        ${viewMode === 'month' && dayIdx === 0 ? colStartClasses : ''}
+                        ${!isCurrentMonthDay ? 'bg-muted/10' : isWeekend ? 'bg-slate-50/40' : 'bg-card'}
+                      `}
+                    >
+                      {/* Header compact */}
+                      <div className={`flex items-center justify-between px-1.5 py-1 ${isToday ? 'bg-primary text-white' : isWeekend && isCurrentMonthDay ? 'bg-muted/20' : ''}`}>
+                        <time dateTime={dateStr} className={`text-xs font-bold ${isToday ? 'text-white' : !isCurrentMonthDay ? 'text-muted-foreground/30' : 'text-foreground'}`}>
+                          {format(day, 'd')}
+                        </time>
+                        {requestCount > 0 && (
+                          <span className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold ${isToday ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'}`}>
+                            {requestCount}
+                          </span>
+                        )}
+                      </div>
+                      {/* Corps compact */}
+                      <div className="flex-1 space-y-0.5 px-1.5 py-1">
+                        <AnimatePresence>
+                          {dayPlanning.map((entry) => {
+                            const linkedRequest = requestByPlanningId[String(entry.id)];
+                            const isPast = isPastPlanningDate(entry.date_planification);
+                            const isPending =
+                              linkedRequest?.statut === MAINTENANCE_REQUEST_STATUSES.PENDING_CHEF ||
+                              linkedRequest?.statut === MAINTENANCE_REQUEST_STATUSES.PENDING_EXPLOITATION;
+
+                            return (
+                              <motion.div
+                                key={entry.id}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="flex cursor-pointer items-center gap-1 transition-opacity hover:opacity-70"
+                                onClick={() => !isPending && !isPast && openRequestDialog(entry)}
+                              >
+                                <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[0.5rem] font-bold text-white
+                                  ${isPast ? 'bg-muted-foreground/40' : isToday ? 'bg-white/90 !text-primary' : 'bg-primary'}
+                                `}>
+                                  <Wrench className="h-2.5 w-2.5" />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <p className={`truncate text-[0.6rem] font-medium leading-tight ${!isCurrentMonthDay ? 'text-muted-foreground/40' : 'text-foreground'}`}>
+                                    {entry.agence_nom || 'Agence'}
+                                  </p>
+                                  <p className="text-[0.55rem] leading-tight text-muted-foreground/70">
+                                    {getMaintenancePlanningShiftLabel(entry.creneau)}
+                                  </p>
+                                </div>
+                                {linkedRequest && <span className="ml-auto shrink-0 text-[0.5rem] text-amber-600">!</span>}
+                              </motion.div>
+                            );
+                          })}
+                        </AnimatePresence>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
