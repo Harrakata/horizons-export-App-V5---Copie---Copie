@@ -637,8 +637,10 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
 
       {/* ===== DIALOG PIECE ===== */}
       <Dialog open={isPieceOpen} onOpenChange={setIsPieceOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>{editingPiece ? 'Modifier la pièce' : 'Ajouter une pièce'}</DialogTitle></DialogHeader>
+        <DialogContent className="sm:max-w-lg relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+          <DialogHeader><DialogTitle className="text-primary">{editingPiece ? 'Modifier la pièce' : 'Ajouter une pièce'}</DialogTitle></DialogHeader>
           <div className="grid gap-3 py-4">
             {[
               { label: 'Nom *', key: 'nom', placeholder: 'Ex: Capteur papier' },
@@ -682,9 +684,11 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
 
       {/* ===== DIALOG AIDE REPARATION ===== */}
       <Dialog open={isHelpOpen} onOpenChange={setIsHelpOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[88vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[88vh] overflow-y-auto relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-primary">
               <HelpCircle className="h-5 w-5 text-primary" />
               Aide à la Réparation — {helpPiece?.nom}
             </DialogTitle>
@@ -759,8 +763,10 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
 
       {/* ===== DIALOG MODELE ===== */}
       <Dialog open={isModeleOpen} onOpenChange={setIsModeleOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>{editingModele ? 'Modifier le modèle' : 'Créer un modèle'}</DialogTitle></DialogHeader>
+        <DialogContent className="sm:max-w-md relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+          <DialogHeader><DialogTitle className="text-primary">{editingModele ? 'Modifier le modèle' : 'Créer un modèle'}</DialogTitle></DialogHeader>
           <div className="grid gap-3 py-4">
             <div className="grid grid-cols-4 items-center gap-3">
               <Label className="text-right">Nom *</Label>
@@ -794,8 +800,10 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
 
       {/* ===== DIALOG COMPOSITION ===== */}
       <Dialog open={isCompoOpen} onOpenChange={setIsCompoOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Composition : {selectedModele?.nom}</DialogTitle></DialogHeader>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+          <DialogHeader><DialogTitle className="text-primary">Composition : {selectedModele?.nom}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             {modelePieces.length === 0 && <p className="text-sm text-muted-foreground">Aucune pièce.</p>}
             {modelePieces.map(mp => (
@@ -844,8 +852,10 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
 
       {/* ===== DIALOG STOCK MOUVEMENT ===== */}
       <Dialog open={isStockOpen} onOpenChange={setIsStockOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Mouvement de stock</DialogTitle></DialogHeader>
+        <DialogContent className="sm:max-w-md relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+          <DialogHeader><DialogTitle className="text-primary">Mouvement de stock</DialogTitle></DialogHeader>
           <div className="grid gap-3 py-4">
             <div className="grid grid-cols-4 items-center gap-3">
               <Label className="text-right">Pièce</Label>
@@ -882,9 +892,11 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
 
       {/* ===== DIALOG IMPORT ===== */}
       <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[88vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[88vh] overflow-y-auto relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-primary">
               <FileUp className="h-5 w-5 text-primary" /> Importer des pièces depuis CSV
             </DialogTitle>
           </DialogHeader>
