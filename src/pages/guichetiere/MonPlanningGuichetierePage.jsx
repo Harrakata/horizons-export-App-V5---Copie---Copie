@@ -336,9 +336,20 @@ const MonPlanningGuichetierePage = () => {
         />
       </div>
 
-      <Card className="shadow-sm">
+      <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+        <CardHeader className="relative pb-0">
+          <CardTitle className="flex items-center gap-2 text-xl font-semibold text-primary">
+            <CalendarDays className="h-5 w-5" />
+            Calendrier du planning
+          </CardTitle>
+          <CardDescription>
+            Naviguez par mois ou par semaine. Cliquez sur une journée planifiée pour envoyer une demande de modification.
+          </CardDescription>
+        </CardHeader>
         {/* Barre de contrôle unifiée */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <div className="relative flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
           <div className="flex flex-wrap items-center gap-1.5">
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth((prev) => viewMode === 'month' ? subMonths(prev, 1) : subWeeks(prev, 1))} disabled={isLoading}>
               <ChevronLeft className="h-4 w-4" />
@@ -366,7 +377,7 @@ const MonPlanningGuichetierePage = () => {
             <Button size="sm" variant={viewMode === 'week' ? 'default' : 'ghost'} className="h-7 px-3 text-xs" onClick={() => setViewMode('week')} disabled={isLoading}>Semaine</Button>
           </div>
         </div>
-        <CardContent className="p-2 md:p-4">
+        <CardContent className="relative p-2 md:p-4">
           {isLoading && planningEntries.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Chargement du planning...</p>
           ) : (

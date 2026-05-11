@@ -33,6 +33,7 @@ const DEFAULT_FORM_DATA = {
   imprimante: '',
   lecteur: '',
   ecran: '',
+  afficheur: '',
 };
 
 const EQUIPMENT_FIELD_CONFIG = [
@@ -53,6 +54,12 @@ const EQUIPMENT_FIELD_CONFIG = [
     pluralKey: 'ecrans',
     terminalKey: 'ecran_reference',
     label: 'Écran',
+  },
+  {
+    formKey: 'afficheur',
+    pluralKey: 'afficheurs',
+    terminalKey: 'afficheur_reference',
+    label: 'Afficheur client',
   },
 ];
 
@@ -88,6 +95,7 @@ const ConfigurationTab = ({
     imprimantes: [],
     ecrans: [],
     lecteurs: [],
+    afficheurs: [],
   });
   const [agenceId, setAgenceId] = useState('');
   const [formRegion, setFormRegion] = useState('');
@@ -116,18 +124,20 @@ const ConfigurationTab = ({
         imprimantesResponse,
         ecransResponse,
         lecteursResponse,
+        afficheurResponse,
       ] = await Promise.all([
         fetchRegions(),
         supabase.from('agences').select('id, nom, nbreTerminaux, codePDV, region').order('nom', { ascending: true }),
         supabase
           .from('terminaux')
           .select(
-            'id, reference, type_terminal, position, adresse_ip, agence_id, imprimante_reference, lecteur_reference, ecran_reference, statut'
+            'id, reference, type_terminal, position, adresse_ip, agence_id, imprimante_reference, lecteur_reference, ecran_reference, afficheur_reference, statut'
           )
           .order('reference', { ascending: true }),
         supabase.from('equipments_imprimantes').select('*').order('reference', { ascending: true }),
         supabase.from('equipments_ecrans').select('*').order('reference', { ascending: true }),
         supabase.from('equipments_lecteurs').select('*').order('reference', { ascending: true }),
+        supabase.from('equipments_afficheurs').select('*').order('reference', { ascending: true }),
       ]);
 
       if (regionsResponse.error) {
@@ -164,6 +174,7 @@ const ConfigurationTab = ({
         { key: 'imprimantes', response: imprimantesResponse },
         { key: 'ecrans', response: ecransResponse },
         { key: 'lecteurs', response: lecteursResponse },
+        { key: 'afficheurs', response: afficheurResponse },
       ];
 
       const equipmentData = {};
@@ -369,12 +380,16 @@ const ConfigurationTab = ({
             if (terminal.ecran_reference) {
               accumulator.ecrans.add(normalizeText(terminal.ecran_reference));
             }
+            if (terminal.afficheur_reference) {
+              accumulator.afficheurs.add(normalizeText(terminal.afficheur_reference));
+            }
             return accumulator;
           },
           {
             imprimantes: new Set(),
             lecteurs: new Set(),
             ecrans: new Set(),
+            afficheurs: new Set(),
           }
         ),
     [editingTerminalId, terminaux]
@@ -407,6 +422,10 @@ const ConfigurationTab = ({
   const ecransOptions = useMemo(
     () => buildEquipmentOptions(equipments.ecrans, 'ecrans', formData.ecran),
     [buildEquipmentOptions, equipments.ecrans, formData.ecran]
+  );
+  const afficheurOptions = useMemo(
+    () => buildEquipmentOptions(equipments.afficheurs, 'afficheurs', formData.afficheur),
+    [buildEquipmentOptions, equipments.afficheurs, formData.afficheur]
   );
 
   const findEquipmentConflict = useCallback(
@@ -492,6 +511,7 @@ const ConfigurationTab = ({
       imprimante_reference: formData.imprimante || null,
       lecteur_reference: formData.lecteur || null,
       ecran_reference: formData.ecran || null,
+      afficheur_reference: formData.afficheur || null,
       statut: editingTerminal?.statut || 'Actif',
     };
 
@@ -545,6 +565,7 @@ const ConfigurationTab = ({
       imprimante: terminal.imprimante_reference || '',
       lecteur: terminal.lecteur_reference || '',
       ecran: terminal.ecran_reference || '',
+      afficheur: terminal.afficheur_reference || '',
     });
   };
 
@@ -654,6 +675,7 @@ const ConfigurationTab = ({
             terminal.imprimante_reference,
             terminal.lecteur_reference,
             terminal.ecran_reference,
+            terminal.afficheur_reference,
             terminal.statut,
           ].some((value) => normalizeText(value).includes(normalizedSearch))
       );
@@ -800,6 +822,18 @@ const ConfigurationTab = ({
                 placeholder="Choisir un écran"
                 searchPlaceholder="Rechercher un écran..."
                 emptyText="Aucun écran disponible."
+                disabled={isLoading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Afficheur client</Label>
+              <Combobox
+                options={afficheurOptions}
+                value={formData.afficheur}
+                onSelect={(value) => setFormData((previousState) => ({ ...previousState, afficheur: value }))}
+                placeholder="Choisir un afficheur client"
+                searchPlaceholder="Rechercher un afficheur..."
+                emptyText="Aucun afficheur disponible."
                 disabled={isLoading}
               />
             </div>
@@ -986,6 +1020,7 @@ const ConfigurationTab = ({
                   <TableHead>Imprimante</TableHead>
                   <TableHead>Lecteur</TableHead>
                   <TableHead>Écran</TableHead>
+                  <TableHead>Afficheur client</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -1007,6 +1042,7 @@ const ConfigurationTab = ({
                     <TableCell>{terminal.imprimante_reference || 'Non affectée'}</TableCell>
                     <TableCell>{terminal.lecteur_reference || 'Non affecté'}</TableCell>
                     <TableCell>{terminal.ecran_reference || 'Non affecté'}</TableCell>
+                    <TableCell>{terminal.afficheur_reference || 'Non affecté'}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={getTerminalStatusBadgeClass(terminal.statut)}>
                         {terminal.statut || 'N/A'}
