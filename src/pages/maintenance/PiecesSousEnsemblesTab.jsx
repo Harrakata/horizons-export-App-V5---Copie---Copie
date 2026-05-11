@@ -96,7 +96,7 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
   const loadCompo = useCallback(async (modeleId) => {
     const { data } = await supabase
       .from('modeles_pieces')
-      .select('*, piece:pieces_sous_ensembles(id, nom, reference)')
+      .select('*, piece:pieces_sous_ensembles(id, nom, reference, photo_url)')
       .eq('modele_id', modeleId);
     setModelePieces(data || []);
   }, []);
@@ -799,11 +799,23 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
           <div className="space-y-4 py-4">
             {modelePieces.length === 0 && <p className="text-sm text-muted-foreground">Aucune pièce.</p>}
             {modelePieces.map(mp => (
-              <div key={mp.id} className="flex items-center justify-between rounded-md border px-3 py-2">
-                <span className="text-sm font-medium">{mp.piece?.nom} <span className="text-muted-foreground">({mp.piece?.reference})</span></span>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">Qté : {mp.quantite}</Badge>
-                  {canManage && <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400" onClick={() => removePieceModele(mp.id)}><Trash2 className="h-3 w-3" /></Button>}
+              <div key={mp.id} className="rounded-md border overflow-hidden">
+                {mp.piece?.photo_url ? (
+                  <div className="flex items-center justify-center bg-muted/30 p-3">
+                    <img src={mp.piece.photo_url} alt={mp.piece.nom} className="w-full max-h-48 object-contain rounded" />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center bg-muted/30 h-24 text-muted-foreground text-sm">Aucune photo</div>
+                )}
+                <div className="flex items-center justify-between px-3 py-2">
+                  <div>
+                    <p className="text-sm font-medium">{mp.piece?.nom}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{mp.piece?.reference}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">Qté : {mp.quantite}</Badge>
+                    {canManage && <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400" onClick={() => removePieceModele(mp.id)}><Trash2 className="h-3 w-3" /></Button>}
+                  </div>
                 </div>
               </div>
             ))}

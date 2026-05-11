@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Edit, Monitor, PlusCircle, Printer, Scan, Search, Trash2, Tv } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -29,24 +30,28 @@ const EQUIPMENT_TYPES = {
     singular: 'Imprimante',
     icon: <Printer className="h-5 w-5" />,
     table: 'equipments_imprimantes',
+    sousEnsemble: 'imprimante',
   },
   ecrans: {
     label: 'Écrans',
     singular: 'Écran',
     icon: <Monitor className="h-5 w-5" />,
     table: 'equipments_ecrans',
+    sousEnsemble: 'ecran',
   },
   lecteurs: {
     label: 'Lecteurs',
     singular: 'Lecteur',
     icon: <Scan className="h-5 w-5" />,
     table: 'equipments_lecteurs',
+    sousEnsemble: 'lecteur',
   },
   afficheurs: {
     label: 'Afficheurs client',
     singular: 'Afficheur client',
     icon: <Tv className="h-5 w-5" />,
     table: 'equipments_afficheurs',
+    sousEnsemble: 'afficheur',
   },
 };
 
@@ -193,33 +198,31 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
     afficheurs: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [modeleOptions, setModeleOptions] = useState([]);
 
   const loadEquipments = async () => {
     setIsLoading(true);
 
     try {
-      for (const [type, config] of Object.entries(EQUIPMENT_TYPES)) {
-        const { data, error } = await supabase
-          .from(config.table)
-          .select('*')
-          .order('reference', { ascending: true });
+      const [mRes, ...eResults] = await Promise.all([
+        supabase.from('modeles_sous_ensembles').select('id, nom, sous_ensemble').order('nom'),
+        ...Object.entries(EQUIPMENT_TYPES).map(([, config]) =>
+          supabase.from(config.table).select('*').order('reference', { ascending: true })
+        ),
+      ]);
 
+      if (!mRes.error) setModeleOptions(mRes.data || []);
+
+      Object.keys(EQUIPMENT_TYPES).forEach((type, i) => {
+        const { data, error } = eResults[i];
         if (error) {
-          toast({
-            title: `Erreur chargement ${config.label.toLowerCase()}`,
-            description: error.message,
-            variant: 'destructive',
-          });
+          toast({ title: `Erreur chargement ${EQUIPMENT_TYPES[type].label.toLowerCase()}`, description: error.message, variant: 'destructive' });
         } else {
           setEquipments((prev) => ({ ...prev, [type]: data || [] }));
         }
-      }
-    } catch (error) {
-      toast({
-        title: 'Erreur de chargement',
-        description: 'Impossible de charger les équipements',
-        variant: 'destructive',
       });
+    } catch (error) {
+      toast({ title: 'Erreur de chargement', description: 'Impossible de charger les équipements', variant: 'destructive' });
     }
 
     setIsLoading(false);
@@ -404,8 +407,35 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
               <Input id="reference" name="reference" value={formData.reference} onChange={handleInputChange} className="col-span-3" disabled={isLoading} placeholder="Ex: IMP-001" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="modele" className="text-right">Modèle</Label>
-              <Input id="modele" name="modele" value={formData.modele} onChange={handleInputChange} className="col-span-3" disabled={isLoading} placeholder="Ex: LaserJet Pro" />
+              <Label className="text-right">Modèle</Label>
+              <div className="col-span-3">
+                {modeleOptions.filter(m => m.sous_ensemble === EQUIPMENT_TYPES[currentType].sousEnsemble).length > 0 ? (
+                  <Select
+                    value={formData.modele}
+                    onValueChange={v => setFormData(prev => ({ ...prev, modele: v }))}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choisir un modèle..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {modeleOptions
+                        .filter(m => m.sous_ensemble === EQUIPMENT_TYPES[currentType].sousEnsemble)
+                        .map(m => (
+                          <SelectItem key={m.id} value={m.nom}>{m.nom}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    name="modele"
+                    value={formData.modele}
+                    onChange={handleInputChange}
+                    disabled={isLoading}
+                    placeholder="Ex: LaserJet Pro (aucun modèle défini)"
+                  />
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="marque" className="text-right">Marque</Label>
