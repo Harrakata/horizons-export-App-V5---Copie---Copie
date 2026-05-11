@@ -155,8 +155,10 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
 
   return (
     <div className="space-y-6">
-      <Card className="shadow-xl glassmorphism">
-        <CardHeader>
+      <Card className="relative overflow-hidden shadow-xl glassmorphism">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+        <CardHeader className="relative">
           <CardTitle className="flex items-center gap-2 text-2xl font-bold text-primary">
             <Wrench className="h-6 w-6" /> Réparation des Sous-ensembles
           </CardTitle>
@@ -168,26 +170,33 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
 
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Liste gauche */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-44"><SelectValue placeholder="Tous les types" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Tous les types</SelectItem>
-                {Object.entries(SOUS_ENSEMBLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterTerminal} onValueChange={setFilterTerminal}>
-              <SelectTrigger className="w-32"><SelectValue placeholder="Terminal" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Tous</SelectItem>
-                <SelectItem value="2020">2020</SelectItem>
-                <SelectItem value="2031">2031</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Card>
+        <div className="lg:col-span-2">
+          <Card className="relative overflow-hidden shadow-lg">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+            <CardHeader className="relative pb-3">
+              <CardTitle className="flex items-center gap-2 text-xl text-primary">
+                <Package2 className="h-5 w-5" /> Sous-ensembles à traiter
+              </CardTitle>
+              <CardDescription>Filtre par type et terminal</CardDescription>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Select value={filterType} onValueChange={setFilterType}>
+                  <SelectTrigger className="w-44"><SelectValue placeholder="Tous les types" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Tous les types</SelectItem>
+                    {Object.entries(SOUS_ENSEMBLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={filterTerminal} onValueChange={setFilterTerminal}>
+                  <SelectTrigger className="w-32"><SelectValue placeholder="Terminal" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Tous</SelectItem>
+                    <SelectItem value="2020">2020</SelectItem>
+                    <SelectItem value="2031">2031</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
             <CardContent className="p-0">
               {filteredStock.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
@@ -222,7 +231,9 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
         {/* Détail droite */}
         <div className="lg:col-span-3 space-y-4">
           {!selectedItem ? (
-            <Card className="flex items-center justify-center py-20">
+            <Card className="relative overflow-hidden flex items-center justify-center py-20">
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
               <div className="text-center text-muted-foreground">
                 <Package2 className="mx-auto h-12 w-12 mb-3 opacity-30" />
                 <p>Sélectionnez un sous-ensemble pour commencer.</p>
@@ -230,8 +241,10 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
             </Card>
           ) : (
             <>
-              <Card>
-                <CardHeader className="pb-3">
+              <Card className="relative overflow-hidden shadow-lg">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+                <CardHeader className="relative pb-3">
                   <div className="flex items-start justify-between flex-wrap gap-2">
                     <div>
                       <CardTitle className="text-lg font-mono">{selectedItem.reference_sous_ensemble}</CardTitle>
@@ -264,9 +277,13 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
               </Card>
 
               {/* Pièces du modèle */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Pièces du modèle</CardTitle>
+              <Card className="relative overflow-hidden shadow-lg">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+                <CardHeader className="relative pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base text-primary">
+                    <Wrench className="h-4 w-4" /> Pièces du modèle
+                  </CardTitle>
                   {!selectedItem.modele_id && (
                     <p className="text-sm text-muted-foreground">Aucun modèle associé à ce sous-ensemble.</p>
                   )}

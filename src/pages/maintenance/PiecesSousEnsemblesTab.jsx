@@ -280,8 +280,10 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
 
   return (
     <div className="space-y-6">
-      <Card className="shadow-xl glassmorphism">
-        <CardHeader>
+      <Card className="relative overflow-hidden shadow-xl glassmorphism">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+        <CardHeader className="relative">
           <CardTitle className="flex items-center gap-2 text-2xl font-bold text-primary">
             <Package className="h-6 w-6" /> Pièces de Sous-ensembles
           </CardTitle>
@@ -298,52 +300,59 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
         </TabsList>
 
         {/* ===== CATALOGUE ===== */}
-        <TabsContent value="catalogue" className="space-y-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
-              <Label>Sous-ensemble</Label>
-              <Select value={filters.sous_ensemble} onValueChange={v => setFilters(f => ({ ...f, sous_ensemble: v }))}>
-                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">Tous</SelectItem>
-                  {Object.entries(SOUS_ENSEMBLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Type terminal</Label>
-              <Select value={filters.type_terminal} onValueChange={v => setFilters(f => ({ ...f, type_terminal: v }))}>
-                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">Tous</SelectItem>
-                  <SelectItem value="2020">2020</SelectItem>
-                  <SelectItem value="2031">2031</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex-1 space-y-1">
-              <Label>Recherche</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input className="pl-10" placeholder="Nom, référence..." value={search} onChange={e => setSearch(e.target.value)} />
+        <TabsContent value="catalogue">
+          <Card className="relative overflow-hidden shadow-lg">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+            <CardHeader className="relative">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-xl text-primary">
+                    <Package className="h-5 w-5" /> Catalogue Pièces
+                  </CardTitle>
+                  <CardDescription>Liste de toutes les pièces disponibles, filtrables par sous-ensemble et type de terminal.</CardDescription>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={exportCSV}><Download className="mr-2 h-4 w-4" /> Exporter</Button>
+                  {canManage && (
+                    <>
+                      <Button variant="outline" onClick={() => { setImportRows([]); setImportErrors([]); setIsImportOpen(true); }}><FileUp className="mr-2 h-4 w-4" /> Importer</Button>
+                      <Button onClick={() => { setPieceForm(DEFAULT_PIECE); setEditingPiece(null); setIsPieceOpen(true); }}><Plus className="mr-2 h-4 w-4" /> Ajouter une pièce</Button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-            <Button variant="outline" onClick={exportCSV} title="Exporter en CSV">
-              <Download className="mr-2 h-4 w-4" /> Exporter
-            </Button>
-            {canManage && (
-              <>
-                <Button variant="outline" onClick={() => { setImportRows([]); setImportErrors([]); setIsImportOpen(true); }} title="Importer depuis CSV">
-                  <FileUp className="mr-2 h-4 w-4" /> Importer
-                </Button>
-                <Button onClick={() => { setPieceForm(DEFAULT_PIECE); setEditingPiece(null); setIsPieceOpen(true); }}>
-                  <Plus className="mr-2 h-4 w-4" /> Ajouter une pièce
-                </Button>
-              </>
-            )}
-          </div>
-
-          <Card>
+              <div className="flex flex-wrap items-end gap-3 pt-2">
+                <div className="space-y-1">
+                  <Label>Sous-ensemble</Label>
+                  <Select value={filters.sous_ensemble} onValueChange={v => setFilters(f => ({ ...f, sous_ensemble: v }))}>
+                    <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">Tous</SelectItem>
+                      {Object.entries(SOUS_ENSEMBLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Type terminal</Label>
+                  <Select value={filters.type_terminal} onValueChange={v => setFilters(f => ({ ...f, type_terminal: v }))}>
+                    <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">Tous</SelectItem>
+                      <SelectItem value="2020">2020</SelectItem>
+                      <SelectItem value="2031">2031</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1 space-y-1">
+                  <Label>Recherche</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input className="pl-10" placeholder="Nom, référence..." value={search} onChange={e => setSearch(e.target.value)} />
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
             <CardContent className="p-0">
               <Table>
                 <TableCaption>{filteredPieces.length === 0 ? 'Aucune pièce.' : `${filteredPieces.length} pièce(s).`}</TableCaption>
@@ -377,17 +386,11 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                         </TableCell>
                         <TableCell className="max-w-[180px] truncate text-muted-foreground text-sm">{p.commentaire || '—'}</TableCell>
                         <TableCell className="text-right space-x-1">
-                          <Button variant="ghost" size="icon" title="Aide réparation" className="text-primary" onClick={() => openHelp(p)}>
-                            <HelpCircle className="h-4 w-4" />
-                          </Button>
+                          <Button variant="ghost" size="icon" title="Aide réparation" className="text-primary" onClick={() => openHelp(p)}><HelpCircle className="h-4 w-4" /></Button>
                           {canManage && (
                             <>
-                              <Button variant="ghost" size="icon" className="text-blue-500" onClick={() => { setPieceForm({ ...p }); setEditingPiece(p); setIsPieceOpen(true); }}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="text-red-500" onClick={() => deletePiece(p.id)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              <Button variant="ghost" size="icon" className="text-blue-500" onClick={() => { setPieceForm({ ...p }); setEditingPiece(p); setIsPieceOpen(true); }}><Edit className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" className="text-red-500" onClick={() => deletePiece(p.id)}><Trash2 className="h-4 w-4" /></Button>
                             </>
                           )}
                         </TableCell>
@@ -401,179 +404,134 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
         </TabsContent>
 
         {/* ===== AIDE REPARATION ===== */}
-        <TabsContent value="aide" className="space-y-4">
-          <div className="grid gap-6 lg:grid-cols-3">
-            {/* Sélecteur de pièce */}
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <Label>Sélectionner une pièce</Label>
-                <Select
-                  value={helpPiece?.id || ''}
-                  onValueChange={async (v) => {
-                    const found = pieces.find(p => p.id === v);
-                    if (found) await openHelp(found);
-                  }}
-                >
-                  <SelectTrigger><SelectValue placeholder="Choisir une pièce..." /></SelectTrigger>
-                  <SelectContent>
-                    {pieces.map(p => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.nom} — <span className="text-muted-foreground">{SOUS_ENSEMBLE_LABELS[p.sous_ensemble]}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {helpPiece && (
-                <Card className="text-sm">
-                  <CardContent className="p-4 space-y-1">
-                    <p className="font-semibold text-primary">{helpPiece.nom}</p>
-                    <p className="text-muted-foreground font-mono">{helpPiece.reference}</p>
-                    <Badge variant="outline">{SOUS_ENSEMBLE_LABELS[helpPiece.sous_ensemble]}</Badge>
-                    {helpPiece.photo_url && (
-                      <img src={helpPiece.photo_url} alt={helpPiece.nom} className="w-full max-h-40 object-contain rounded border mt-2" />
-                    )}
-                    {helpPiece.commentaire && (
-                      <p className="text-xs text-muted-foreground border-t pt-2 mt-2">{helpPiece.commentaire}</p>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-
-            {/* Contenu aide */}
-            <div className="lg:col-span-2 space-y-5">
-              {!helpPiece ? (
-                <Card className="flex items-center justify-center py-20">
-                  <div className="text-center text-muted-foreground">
-                    <HelpCircle className="mx-auto h-12 w-12 mb-3 opacity-30" />
-                    <p>Sélectionnez une pièce pour afficher son aide à la réparation.</p>
+        <TabsContent value="aide">
+          <Card className="relative overflow-hidden shadow-lg">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+            <CardHeader className="relative">
+              <CardTitle className="flex items-center gap-2 text-xl text-primary">
+                <Wrench className="h-5 w-5" /> Aide à la Réparation
+              </CardTitle>
+              <CardDescription>Consultez la description, les types de pannes et les procédures de réparation par pièce.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <Label>Sélectionner une pièce</Label>
+                    <Select value={helpPiece?.id || ''} onValueChange={async (v) => { const found = pieces.find(p => p.id === v); if (found) await openHelp(found); }}>
+                      <SelectTrigger><SelectValue placeholder="Choisir une pièce..." /></SelectTrigger>
+                      <SelectContent>
+                        {pieces.map(p => <SelectItem key={p.id} value={p.id}>{p.nom} — {SOUS_ENSEMBLE_LABELS[p.sous_ensemble]}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </Card>
-              ) : (
-                <>
-                  {/* Description */}
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base">Description de la pièce</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <textarea
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px]"
-                        value={helpPiece.description_aide || ''}
-                        onChange={e => setHelpPiece(p => ({ ...p, description_aide: e.target.value }))}
-                        disabled={!canManage}
-                        placeholder="Description fonctionnelle de la pièce..."
-                      />
-                      {canManage && (
-                        <Button size="sm" variant="outline" onClick={savePanneDescription}>
-                          Sauvegarder la description
-                        </Button>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Types de pannes */}
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-amber-500" /> Types de pannes
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {pannes.length === 0 && (
-                        <p className="text-sm text-muted-foreground">Aucune panne renseignée.</p>
-                      )}
-                      <div className="space-y-2">
-                        {pannes.map(p => (
-                          <div key={p.id} className="flex items-start justify-between rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
-                            <span>{p.description}</span>
-                            {canManage && (
-                              <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-red-400 ml-2" onClick={() => delPanne(p.id)}>
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            )}
+                  {helpPiece && (
+                    <Card className="text-sm">
+                      <CardContent className="p-4 space-y-1">
+                        <p className="font-semibold text-primary">{helpPiece.nom}</p>
+                        <p className="text-muted-foreground font-mono">{helpPiece.reference}</p>
+                        <Badge variant="outline">{SOUS_ENSEMBLE_LABELS[helpPiece.sous_ensemble]}</Badge>
+                        {helpPiece.photo_url && <img src={helpPiece.photo_url} alt={helpPiece.nom} className="w-full max-h-40 object-contain rounded border mt-2" />}
+                        {helpPiece.commentaire && <p className="text-xs text-muted-foreground border-t pt-2 mt-2">{helpPiece.commentaire}</p>}
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+                <div className="lg:col-span-2 space-y-5">
+                  {!helpPiece ? (
+                    <div className="flex items-center justify-center py-20 text-center text-muted-foreground">
+                      <div><HelpCircle className="mx-auto h-12 w-12 mb-3 opacity-30" /><p>Sélectionnez une pièce pour afficher son aide à la réparation.</p></div>
+                    </div>
+                  ) : (
+                    <>
+                      <Card className="relative overflow-hidden">
+                        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+                        <CardHeader className="relative pb-2"><CardTitle className="text-base">Description de la pièce</CardTitle></CardHeader>
+                        <CardContent className="space-y-3">
+                          <textarea className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px]" value={helpPiece.description_aide || ''} onChange={e => setHelpPiece(p => ({ ...p, description_aide: e.target.value }))} disabled={!canManage} placeholder="Description fonctionnelle de la pièce..." />
+                          {canManage && <Button size="sm" variant="outline" onClick={savePanneDescription}>Sauvegarder la description</Button>}
+                        </CardContent>
+                      </Card>
+                      <Card className="relative overflow-hidden">
+                        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+                        <CardHeader className="relative pb-2"><CardTitle className="text-base flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" /> Types de pannes</CardTitle></CardHeader>
+                        <CardContent className="space-y-3">
+                          {pannes.length === 0 && <p className="text-sm text-muted-foreground">Aucune panne renseignée.</p>}
+                          <div className="space-y-2">
+                            {pannes.map(p => (
+                              <div key={p.id} className="flex items-start justify-between rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
+                                <span>{p.description}</span>
+                                {canManage && <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-red-400 ml-2" onClick={() => delPanne(p.id)}><Trash2 className="h-3 w-3" /></Button>}
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                      {canManage && (
-                        <div className="flex gap-2">
-                          <Input
-                            value={newPanne}
-                            onChange={e => setNewPanne(e.target.value)}
-                            placeholder="Ex: Bourrage papier..."
-                            onKeyDown={e => e.key === 'Enter' && addPanne()}
-                          />
-                          <Button size="sm" onClick={addPanne}><Plus className="h-4 w-4" /></Button>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Procédure de réparation */}
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base">Procédure de réparation</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {procedures.length === 0 && (
-                        <p className="text-sm text-muted-foreground">Aucune étape définie.</p>
-                      )}
-                      <div className="space-y-3">
-                        {procedures.map((p, i) => (
-                          <div key={p.id} className="rounded-md border p-4 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold text-primary text-sm">Étape {i + 1}</span>
-                              {canManage && (
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400" onClick={() => delProc(p.id)}>
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              )}
+                          {canManage && (
+                            <div className="flex gap-2">
+                              <Input value={newPanne} onChange={e => setNewPanne(e.target.value)} placeholder="Ex: Bourrage papier..." onKeyDown={e => e.key === 'Enter' && addPanne()} />
+                              <Button size="sm" onClick={addPanne}><Plus className="h-4 w-4" /></Button>
                             </div>
-                            <p className="text-sm">{p.description}</p>
-                            {p.image_url && (
-                              <img src={p.image_url} alt={`Étape ${i + 1}`} className="max-h-56 rounded border object-contain w-full" />
-                            )}
+                          )}
+                        </CardContent>
+                      </Card>
+                      <Card className="relative overflow-hidden">
+                        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+                        <CardHeader className="relative pb-2"><CardTitle className="text-base">Procédure de réparation</CardTitle></CardHeader>
+                        <CardContent className="space-y-3">
+                          {procedures.length === 0 && <p className="text-sm text-muted-foreground">Aucune étape définie.</p>}
+                          <div className="space-y-3">
+                            {procedures.map((p, i) => (
+                              <div key={p.id} className="rounded-md border p-4 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-semibold text-primary text-sm">Étape {i + 1}</span>
+                                  {canManage && <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400" onClick={() => delProc(p.id)}><Trash2 className="h-3 w-3" /></Button>}
+                                </div>
+                                <p className="text-sm">{p.description}</p>
+                                {p.image_url && <img src={p.image_url} alt={`Étape ${i + 1}`} className="max-h-56 rounded border object-contain w-full" />}
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                      {canManage && (
-                        <div className="rounded-md border border-dashed p-4 space-y-3">
-                          <p className="text-sm font-medium text-muted-foreground">Ajouter une étape</p>
-                          <textarea
-                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            rows={2}
-                            value={newProc.description}
-                            onChange={e => setNewProc(p => ({ ...p, description: e.target.value }))}
-                            placeholder="Description de l'étape..."
-                          />
-                          <Input
-                            value={newProc.image_url}
-                            onChange={e => setNewProc(p => ({ ...p, image_url: e.target.value }))}
-                            placeholder="URL image optionnelle (https://...)"
-                          />
-                          <Button size="sm" onClick={addProc}>
-                            <Plus className="mr-2 h-4 w-4" /> Ajouter l'étape
-                          </Button>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </>
-              )}
-            </div>
-          </div>
+                          {canManage && (
+                            <div className="rounded-md border border-dashed p-4 space-y-3">
+                              <p className="text-sm font-medium text-muted-foreground">Ajouter une étape</p>
+                              <textarea className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" rows={2} value={newProc.description} onChange={e => setNewProc(p => ({ ...p, description: e.target.value }))} placeholder="Description de l'étape..." />
+                              <Input value={newProc.image_url} onChange={e => setNewProc(p => ({ ...p, image_url: e.target.value }))} placeholder="URL image optionnelle (https://...)" />
+                              <Button size="sm" onClick={addProc}><Plus className="mr-2 h-4 w-4" /> Ajouter l'étape</Button>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ===== MODELES ===== */}
-        <TabsContent value="modeles" className="space-y-4">
-          {canManage && (
-            <Button onClick={() => { setModeleForm(DEFAULT_MODELE); setEditingModele(null); setIsModeleOpen(true); }}>
-              <Plus className="mr-2 h-4 w-4" /> Créer un modèle
-            </Button>
-          )}
-          <Card>
+        <TabsContent value="modeles">
+          <Card className="relative overflow-hidden shadow-lg">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+            <CardHeader className="relative">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-xl text-primary">
+                    <Layers className="h-5 w-5" /> Modèles de Composition
+                  </CardTitle>
+                  <CardDescription>Définissez les modèles de pièces associés à chaque type de sous-ensemble.</CardDescription>
+                </div>
+                {canManage && (
+                  <Button onClick={() => { setModeleForm(DEFAULT_MODELE); setEditingModele(null); setIsModeleOpen(true); }}>
+                    <Plus className="mr-2 h-4 w-4" /> Créer un modèle
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
             <CardContent className="p-0">
               <Table>
                 <TableCaption>{modeles.length === 0 ? 'Aucun modèle.' : `${modeles.length} modèle(s).`}</TableCaption>
@@ -595,12 +553,8 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                         <Button variant="outline" size="sm" onClick={() => openCompo(m)}>Composition</Button>
                         {canManage && (
                           <>
-                            <Button variant="ghost" size="icon" className="text-blue-500" onClick={() => { setModeleForm({ nom: m.nom, sous_ensemble: m.sous_ensemble, type_terminal: m.type_terminal }); setEditingModele(m); setIsModeleOpen(true); }}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="text-red-500" onClick={() => deleteModele(m.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <Button variant="ghost" size="icon" className="text-blue-500" onClick={() => { setModeleForm({ nom: m.nom, sous_ensemble: m.sous_ensemble, type_terminal: m.type_terminal }); setEditingModele(m); setIsModeleOpen(true); }}><Edit className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="text-red-500" onClick={() => deleteModele(m.id)}><Trash2 className="h-4 w-4" /></Button>
                           </>
                         )}
                       </TableCell>
@@ -613,33 +567,45 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
         </TabsContent>
 
         {/* ===== STOCK ===== */}
-        <TabsContent value="stock" className="space-y-4">
-          {canManage && (
-            <Button onClick={() => setIsStockOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> Mouvement de stock
-            </Button>
-          )}
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card className="border-red-200 bg-red-50">
-              <CardContent className="p-4">
-                <p className="text-sm text-red-700 font-medium">Ruptures de stock</p>
-                <p className="text-2xl font-bold text-red-800">{stockPieces.filter(s => s.quantite === 0).length}</p>
-              </CardContent>
-            </Card>
-            <Card className="border-yellow-200 bg-yellow-50">
-              <CardContent className="p-4">
-                <p className="text-sm text-yellow-700 font-medium">Stock faible</p>
-                <p className="text-2xl font-bold text-yellow-800">{stockPieces.filter(s => s.quantite > 0 && s.quantite <= s.seuil_alerte).length}</p>
-              </CardContent>
-            </Card>
-            <Card className="border-green-200 bg-green-50">
-              <CardContent className="p-4">
-                <p className="text-sm text-green-700 font-medium">Disponibles</p>
-                <p className="text-2xl font-bold text-green-800">{stockPieces.filter(s => s.quantite > s.seuil_alerte).length}</p>
-              </CardContent>
-            </Card>
-          </div>
-          <Card>
+        <TabsContent value="stock">
+          <Card className="relative overflow-hidden shadow-lg">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+            <CardHeader className="relative">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-xl text-primary">
+                    <BookOpen className="h-5 w-5" /> Stock Pièces
+                  </CardTitle>
+                  <CardDescription>Suivez les quantités disponibles et gérez les mouvements de stock de pièces détachées.</CardDescription>
+                </div>
+                {canManage && (
+                  <Button onClick={() => setIsStockOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" /> Mouvement de stock
+                  </Button>
+                )}
+              </div>
+              <div className="grid gap-4 md:grid-cols-3 pt-2">
+                <Card className="border-red-200 bg-red-50">
+                  <CardContent className="p-4">
+                    <p className="text-sm text-red-700 font-medium">Ruptures de stock</p>
+                    <p className="text-2xl font-bold text-red-800">{stockPieces.filter(s => s.quantite === 0).length}</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-yellow-200 bg-yellow-50">
+                  <CardContent className="p-4">
+                    <p className="text-sm text-yellow-700 font-medium">Stock faible</p>
+                    <p className="text-2xl font-bold text-yellow-800">{stockPieces.filter(s => s.quantite > 0 && s.quantite <= s.seuil_alerte).length}</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-green-200 bg-green-50">
+                  <CardContent className="p-4">
+                    <p className="text-sm text-green-700 font-medium">Disponibles</p>
+                    <p className="text-2xl font-bold text-green-800">{stockPieces.filter(s => s.quantite > s.seuil_alerte).length}</p>
+                  </CardContent>
+                </Card>
+              </div>
+            </CardHeader>
             <CardContent className="p-0">
               <Table>
                 <TableCaption>{stockPieces.length === 0 ? 'Aucun stock.' : `${stockPieces.length} pièce(s) suivie(s).`}</TableCaption>

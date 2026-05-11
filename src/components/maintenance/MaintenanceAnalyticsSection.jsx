@@ -28,6 +28,7 @@ const MaintenanceAnalyticsSection = ({
   availableDimensions = ['terminal', 'agence'],
   referenceDate = new Date(),
   showAdvancedCharts = false,
+  kpiSlot = null,
 }) => {
   const [distributionDimension, setDistributionDimension] = useState(availableDimensions[0] || 'terminal');
   const [trendGranularity, setTrendGranularity] = useState('week');
@@ -122,6 +123,7 @@ const MaintenanceAnalyticsSection = ({
           </CardTitle>
           <CardDescription>{description}</CardDescription>
         </div>
+        {kpiSlot && <div>{kpiSlot}</div>}
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <p className="text-sm font-medium">Répartition des non-conformités par</p>

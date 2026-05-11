@@ -107,28 +107,24 @@ const StockDefectueuxTab = ({ canManage = true }) => {
 
   return (
     <div className="space-y-6">
-      <Card className="shadow-xl glassmorphism">
-        <CardHeader>
+      <Card className="relative overflow-hidden shadow-xl glassmorphism">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+        <CardHeader className="relative">
           <CardTitle className="flex items-center gap-2 text-2xl font-bold text-primary">
             <Package className="h-6 w-6" /> Stock de Sous-ensembles Défectueux
           </CardTitle>
           <CardDescription>Suivi des sous-ensembles défectueux, assignation aux techniciens et état de réparation.</CardDescription>
-        </CardHeader>
-      </Card>
-
-      {/* KPIs */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-5">
-        <KpiStatCard icon={<Package />} label="Total" value={kpis.total} tone="primary" helper="Tous les sous-ensembles défectueux." />
-        <KpiStatCard icon={<AlertTriangle />} label="Non assignés" value={kpis.defectueux} tone="red" helper="À prendre en charge." />
-        <KpiStatCard icon={<UserCheck />} label="Assignés" value={kpis.assigne} tone="primary" helper="En cours de réparation." />
-        <KpiStatCard icon={<Wrench />} label="À tester" value={kpis.a_tester} tone="primary" helper="Réparation effectuée, test requis." />
-        <KpiStatCard icon={<CheckCircle2 />} label="Réparés" value={kpis.repare} tone="emerald" helper="Disponibles pour réaffectation." />
-      </div>
-
-      {/* Filtres */}
-      <Card className="shadow-lg">
-        <CardHeader className="pb-3">
-          <div className="flex flex-wrap items-end gap-3">
+          {/* KPIs */}
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-5 pt-2">
+            <KpiStatCard icon={<Package />} label="Total" value={kpis.total} tone="primary" helper="Tous les sous-ensembles défectueux." />
+            <KpiStatCard icon={<AlertTriangle />} label="Non assignés" value={kpis.defectueux} tone="red" helper="À prendre en charge." />
+            <KpiStatCard icon={<UserCheck />} label="Assignés" value={kpis.assigne} tone="primary" helper="En cours de réparation." />
+            <KpiStatCard icon={<Wrench />} label="À tester" value={kpis.a_tester} tone="primary" helper="Réparation effectuée, test requis." />
+            <KpiStatCard icon={<CheckCircle2 />} label="Réparés" value={kpis.repare} tone="emerald" helper="Disponibles pour réaffectation." />
+          </div>
+          {/* Filtres */}
+          <div className="flex flex-wrap items-end gap-3 pt-2">
             <div className="space-y-1">
               <Label>Type</Label>
               <Select value={filters.type_sous_ensemble} onValueChange={v => setFilters(f => ({ ...f, type_sous_ensemble: v }))}>
@@ -169,7 +165,7 @@ const StockDefectueuxTab = ({ canManage = true }) => {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <Table>
             <TableCaption>
               {filtered.length === 0 ? 'Aucun sous-ensemble défectueux.' : `${filtered.length} sous-ensemble(s).`}
