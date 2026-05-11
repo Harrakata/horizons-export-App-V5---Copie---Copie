@@ -22,7 +22,11 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Edit3,
+  HelpCircle,
+  Package,
   Wrench,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -40,8 +44,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+import PiecesSousEnsemblesTab from '@/pages/maintenance/PiecesSousEnsemblesTab';
+import StockDefectueuxTab from '@/pages/maintenance/StockDefectueuxTab';
+import ReparationTerminauxTab from '@/pages/maintenance/ReparationTerminauxTab';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { supabase } from '@/lib/supabaseClient';
 import { formatDisplayDate, formatDisplayDateTime } from '@/lib/guichetiereSpace';
@@ -62,6 +70,20 @@ const defaultRequestForm = {
   motif: '',
 };
 
+const SOUS_ENSEMBLE_LABELS_TECH = {
+  imprimante: 'Imprimante',
+  lecteur: 'Lecteur',
+  ecran: 'Écran',
+  afficheur: 'Afficheur client',
+};
+
+const STATUT_CONFIG_TECH = {
+  defectueux: { label: 'Défectueux', cls: 'bg-red-100 text-red-800' },
+  assigne: { label: 'Assigné', cls: 'bg-blue-100 text-blue-800' },
+  a_tester: { label: 'À tester', cls: 'bg-yellow-100 text-yellow-800' },
+  repare: { label: 'Réparé', cls: 'bg-green-100 text-green-800' },
+};
+
 const MonPlanningMaintenancePage = ({ technicien }) => {
   const { toast } = useToast();
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -73,6 +95,11 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
   const [selectedPlanningEntry, setSelectedPlanningEntry] = useState(null);
   const [requestForm, setRequestForm] = useState(defaultRequestForm);
+  const [assignedDefectueux, setAssignedDefectueux] = useState([]);
+  const [expandedDefectueuxId, setExpandedDefectueuxId] = useState(null);
+  const [defectueuxPieces, setDefectueuxPieces] = useState([]);
+  const [defectueuxPannes, setDefectueuxPannes] = useState([]);
+  const [defectueuxProcedures, setDefectueuxProcedures] = useState([]);
 
   const monthStart = useMemo(() => startOfMonth(currentMonth), [currentMonth]);
   const monthEnd = useMemo(() => endOfMonth(currentMonth), [currentMonth]);
@@ -146,6 +173,17 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
     } else {
       setIsRequestTableMissing(false);
       setRequests(requestsData || []);
+    }
+
+    // Charger les sous-ensembles défectueux assignés à ce technicien
+    if (technicien?.id) {
+      const { data: defData } = await supabase
+        .from('stock_defectueux')
+        .select('*, agence:agences(nom)')
+        .eq('technicien_id', String(technicien.id))
+        .neq('statut', 'repare')
+        .order('date_entree', { ascending: false });
+      setAssignedDefectueux(defData || []);
     }
 
     setIsLoading(false);
@@ -296,6 +334,33 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
     setIsLoading(false);
   };
 
+  const toggleDefectueux = async (item) => {
+    if (expandedDefectueuxId === item.id) {
+      setExpandedDefectueuxId(null);
+      return;
+    }
+    setExpandedDefectueuxId(item.id);
+    setDefectueuxPieces([]);
+    setDefectueuxPannes([]);
+    setDefectueuxProcedures([]);
+    if (item.modele_id) {
+      const { data: mpData } = await supabase
+        .from('modeles_pieces')
+        .select('*, piece:pieces_sous_ensembles(id, nom, reference, description_aide)')
+        .eq('modele_id', item.modele_id);
+      setDefectueuxPieces(mpData || []);
+      if (mpData && mpData.length > 0) {
+        const pieceIds = mpData.map(mp => mp.piece?.id).filter(Boolean);
+        const [pnRes, prRes] = await Promise.all([
+          supabase.from('pieces_pannes').select('*, piece_id').in('piece_id', pieceIds),
+          supabase.from('pieces_procedures').select('*, piece_id').in('piece_id', pieceIds).order('ordre'),
+        ]);
+        if (!pnRes.error) setDefectueuxPannes(pnRes.data || []);
+        if (!prRes.error) setDefectueuxProcedures(prRes.data || []);
+      }
+    }
+  };
+
   const sortedRequests = useMemo(
     () =>
       [...requests].sort(
@@ -314,14 +379,25 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
         <CardHeader>
           <CardTitle className="flex items-center text-3xl font-bold text-primary">
             <CalendarDays className="mr-3 h-8 w-8" />
-            Mon planning de Maintenance
+            Mon Planning de Maintenance
           </CardTitle>
           <CardDescription>
-            Consultez vos affectations maintenance et envoyez vos demandes de modification pour validation
-            par le chef d&apos;agence puis l&apos;Exploitation.
+            Consultez vos affectations maintenance, gérez vos réparations et consultez le catalogue de pièces.
           </CardDescription>
         </CardHeader>
       </Card>
+
+      <Tabs defaultValue="planning" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="planning" className="flex items-center gap-2">
+            <CalendarDays className="h-4 w-4" /> Mon Planning
+          </TabsTrigger>
+          <TabsTrigger value="reparation" className="flex items-center gap-2">
+            <Wrench className="h-4 w-4" /> Réparation
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="planning" className="space-y-6">
 
       {isRequestTableMissing && (
         <Card className="border-amber-200 bg-amber-50 shadow-sm">
@@ -360,6 +436,92 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
           tone="blue"
         />
       </div>
+
+      {/* Sous-ensembles défectueux assignés */}
+      {assignedDefectueux.length > 0 && (
+        <Card className="shadow-lg border-blue-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-xl text-primary">
+              <Package className="h-5 w-5" />
+              Mes sous-ensembles à réparer
+              <Badge className="bg-blue-100 text-blue-800 ml-2">{assignedDefectueux.length}</Badge>
+            </CardTitle>
+            <CardDescription>Sous-ensembles défectueux qui vous sont assignés pour réparation.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {assignedDefectueux.map(item => {
+              const isExpanded = expandedDefectueuxId === item.id;
+              const cfg = STATUT_CONFIG_TECH[item.statut] || { label: item.statut, cls: 'bg-gray-100 text-gray-800' };
+              return (
+                <div key={item.id} className="rounded-lg border overflow-hidden">
+                  <button
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors text-left"
+                    onClick={() => toggleDefectueux(item)}
+                  >
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="font-medium font-mono text-sm">{item.reference_sous_ensemble}</span>
+                      <Badge variant="outline">{SOUS_ENSEMBLE_LABELS_TECH[item.type_sous_ensemble] || item.type_sous_ensemble}</Badge>
+                      <Badge className={cfg.cls}>{cfg.label}</Badge>
+                      {item.agence?.nom && <span className="text-xs text-muted-foreground">• {item.agence.nom}</span>}
+                    </div>
+                    {isExpanded ? <ChevronUp className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}
+                  </button>
+
+                  {isExpanded && (
+                    <div className="border-t bg-muted/20 p-4 space-y-4">
+                      {item.commentaire && (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                          <AlertTriangle className="inline h-4 w-4 mr-1" /> {item.commentaire}
+                        </div>
+                      )}
+                      {defectueuxPieces.length === 0 && (
+                        <p className="text-sm text-muted-foreground">Aucun modèle de pièces associé à ce sous-ensemble.</p>
+                      )}
+                      {defectueuxPieces.map(mp => {
+                        const pPannes = defectueuxPannes.filter(p => p.piece_id === mp.piece?.id);
+                        const pProcs = defectueuxProcedures.filter(p => p.piece_id === mp.piece?.id);
+                        return (
+                          <div key={mp.id} className="rounded-md border bg-background p-3 space-y-3">
+                            <div className="flex items-center gap-2">
+                              <HelpCircle className="h-4 w-4 text-primary" />
+                              <span className="font-medium">{mp.piece?.nom}</span>
+                              <span className="text-xs text-muted-foreground font-mono">({mp.piece?.reference})</span>
+                            </div>
+                            {mp.piece?.description_aide && (
+                              <p className="text-sm text-muted-foreground bg-muted/40 rounded px-2 py-1">{mp.piece.description_aide}</p>
+                            )}
+                            {pPannes.length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-amber-700 mb-1 flex items-center gap-1">
+                                  <AlertTriangle className="h-3 w-3" /> Types de pannes
+                                </p>
+                                {pPannes.map(p => (
+                                  <p key={p.id} className="text-xs rounded border border-amber-200 bg-amber-50 px-2 py-1 mb-1">{p.description}</p>
+                                ))}
+                              </div>
+                            )}
+                            {pProcs.length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-primary mb-1">Procédure de réparation</p>
+                                {pProcs.map((p, i) => (
+                                  <div key={p.id} className="text-xs border rounded p-2 mb-1 space-y-1">
+                                    <span className="font-medium">Étape {i + 1} :</span> {p.description}
+                                    {p.image_url && <img src={p.image_url} alt={`étape ${i + 1}`} className="max-h-32 rounded object-contain mt-1" />}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
@@ -632,6 +794,27 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </TabsContent>
+
+        <TabsContent value="reparation">
+          <Tabs defaultValue="pieces" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="pieces">Pièces détachées</TabsTrigger>
+              <TabsTrigger value="stock_defectueux">Stock Défectueux</TabsTrigger>
+              <TabsTrigger value="atelier">Atelier</TabsTrigger>
+            </TabsList>
+            <TabsContent value="pieces">
+              <PiecesSousEnsemblesTab canManage={false} />
+            </TabsContent>
+            <TabsContent value="stock_defectueux">
+              <StockDefectueuxTab canManage={false} />
+            </TabsContent>
+            <TabsContent value="atelier">
+              <ReparationTerminauxTab canManage={true} />
+            </TabsContent>
+          </Tabs>
+        </TabsContent>
+      </Tabs>
     </motion.div>
   );
 };

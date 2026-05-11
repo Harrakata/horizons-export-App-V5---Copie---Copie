@@ -14,6 +14,7 @@ import { motion } from 'framer-motion';
 import SignatureCanvas from 'react-signature-canvas';
 import { Building2, CalendarClock, Globe, Wrench, ClipboardList } from 'lucide-react';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
+import { ajouterAuStockDefectueux } from '@/lib/stockDefectueux';
 
 const normalizeMaintenanceText = (value) =>
   String(value ?? '')
@@ -1257,6 +1258,24 @@ const MaintenanceTab = ({ technicien }) => {
         description: 'Intervention enregistrée avec succès',
         className: "bg-green-500 text-white"
       });
+
+      if (
+        interventionData.typeIntervention === 'curative' &&
+        interventionData.remplace === 'oui' &&
+        interventionData.remplacement
+      ) {
+        const terminal = terminaux.find(t => String(t.id) === String(interventionData.terminal));
+        await ajouterAuStockDefectueux({
+          referenceSousEnsemble: interventionData.remplacement,
+          typeSousEnsemble: interventionData.sousEnsemble,
+          typeTerminal: terminal?.type_terminal || null,
+          agenceProvenance: interventionData.agence || terminal?.agence_id || null,
+          dateEntree: new Date().toISOString(),
+          commentaire: interventionData.commentaire || null,
+          interventionId: insertedIntervention.id,
+        });
+      }
+
       return insertedIntervention;
     } catch (error) {
       toast({ title: 'Erreur', description: 'Erreur lors de l\'enregistrement', variant: 'destructive' });

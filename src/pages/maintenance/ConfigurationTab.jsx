@@ -683,8 +683,10 @@ const ConfigurationTab = ({
 
   const configurationContent = (
     <div className="space-y-6">
-      <Card className="shadow-lg">
-        <CardHeader>
+      <Card className="relative overflow-hidden shadow-lg">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+        <CardHeader className="relative">
           <CardTitle>{editingTerminalId ? 'Modifier un terminal' : 'Configuration des terminaux'}</CardTitle>
           <CardDescription>
             {resolvedLockedAgence
@@ -743,7 +745,7 @@ const ConfigurationTab = ({
               <Combobox
                 options={[
                   { value: '2020', label: '2020' },
-                  { value: '2032', label: '2032' },
+                  { value: '2031', label: '2031' },
                 ]}
                 value={formData.type}
                 onSelect={(value) => setFormData((previousState) => ({ ...previousState, type: value }))}
@@ -894,8 +896,10 @@ const ConfigurationTab = ({
         </CardContent>
       </Card>
 
-      <Card className="shadow-lg">
-        <CardHeader className="space-y-4">
+      <Card className="relative overflow-hidden shadow-lg">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+        <CardHeader className="relative space-y-4">
           <div className="flex flex-col gap-2">
             <CardTitle>Parc de Terminaux</CardTitle>
             <CardDescription>
@@ -945,7 +949,7 @@ const ConfigurationTab = ({
                 options={[
                   { value: ALL_FILTER_VALUE, label: 'Tous les types' },
                   { value: '2020', label: '2020' },
-                  { value: '2032', label: '2032' },
+                  { value: '2031', label: '2031' },
                 ]}
                 value={parkFilters.type}
                 onSelect={(value) =>

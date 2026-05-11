@@ -51,8 +51,10 @@ const EQUIPMENT_TYPES = {
 };
 
 const EquipmentTable = ({ type, config, filteredEquipments, hasData, searchTerm, onSearchChange, onOpenDialog, onDelete, isLoading, canManage }) => (
-  <Card className="shadow-lg">
-    <CardHeader>
+  <Card className="relative overflow-hidden shadow-lg">
+    <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+    <CardHeader className="relative">
       <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
         <div className="flex items-center gap-2">
           {config.icon}
@@ -335,8 +337,10 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
         </div>
       ) : null}
 
-      <Card className="shadow-xl glassmorphism">
-        <CardHeader>
+      <Card className="relative overflow-hidden shadow-xl glassmorphism">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+        <CardHeader className="relative">
           <CardTitle className="text-2xl font-bold text-primary">Gestion des Équipements</CardTitle>
           <CardDescription>Gérez les imprimantes, écrans, lecteurs et afficheurs client disponibles pour les terminaux.</CardDescription>
         </CardHeader>

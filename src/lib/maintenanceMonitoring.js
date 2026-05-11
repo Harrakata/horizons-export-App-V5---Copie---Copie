@@ -69,7 +69,8 @@ export const getTerminalSousEnsembles = (terminal) =>
   [
     { key: 'imprimante', label: 'Imprimante', reference: terminal?.imprimante_reference || '' },
     { key: 'lecteur', label: 'Lecteur', reference: terminal?.lecteur_reference || '' },
-    { key: 'ecran', label: 'Ecran', reference: terminal?.ecran_reference || '' },
+    { key: 'ecran', label: 'Écran', reference: terminal?.ecran_reference || '' },
+    { key: 'afficheur', label: 'Afficheur client', reference: terminal?.afficheur_reference || '' },
   ].filter((item) => item.reference);
 
 const getLatestInterventionForReference = (interventions, terminalId, reference) =>

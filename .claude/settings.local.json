@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\ar.kader\\\\OneDrive - GROUPE CARRUS\\\\Documents\\\\Web App\\\\horizons-export-App-V5---Copie---Copie\\\\src\\\\pages\\\\technicien\" -File)"
     ]
   }
 }
