@@ -15,6 +15,7 @@ import SignatureCanvas from 'react-signature-canvas';
 import { Building2, CalendarClock, Globe, Wrench, ClipboardList } from 'lucide-react';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { ajouterAuStockDefectueux } from '@/lib/stockDefectueux';
+import { fetchRegions, buildRegionOptions, normalizeRegionText } from '@/lib/regions';
 
 const normalizeMaintenanceText = (value) =>
   String(value ?? '')
@@ -212,6 +213,7 @@ const MaintenanceTab = ({ technicien }) => {
   const [recap, setRecap] = useState(null);
 
   // États pour stocker les données chargées depuis Supabase
+  const [regions, setRegions] = useState([]);
   const [agences, setAgences] = useState([]);
   const [terminaux, setTerminaux] = useState([]);
   const [codesPannes, setCodesPannes] = useState([]);
@@ -226,6 +228,8 @@ const MaintenanceTab = ({ technicien }) => {
   const [savedValidationFile, setSavedValidationFile] = useState(null);
   const technicienSignatureRef = useRef(null);
   const chefAgenceSignatureRef = useRef(null);
+  const [replacementOptions, setReplacementOptions] = useState([]);
+  const [isLoadingReplacements, setIsLoadingReplacements] = useState(false);
 
   // Charger les données initiales
   useEffect(() => {
@@ -258,15 +262,27 @@ const MaintenanceTab = ({ technicien }) => {
     }
   }, [form.agence, agences]);
 
+  useEffect(() => {
+    if (form.sousEnsemble && form.terminal) {
+      loadReplacementOptions();
+    } else {
+      setReplacementOptions([]);
+    }
+  }, [form.sousEnsemble, form.terminal]);
+
   const loadInitialData = async () => {
     setIsLoading(true);
     try {
+      // Charger les régions depuis la table dédiée
+      const regionsResponse = await fetchRegions();
+      if (!regionsResponse.error) setRegions(regionsResponse.data || []);
+
       // Charger les agences
       const { data: agencesData, error: agencesError } = await supabase
         .from('agences')
         .select('id, nom, nbreTerminaux, codePDV, region')
         .order('nom', { ascending: true });
-      
+
       if (agencesError) {
         toast({ title: 'Erreur', description: 'Impossible de charger les agences', variant: 'destructive' });
       } else {
@@ -474,6 +490,87 @@ const MaintenanceTab = ({ technicien }) => {
     }
   };
 
+  const loadReplacementOptions = async () => {
+    const terminal = terminaux.find((t) => String(t.id) === form.terminal);
+    if (!terminal || !form.sousEnsemble) {
+      setReplacementOptions([]);
+      return;
+    }
+
+    let type = null;
+    if (terminal.imprimante_reference === form.sousEnsemble) type = 'imprimante';
+    else if (terminal.lecteur_reference === form.sousEnsemble) type = 'lecteur';
+    else if (terminal.ecran_reference === form.sousEnsemble) type = 'ecran';
+    else if (terminal.afficheur_reference === form.sousEnsemble) type = 'afficheur';
+
+    if (!type) {
+      setReplacementOptions([]);
+      return;
+    }
+
+    const tableMap = {
+      imprimante: 'equipments_imprimantes',
+      lecteur: 'equipments_lecteurs',
+      ecran: 'equipments_ecrans',
+      afficheur: 'equipments_afficheurs',
+    };
+
+    const terminalFieldMap = {
+      imprimante: 'imprimante_reference',
+      lecteur: 'lecteur_reference',
+      ecran: 'ecran_reference',
+      afficheur: 'afficheur_reference',
+    };
+
+    const normalizeRef = (v) => String(v ?? '').trim().toLowerCase();
+
+    setIsLoadingReplacements(true);
+    try {
+      // Récupérer toutes les références déjà assignées à d'autres terminaux (tous agences confondus)
+      const { data: autresTerminaux, error: termError } = await supabase
+        .from('terminaux')
+        .select('id, imprimante_reference, lecteur_reference, ecran_reference, afficheur_reference')
+        .neq('id', terminal.id);
+
+      if (termError) console.error('Erreur filtre terminaux:', termError);
+
+      const refField = terminalFieldMap[type];
+      const refsAssignees = new Set(
+        (autresTerminaux || [])
+          .map((t) => normalizeRef(t[refField]))
+          .filter(Boolean)
+      );
+
+      const { data, error } = await supabase
+        .from(tableMap[type])
+        .select('reference, modele, statut')
+        .order('reference', { ascending: true });
+
+      if (!error) {
+        const available = (data || []).filter((e) => {
+          const s = normalizeMaintenanceText(e.statut ?? '');
+          const isBlocked = s === 'en panne' || s === 'hors service' || s === 'en maintenance';
+          const isAssigned = refsAssignees.has(normalizeRef(e.reference));
+          const isCurrent = normalizeRef(e.reference) === normalizeRef(form.sousEnsemble);
+          return !isBlocked && !isAssigned && !isCurrent;
+        });
+        setReplacementOptions(
+          available.map((e) => ({
+            value: e.reference,
+            label: `${e.reference}${e.modele ? ` - ${e.modele}` : ''}`,
+          }))
+        );
+      } else {
+        setReplacementOptions([]);
+      }
+    } catch (err) {
+      console.error('Erreur chargement sous-ensembles disponibles:', err);
+      setReplacementOptions([]);
+    } finally {
+      setIsLoadingReplacements(false);
+    }
+  };
+
   // Obtenir les sous-ensembles du terminal sélectionné
   const getSousEnsembles = () => {
     const terminal = terminaux.find(t => String(t.id) === form.terminal);
@@ -525,21 +622,20 @@ const MaintenanceTab = ({ technicien }) => {
     });
   };
 
+  const handleReplacementSelect = (value) => {
+    handleChange('remplacement')(value);
+  };
+
   // Préparer les options pour les Combobox
-  const regionsOptions = Array.from(
-    new Map(
-      agences
-        .filter((agence) => agence.region)
-        .map((agence) => [
-          normalizeMaintenanceText(agence.region),
-          { value: agence.region, label: agence.region },
-        ])
-    ).values()
+  const regionsOptions = buildRegionOptions(
+    regions.length > 0
+      ? regions
+      : agences.filter((a) => a.region).map((a) => ({ nom: a.region, codeRegion: '' }))
   );
 
   const filteredAgences = form.region
     ? agences.filter(
-        (agence) => normalizeMaintenanceText(agence.region) === normalizeMaintenanceText(form.region)
+        (agence) => normalizeRegionText(agence.region) === normalizeRegionText(form.region)
       )
     : agences;
 
@@ -1259,21 +1355,37 @@ const MaintenanceTab = ({ technicien }) => {
         className: "bg-green-500 text-white"
       });
 
-      if (
-        interventionData.typeIntervention === 'curative' &&
-        interventionData.remplace === 'oui' &&
-        interventionData.remplacement
-      ) {
-        const terminal = terminaux.find(t => String(t.id) === String(interventionData.terminal));
-        await ajouterAuStockDefectueux({
-          referenceSousEnsemble: interventionData.remplacement,
-          typeSousEnsemble: interventionData.sousEnsemble,
-          typeTerminal: terminal?.type_terminal || null,
-          agenceProvenance: interventionData.agence || terminal?.agence_id || null,
-          dateEntree: new Date().toISOString(),
-          commentaire: interventionData.commentaire || null,
-          interventionId: insertedIntervention.id,
-        });
+      // Traitement du remplacement à la validation finale
+      if (interventionData.remplace === 'oui' && interventionData.remplacement && interventionData.sousEnsemble) {
+        const terminal = terminaux.find((t) => String(t.id) === String(interventionData.terminal));
+        if (terminal) {
+          let type = null;
+          if (terminal.imprimante_reference === interventionData.sousEnsemble) type = 'imprimante';
+          else if (terminal.lecteur_reference === interventionData.sousEnsemble) type = 'lecteur';
+          else if (terminal.ecran_reference === interventionData.sousEnsemble) type = 'ecran';
+          else if (terminal.afficheur_reference === interventionData.sousEnsemble) type = 'afficheur';
+
+          if (type) {
+            const fieldMap = { imprimante: 'imprimante_reference', lecteur: 'lecteur_reference', ecran: 'ecran_reference', afficheur: 'afficheur_reference' };
+            const equipTableMap = { imprimante: 'equipments_imprimantes', lecteur: 'equipments_lecteurs', ecran: 'equipments_ecrans', afficheur: 'equipments_afficheurs' };
+
+            await Promise.all([
+              supabase.from('terminaux').update({ [fieldMap[type]]: interventionData.remplacement }).eq('id', terminal.id),
+              supabase.from(equipTableMap[type]).update({ statut: 'En maintenance' }).eq('reference', interventionData.sousEnsemble),
+              supabase.from(equipTableMap[type]).update({ statut: 'En service' }).eq('reference', interventionData.remplacement),
+            ]);
+
+            await ajouterAuStockDefectueux({
+              referenceSousEnsemble: interventionData.sousEnsemble,
+              typeSousEnsemble: type,
+              typeTerminal: terminal.type_terminal || null,
+              agenceProvenance: interventionData.agence || terminal.agence_id || null,
+              dateEntree: new Date().toISOString(),
+              commentaire: null,
+              interventionId: insertedIntervention?.id || null,
+            });
+          }
+        }
       }
 
       return insertedIntervention;
@@ -1607,10 +1719,32 @@ const MaintenanceTab = ({ technicien }) => {
 
       <Card className="shadow-lg glassmorphism">
       <CardHeader>
-          <CardTitle className="text-xl text-primary">Fiche de Maintenance</CardTitle>
-          <CardDescription>
-            Étape {step} sur 3 - Préparez, validez et archivez l'intervention avec signatures
-          </CardDescription>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="text-xl text-primary">Fiche de Maintenance</CardTitle>
+              <CardDescription>
+                Étape {step} sur 3 - Préparez, validez et archivez l'intervention avec signatures
+              </CardDescription>
+            </div>
+            {step > 1 && selectedAgence && selectedTerminal && (
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 font-medium text-primary">
+                  <Building2 className="h-3 w-3" />
+                  {selectedAgence.nom}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 font-medium text-blue-700">
+                  <Wrench className="h-3 w-3" />
+                  {selectedTerminal.reference}
+                </span>
+                {form.sousEnsemble && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-medium text-emerald-700">
+                    <ClipboardList className="h-3 w-3" />
+                    {form.sousEnsemble}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
       </CardHeader>
         <CardContent className="space-y-6">
         {step === 1 && (
@@ -1825,7 +1959,7 @@ const MaintenanceTab = ({ technicien }) => {
 
                 <div className="space-y-4">
                   <div className="space-y-3">
-                    <Label>Équipement remplacé ?</Label>
+                    <Label>Sous ensemble remplacé ?</Label>
                     <RadioGroup
                       value={form.remplace}
                       onValueChange={handleChange('remplace')}
@@ -1838,21 +1972,24 @@ const MaintenanceTab = ({ technicien }) => {
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="oui" id="oui" />
                         <Label htmlFor="oui">Oui</Label>
-            </div>
+                      </div>
                     </RadioGroup>
-            </div>
+                  </div>
 
-            {form.remplace === 'oui' && (
-              <div className="space-y-2">
+                  {form.remplace === 'oui' && (
+                    <div className="space-y-2">
                       <Label htmlFor="remplacement">Référence de remplacement *</Label>
-                      <Input 
-                        value={form.remplacement} 
-                        onChange={(e) => handleChange('remplacement')(e.target.value)}
-                        placeholder="Référence du nouvel équipement installé"
-                        disabled={isLoading}
+                      <Combobox
+                        options={replacementOptions}
+                        value={form.remplacement}
+                        onSelect={handleReplacementSelect}
+                        placeholder="Choisir un sous-ensemble disponible"
+                        searchPlaceholder="Rechercher par référence..."
+                        emptyText={isLoadingReplacements ? 'Chargement...' : 'Aucun sous-ensemble disponible.'}
+                        disabled={isLoading || isLoadingReplacements}
                       />
-              </div>
-            )}
+                    </div>
+                  )}
                 </div>
               </div>
           </div>

@@ -84,7 +84,7 @@ const STATUT_CONFIG_TECH = {
   repare: { label: 'Réparé', cls: 'bg-green-100 text-green-800' },
 };
 
-const MonPlanningMaintenancePage = ({ technicien }) => {
+const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => {
   const { toast } = useToast();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [viewMode, setViewMode] = useState('month');
@@ -373,29 +373,38 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-      <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
-        <CardHeader>
-          <CardTitle className="flex items-center text-3xl font-bold text-primary">
-            <CalendarDays className="mr-3 h-8 w-8" />
-            Mon Planning de Maintenance
-          </CardTitle>
-          <CardDescription>
-            Consultez vos affectations maintenance, gérez vos réparations et consultez le catalogue de pièces.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      {!hideTitle && (
+        <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+          <CardHeader>
+            <CardTitle className="flex items-center text-3xl font-bold text-primary">
+              {view === 'reparation' ? (
+                <><Wrench className="mr-3 h-8 w-8" />Réparation</>
+              ) : (
+                <><CalendarDays className="mr-3 h-8 w-8" />Mon Planning de Maintenance</>
+              )}
+            </CardTitle>
+            <CardDescription>
+              {view === 'reparation'
+                ? 'Gérez les réparations et consultez le catalogue de pièces.'
+                : 'Consultez vos affectations maintenance et gérez votre planning.'}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
 
-      <Tabs defaultValue="planning" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="planning" className="flex items-center gap-2">
-            <CalendarDays className="h-4 w-4" /> Mon Planning
-          </TabsTrigger>
-          <TabsTrigger value="reparation" className="flex items-center gap-2">
-            <Wrench className="h-4 w-4" /> Réparation
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={view || 'planning'} className="space-y-6">
+        {!view && (
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="planning" className="flex items-center gap-2">
+              <CalendarDays className="h-4 w-4" /> Mon Planning
+            </TabsTrigger>
+            <TabsTrigger value="reparation" className="flex items-center gap-2">
+              <Wrench className="h-4 w-4" /> Réparation
+            </TabsTrigger>
+          </TabsList>
+        )}
 
         <TabsContent value="planning" className="space-y-6">
 
@@ -797,20 +806,20 @@ const MonPlanningMaintenancePage = ({ technicien }) => {
         </TabsContent>
 
         <TabsContent value="reparation">
-          <Tabs defaultValue="pieces" className="space-y-4">
+          <Tabs defaultValue="atelier" className="space-y-4">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="pieces">Pièces détachées</TabsTrigger>
-              <TabsTrigger value="stock_defectueux">Stock Défectueux</TabsTrigger>
               <TabsTrigger value="atelier">Atelier</TabsTrigger>
+              <TabsTrigger value="stock_defectueux">Stock Défectueux</TabsTrigger>
+              <TabsTrigger value="pieces">Pièces détachées</TabsTrigger>
             </TabsList>
-            <TabsContent value="pieces">
-              <PiecesSousEnsemblesTab canManage={false} />
-            </TabsContent>
-            <TabsContent value="stock_defectueux">
-              <StockDefectueuxTab canManage={false} />
-            </TabsContent>
             <TabsContent value="atelier">
               <ReparationTerminauxTab canManage={true} />
+            </TabsContent>
+            <TabsContent value="stock_defectueux">
+              <StockDefectueuxTab canManage={false} technicienId={technicien?.id} />
+            </TabsContent>
+            <TabsContent value="pieces">
+              <PiecesSousEnsemblesTab canManage={false} />
             </TabsContent>
           </Tabs>
         </TabsContent>

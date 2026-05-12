@@ -70,6 +70,7 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
   const [isCompoOpen, setIsCompoOpen] = useState(false);
   const [selectedModele, setSelectedModele] = useState(null);
   const [addToModele, setAddToModele] = useState({ piece_id: '', quantite: 1 });
+  const [selectedCompoPiece, setSelectedCompoPiece] = useState(null);
 
   const [isStockOpen, setIsStockOpen] = useState(false);
   const [stockForm, setStockForm] = useState({ piece_id: '', type: 'entree', quantite: 1, motif: '' });
@@ -236,7 +237,7 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
     await supabase.from('modeles_sous_ensembles').delete().eq('id', id); load();
   };
 
-  const openCompo = async (modele) => { setSelectedModele(modele); setIsCompoOpen(true); await loadCompo(modele.id); };
+  const openCompo = async (modele) => { setSelectedModele(modele); setSelectedCompoPiece(null); setIsCompoOpen(true); await loadCompo(modele.id); };
 
   const addPieceModele = async () => {
     if (!addToModele.piece_id || !selectedModele) return;
@@ -1042,53 +1043,88 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
 
       {/* ===== DIALOG COMPOSITION ===== */}
       <Dialog open={isCompoOpen} onOpenChange={setIsCompoOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto relative overflow-hidden">
+        <DialogContent className="sm:max-w-2xl relative overflow-hidden p-0">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
-          <DialogHeader><DialogTitle className="text-primary">Composition : {selectedModele?.nom}</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-4">
-            {modelePieces.length === 0 && <p className="text-sm text-muted-foreground">Aucune pièce.</p>}
-            {modelePieces.map(mp => (
-              <div key={mp.id} className="rounded-md border overflow-hidden">
-                {mp.piece?.photo_url ? (
-                  <div className="flex items-center justify-center bg-muted/30 p-3">
-                    <img src={mp.piece.photo_url} alt={mp.piece.nom} className="w-full max-h-48 object-contain rounded" />
+          <div className="relative px-6 pt-5 pb-3">
+            <DialogHeader>
+              <DialogTitle className="text-primary flex items-center gap-2">
+                <Layers className="h-5 w-5" /> Composition : {selectedModele?.nom}
+              </DialogTitle>
+            </DialogHeader>
+          </div>
+          <div className="flex border-t" style={{ minHeight: 300, maxHeight: 420 }}>
+            {/* Liste gauche */}
+            <div className="w-1/2 border-r overflow-y-auto">
+              {modelePieces.length === 0 ? (
+                <p className="px-4 py-6 text-sm text-muted-foreground text-center">Aucune pièce.</p>
+              ) : modelePieces.map(mp => (
+                <button
+                  key={mp.id}
+                  className={`w-full text-left px-4 py-2.5 border-b transition-colors hover:bg-muted/40 ${selectedCompoPiece?.id === mp.id ? 'bg-primary/10 border-l-4 border-l-primary' : ''}`}
+                  onClick={() => setSelectedCompoPiece(mp)}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{mp.piece?.nom}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{mp.piece?.reference}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Badge variant="outline" className="text-xs">×{mp.quantite}</Badge>
+                      {canManage && (
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400 hover:text-red-600"
+                          onClick={e => { e.stopPropagation(); removePieceModele(mp.id); }}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                ) : (
-                  <div className="flex items-center justify-center bg-muted/30 h-24 text-muted-foreground text-sm">Aucune photo</div>
-                )}
-                <div className="flex items-center justify-between px-3 py-2">
+                </button>
+              ))}
+            </div>
+            {/* Aperçu droite */}
+            <div className="w-1/2 flex flex-col items-center justify-center p-4 bg-muted/10">
+              {!selectedCompoPiece ? (
+                <div className="text-center text-muted-foreground">
+                  <Package className="mx-auto h-10 w-10 mb-2 opacity-30" />
+                  <p className="text-sm">Sélectionnez une pièce</p>
+                </div>
+              ) : (
+                <div className="text-center space-y-3 w-full">
+                  {selectedCompoPiece.piece?.photo_url ? (
+                    <img src={selectedCompoPiece.piece.photo_url} alt={selectedCompoPiece.piece.nom}
+                      className="max-h-44 object-contain mx-auto rounded border bg-white p-2" />
+                  ) : (
+                    <div className="h-32 w-full rounded border bg-muted/30 flex items-center justify-center">
+                      <Package className="h-12 w-12 text-muted-foreground/30" />
+                    </div>
+                  )}
                   <div>
-                    <p className="text-sm font-medium">{mp.piece?.nom}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{mp.piece?.reference}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">Qté : {mp.quantite}</Badge>
-                    {canManage && <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400" onClick={() => removePieceModele(mp.id)}><Trash2 className="h-3 w-3" /></Button>}
+                    <p className="font-semibold text-sm">{selectedCompoPiece.piece?.nom}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{selectedCompoPiece.piece?.reference}</p>
+                    <Badge variant="outline" className="mt-1 text-xs">Qté : {selectedCompoPiece.quantite}</Badge>
                   </div>
                 </div>
-              </div>
-            ))}
-            {canManage && (
-              <div className="space-y-2 rounded-md border p-3">
-                <Label className="font-semibold text-sm">Ajouter une pièce</Label>
+              )}
+            </div>
+          </div>
+          {canManage && (
+            <div className="border-t px-4 py-3 space-y-2 relative">
+              <Label className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">Ajouter une pièce</Label>
+              <div className="flex items-center gap-2">
                 <Select value={addToModele.piece_id} onValueChange={v => setAddToModele(a => ({ ...a, piece_id: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner une pièce..." /></SelectTrigger>
+                  <SelectTrigger className="flex-1"><SelectValue placeholder="Sélectionner une pièce..." /></SelectTrigger>
                   <SelectContent>
-                    {pieces
-                      .filter(p => !selectedModele || p.sous_ensemble === selectedModele.sous_ensemble || p.type_terminal === 'tous')
-                      .map(p => <SelectItem key={p.id} value={p.id}>{p.nom} ({p.reference})</SelectItem>)
-                    }
+                    {pieces.filter(p => !selectedModele || p.sous_ensemble === selectedModele.sous_ensemble || p.type_terminal === 'tous')
+                      .map(p => <SelectItem key={p.id} value={p.id}>{p.nom} ({p.reference})</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <div className="flex items-center gap-2">
-                  <Label className="w-24 shrink-0">Quantité</Label>
-                  <Input type="number" min={1} className="w-24" value={addToModele.quantite} onChange={e => setAddToModele(a => ({ ...a, quantite: e.target.value }))} />
-                  <Button size="sm" onClick={addPieceModele}><Plus className="mr-1 h-4 w-4" /> Ajouter</Button>
-                </div>
+                <Input type="number" min={1} className="w-20" value={addToModele.quantite}
+                  onChange={e => setAddToModele(a => ({ ...a, quantite: e.target.value }))} />
+                <Button size="sm" onClick={addPieceModele}><Plus className="mr-1 h-4 w-4" /> Ajouter</Button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

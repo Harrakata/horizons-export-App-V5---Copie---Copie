@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Wrench, Loader2, LogOut, CalendarClock } from 'lucide-react';
+import { Wrench, Loader2, LogOut, CalendarDays } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
@@ -118,8 +119,8 @@ const EspaceMaintenancePage = () => {
   }, []);
 
   const baseMenuItems = [
-    { key: 'maintenance', label: 'Maintenance', icon: <Wrench className="h-5 w-5" /> },
-    { key: 'planning', label: 'Mon planning de Maintenance', icon: <CalendarClock className="h-5 w-5" /> },
+    { key: 'maintenance', label: 'Maintenance', icon: <CalendarDays className="h-5 w-5" /> },
+    { key: 'planning', label: 'Réparation', icon: <Wrench className="h-5 w-5" /> },
   ];
 
   const menuItems = useMemo(
@@ -228,9 +229,36 @@ const EspaceMaintenancePage = () => {
               </CardContent>
             </Card>
           ) : activeSection === 'planning' ? (
-            <MonPlanningMaintenancePage technicien={userData} />
+            <MonPlanningMaintenancePage technicien={userData} view="reparation" />
           ) : (
-            <MaintenanceTab technicien={userData} />
+            <div className="space-y-6">
+              <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+                <CardHeader>
+                  <CardTitle className="flex items-center text-3xl font-bold text-primary">
+                    <CalendarDays className="mr-3 h-8 w-8" /> Maintenance
+                  </CardTitle>
+                  <CardDescription>Consultez votre planning et effectuez vos interventions de maintenance.</CardDescription>
+                </CardHeader>
+              </Card>
+              <Tabs defaultValue="maintenance" className="space-y-6">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="maintenance" className="flex items-center gap-2">
+                    <Wrench className="h-4 w-4" /> Faire une Maintenance
+                  </TabsTrigger>
+                  <TabsTrigger value="planning" className="flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4" /> Mon Planning
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="maintenance">
+                  <MaintenanceTab technicien={userData} />
+                </TabsContent>
+                <TabsContent value="planning">
+                  <MonPlanningMaintenancePage technicien={userData} view="planning" hideTitle />
+                </TabsContent>
+              </Tabs>
+            </div>
           )}
         </motion.div>
       </main>

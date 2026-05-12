@@ -33,7 +33,7 @@ const StatutBadge = ({ statut }) => {
   return <Badge className={cfg.cls}>{cfg.label}</Badge>;
 };
 
-const StockDefectueuxTab = ({ canManage = true }) => {
+const StockDefectueuxTab = ({ canManage = true, technicienId = null }) => {
   const { toast } = useToast();
   const [stock, setStock] = useState([]);
   const [agences, setAgences] = useState([]);
@@ -48,19 +48,30 @@ const StockDefectueuxTab = ({ canManage = true }) => {
 
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
+  const [detailMouvements, setDetailMouvements] = useState([]);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
 
   const load = useCallback(async () => {
     setIsLoading(true);
+    let stockQuery = supabase
+      .from('stock_defectueux')
+      .select('*, agence:agences(nom, codePDV)')
+      .order('date_entree', { ascending: false });
+
+    if (technicienId) {
+      stockQuery = stockQuery.eq('technicien_id', String(technicienId));
+    }
+
     const [sRes, aRes, tRes] = await Promise.all([
-      supabase.from('stock_defectueux').select('*, agence:agences(nom, codePDV)').order('date_entree', { ascending: false }),
+      stockQuery,
       supabase.from('agences').select('id, nom, codePDV').order('nom'),
-      supabase.from('techniciens').select('id, nom, matricule').order('nom').limit(200),
+      supabase.from('techniciens').select('id, nom, prenom, matricule').order('nom').limit(200),
     ]);
     if (!sRes.error) setStock(sRes.data || []);
     if (!aRes.error) setAgences(aRes.data || []);
     if (!tRes.error) setTechniciens(tRes.data || []);
     setIsLoading(false);
-  }, []);
+  }, [technicienId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -96,11 +107,48 @@ const StockDefectueuxTab = ({ canManage = true }) => {
     setIsLoading(false);
   };
 
+  const EQUIP_TABLE_MAP = {
+    imprimante: 'equipments_imprimantes',
+    lecteur: 'equipments_lecteurs',
+    ecran: 'equipments_ecrans',
+    afficheur: 'equipments_afficheurs',
+  };
+
   const updateStatut = async (id, statut) => {
     const updates = { statut };
     if (statut === 'repare') updates.date_sortie = new Date().toISOString();
     const { error } = await supabase.from('stock_defectueux').update(updates).eq('id', id);
-    if (error) { showErr(error.message); } else { showOk(`Statut mis à jour : ${STATUT_CONFIG[statut]?.label || statut}.`); load(); }
+    if (error) { showErr(error.message); return; }
+
+    // Quand réparé → remettre le sous-ensemble à Disponible dans sa table équipement
+    if (statut === 'repare') {
+      const item = stock.find(s => String(s.id) === String(id));
+      const table = item?.type_sous_ensemble ? EQUIP_TABLE_MAP[item.type_sous_ensemble] : null;
+      if (table && item?.reference_sous_ensemble) {
+        const { error: eqErr } = await supabase
+          .from(table)
+          .update({ statut: 'Disponible' })
+          .eq('reference', item.reference_sous_ensemble);
+        if (eqErr) console.error('Erreur remise Disponible du sous-ensemble:', eqErr);
+      }
+    }
+
+    showOk(`Statut mis à jour : ${STATUT_CONFIG[statut]?.label || statut}.`);
+    load();
+  };
+
+  const openDetail = async (item) => {
+    setDetailItem(item);
+    setDetailMouvements([]);
+    setIsDetailOpen(true);
+    setIsLoadingDetail(true);
+    const { data } = await supabase
+      .from('stock_pieces_mouvements')
+      .select('*, piece:pieces_sous_ensembles(nom, reference)')
+      .eq('stock_defectueux_id', item.id)
+      .order('created_at', { ascending: true });
+    setDetailMouvements(data || []);
+    setIsLoadingDetail(false);
   };
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '—';
@@ -185,7 +233,7 @@ const StockDefectueuxTab = ({ canManage = true }) => {
             </TableHeader>
             <TableBody>
               {filtered.map(item => (
-                <TableRow key={item.id} className="cursor-pointer hover:bg-muted/40" onClick={() => { setDetailItem(item); setIsDetailOpen(true); }}>
+                <TableRow key={item.id} className="cursor-pointer hover:bg-muted/40" onClick={() => openDetail(item)}>
                   <TableCell className="font-medium font-mono">{item.reference_sous_ensemble}</TableCell>
                   <TableCell><Badge variant="outline">{SOUS_ENSEMBLE_LABELS[item.type_sous_ensemble] || item.type_sous_ensemble}</Badge></TableCell>
                   <TableCell>{item.type_terminal || '—'}</TableCell>
@@ -222,29 +270,46 @@ const StockDefectueuxTab = ({ canManage = true }) => {
 
       {/* Dialog Assigner technicien */}
       <Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UserCheck className="h-5 w-5 text-primary" />
-              Assigner à un technicien
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-4">
-            <p className="text-sm text-muted-foreground">
-              Sous-ensemble : <span className="font-medium">{selectedItem?.reference_sous_ensemble}</span>
-            </p>
-            <div className="space-y-1">
-              <Label>Technicien</Label>
+        <DialogContent className="sm:max-w-md relative overflow-hidden p-0">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+          <div className="relative px-6 pb-6 pt-6 space-y-4">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-primary">
+                <UserCheck className="h-5 w-5" />
+                Assigner à un technicien
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="rounded-xl border border-primary/20 bg-white/60 px-4 py-3 text-sm">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Sous-ensemble concerné</p>
+              <p className="font-semibold text-slate-800">
+                {selectedItem?.reference_sous_ensemble}
+                {selectedItem?.type_sous_ensemble && (
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    — {SOUS_ENSEMBLE_LABELS[selectedItem.type_sous_ensemble] || selectedItem.type_sous_ensemble}
+                  </span>
+                )}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Technicien *</Label>
               {techniciens.length > 0 ? (
                 <Select value={assignForm.technicien_id} onValueChange={v => {
                   const tech = techniciens.find(t => String(t.id) === v);
-                  setAssignForm({ technicien_id: v, technicien_nom: tech?.nom || '' });
+                  setAssignForm({ technicien_id: v, technicien_nom: `${tech?.prenom || ''} ${tech?.nom || ''}`.trim() });
                 }}>
-                  <SelectTrigger><SelectValue placeholder="Choisir un technicien..." /></SelectTrigger>
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="Choisir un technicien..." />
+                  </SelectTrigger>
                   <SelectContent>
                     {techniciens.map(t => (
                       <SelectItem key={t.id} value={String(t.id)}>
-                        {t.nom}{t.matricule ? ` (${t.matricule})` : ''}
+                        <div className="flex flex-col">
+                          <span className="font-medium">{t.prenom} {t.nom}</span>
+                          {t.matricule && <span className="text-xs text-muted-foreground">{t.matricule}</span>}
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -257,19 +322,34 @@ const StockDefectueuxTab = ({ canManage = true }) => {
                 />
               )}
             </div>
+
+            <DialogFooter className="pt-2">
+              <DialogClose asChild>
+                <Button variant="outline" disabled={isLoading}>Annuler</Button>
+              </DialogClose>
+              <Button
+                onClick={assignTechnicien}
+                disabled={isLoading || !assignForm.technicien_id}
+                className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90"
+              >
+                {isLoading ? 'Assignation...' : 'Assigner'}
+              </Button>
+            </DialogFooter>
           </div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline">Annuler</Button></DialogClose>
-            <Button onClick={assignTechnicien} disabled={isLoading}>Assigner</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Dialog Détail */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg relative overflow-hidden p-0">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+          <div className="relative px-6 pb-6 pt-6">
           <DialogHeader>
-            <DialogTitle>Détail — {detailItem?.reference_sous_ensemble}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-primary">
+              <Wrench className="h-5 w-5" />
+              Détail — {detailItem?.reference_sous_ensemble}
+            </DialogTitle>
           </DialogHeader>
           {detailItem && (
             <div className="space-y-4 py-4 text-sm">
@@ -295,6 +375,26 @@ const StockDefectueuxTab = ({ canManage = true }) => {
                   <p className="rounded-md border bg-muted/40 px-3 py-2">{detailItem.commentaire}</p>
                 </div>
               )}
+              <div>
+                <p className="text-muted-foreground font-medium mb-2">Pièces détachées traitées</p>
+                {isLoadingDetail ? (
+                  <p className="text-xs text-muted-foreground">Chargement...</p>
+                ) : detailMouvements.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">Aucune pièce traitée enregistrée.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {detailMouvements.map(m => (
+                      <div key={m.id} className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-1.5 text-xs">
+                        <span className="flex-1 font-medium">{m.piece?.nom || '—'}</span>
+                        <span className="font-mono text-muted-foreground">{m.piece?.reference}</span>
+                        <Badge className={m.type === 'nettoyage' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}>
+                          {m.type === 'nettoyage' ? 'Nettoyée' : 'Remplacée'}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               {canManage && (
                 <div className="flex gap-2 pt-2">
                   {detailItem.statut === 'defectueux' && (
@@ -316,6 +416,7 @@ const StockDefectueuxTab = ({ canManage = true }) => {
               )}
             </div>
           )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

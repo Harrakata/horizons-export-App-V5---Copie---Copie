@@ -200,10 +200,39 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [modeleOptions, setModeleOptions] = useState([]);
 
+  const syncStatutsDepuisTerminaux = async () => {
+    const { data: allTerminaux } = await supabase
+      .from('terminaux')
+      .select('imprimante_reference, lecteur_reference, ecran_reference, afficheur_reference');
+
+    if (!allTerminaux?.length) return;
+
+    const typeConfigs = [
+      { field: 'imprimante_reference', table: 'equipments_imprimantes' },
+      { field: 'lecteur_reference',    table: 'equipments_lecteurs' },
+      { field: 'ecran_reference',      table: 'equipments_ecrans' },
+      { field: 'afficheur_reference',  table: 'equipments_afficheurs' },
+    ];
+
+    const ops = [];
+    for (const { field, table } of typeConfigs) {
+      const assignedRefs = allTerminaux.map(t => t[field]).filter(Boolean);
+      if (assignedRefs.length > 0) {
+        // Assignés au terminal → En service (seulement si encore Disponible)
+        ops.push(
+          supabase.from(table).update({ statut: 'En service' }).in('reference', assignedRefs).eq('statut', 'Disponible')
+        );
+      }
+    }
+    if (ops.length > 0) await Promise.all(ops);
+  };
+
   const loadEquipments = async () => {
     setIsLoading(true);
 
     try {
+      await syncStatutsDepuisTerminaux();
+
       const [mRes, ...eResults] = await Promise.all([
         supabase.from('modeles_sous_ensembles').select('id, nom, sous_ensemble').order('nom'),
         ...Object.entries(EQUIPMENT_TYPES).map(([, config]) =>

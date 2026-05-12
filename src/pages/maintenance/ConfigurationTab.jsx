@@ -24,7 +24,8 @@ const normalizeText = (value) =>
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
 
-const isEquipmentAvailableStatus = (status) => normalizeText(status) === 'disponible';
+const BLOCKED_EQUIPMENT_STATUSES = new Set(['en panne', 'hors service']);
+const isEquipmentAvailableStatus = (status) => !BLOCKED_EQUIPMENT_STATUSES.has(normalizeText(status));
 
 const DEFAULT_FORM_DATA = {
   ref: '',
@@ -42,24 +43,28 @@ const EQUIPMENT_FIELD_CONFIG = [
     formKey: 'imprimante',
     pluralKey: 'imprimantes',
     terminalKey: 'imprimante_reference',
+    table: 'equipments_imprimantes',
     label: 'Imprimante',
   },
   {
     formKey: 'lecteur',
     pluralKey: 'lecteurs',
     terminalKey: 'lecteur_reference',
+    table: 'equipments_lecteurs',
     label: 'Lecteur',
   },
   {
     formKey: 'ecran',
     pluralKey: 'ecrans',
     terminalKey: 'ecran_reference',
+    table: 'equipments_ecrans',
     label: 'Écran',
   },
   {
     formKey: 'afficheur',
     pluralKey: 'afficheurs',
     terminalKey: 'afficheur_reference',
+    table: 'equipments_afficheurs',
     label: 'Afficheur client',
   },
 ];
@@ -536,6 +541,20 @@ const ConfigurationTab = ({
       setIsLoading(false);
       return;
     }
+
+    // Mise à jour automatique des statuts sous-ensembles
+    const statusOps = [];
+    for (const config of EQUIPMENT_FIELD_CONFIG) {
+      const newRef = formData[config.formKey] || null;
+      const oldRef = editingTerminalId ? (editingTerminal?.[config.terminalKey] || null) : null;
+      if (newRef && newRef !== oldRef) {
+        statusOps.push(supabase.from(config.table).update({ statut: 'En service' }).eq('reference', newRef));
+      }
+      if (oldRef && oldRef !== newRef) {
+        statusOps.push(supabase.from(config.table).update({ statut: 'Disponible' }).eq('reference', oldRef));
+      }
+    }
+    if (statusOps.length > 0) await Promise.all(statusOps);
 
     toast({
       title: editingTerminalId ? 'Terminal mis à jour' : 'Terminal ajouté',

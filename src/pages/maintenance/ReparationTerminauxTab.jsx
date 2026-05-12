@@ -6,9 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
-import { AlertTriangle, CheckCircle2, HelpCircle, Package2, Wrench, ArrowRight, FlaskConical } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, HelpCircle, Package2, Wrench, ArrowRight, FlaskConical, ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
 
 const SOUS_ENSEMBLE_LABELS = {
   imprimante: 'Imprimante',
@@ -50,6 +49,17 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
   const [filterType, setFilterType] = useState('__all__');
   const [filterTerminal, setFilterTerminal] = useState('__all__');
 
+  const [expandedItems, setExpandedItems] = useState(new Set());
+  const [itemPiecesCache, setItemPiecesCache] = useState({});
+  const [loadingExpandIds, setLoadingExpandIds] = useState(new Set());
+
+  const EQUIP_TABLE_MAP = {
+    imprimante: 'equipments_imprimantes',
+    lecteur: 'equipments_lecteurs',
+    ecran: 'equipments_ecrans',
+    afficheur: 'equipments_afficheurs',
+  };
+
   const load = useCallback(async () => {
     setIsLoading(true);
     const [sRes, pRes, spRes] = await Promise.all([
@@ -57,7 +67,46 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
       supabase.from('pieces_sous_ensembles').select('*').order('nom'),
       supabase.from('stock_pieces').select('*, piece:pieces_sous_ensembles(nom, reference)'),
     ]);
-    if (!sRes.error) setStock(sRes.data || []);
+
+    let stockData = sRes.data || [];
+
+    if (!sRes.error && stockData.length > 0) {
+      // Step 1: get modele name (string) from equipment tables per reference
+      const byType = {};
+      for (const item of stockData) {
+        const type = item.type_sous_ensemble;
+        if (!byType[type]) byType[type] = [];
+        if (item.reference_sous_ensemble) byType[type].push(item.reference_sous_ensemble);
+      }
+      const refToModeleNom = {};
+      await Promise.all(
+        Object.entries(byType).map(async ([type, refs]) => {
+          const table = EQUIP_TABLE_MAP[type];
+          if (!table || refs.length === 0) return;
+          const { data } = await supabase.from(table).select('reference, modele').in('reference', refs);
+          for (const eq of (data || [])) refToModeleNom[eq.reference] = eq.modele;
+        })
+      );
+
+      // Step 2: resolve modele name → modeles_sous_ensembles.id
+      const uniqueNoms = [...new Set(Object.values(refToModeleNom).filter(Boolean))];
+      const nomToId = {};
+      if (uniqueNoms.length > 0) {
+        const { data: modeles } = await supabase
+          .from('modeles_sous_ensembles')
+          .select('id, nom')
+          .in('nom', uniqueNoms);
+        for (const m of (modeles || [])) nomToId[m.nom] = m.id;
+      }
+
+      stockData = stockData.map(item => {
+        if (item.modele_id) return item;
+        const nom = refToModeleNom[item.reference_sous_ensemble];
+        return { ...item, modele_id: nom ? (nomToId[nom] ?? null) : null };
+      });
+    }
+
+    if (!sRes.error) { setStock(stockData); setItemPiecesCache({}); }
     if (!pRes.error) setPieces(pRes.data || []);
     if (!spRes.error) setStockPieces(spRes.data || []);
     setIsLoading(false);
@@ -108,14 +157,53 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
   };
 
   const markRepare = async (itemId) => {
+    const item = stock.find(s => s.id === itemId) || selectedItem;
     const { error } = await supabase.from('stock_defectueux').update({ statut: 'repare', date_sortie: new Date().toISOString() }).eq('id', itemId);
     if (error) { showErr(error.message); return; }
-    showOk('Sous-ensemble marqué Réparé — disponible pour réaffectation.');
+    const table = item?.type_sous_ensemble ? EQUIP_TABLE_MAP[item.type_sous_ensemble] : null;
+    if (table && item?.reference_sous_ensemble) {
+      await supabase.from(table).update({ statut: 'Disponible' }).eq('reference', item.reference_sous_ensemble);
+    }
+    showOk('Sous-ensemble marqué Réparé — statut remis à Disponible.');
     setSelectedItem(null);
     load();
   };
 
-  const openReplace = (piece) => {
+  const toggleExpand = useCallback(async (item) => {
+    const id = item.id;
+    setExpandedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); return next; }
+      next.add(id);
+      return next;
+    });
+    if (itemPiecesCache[id] !== undefined) return;
+    if (!item.modele_id) {
+      setItemPiecesCache(prev => ({ ...prev, [id]: [] }));
+      return;
+    }
+    setLoadingExpandIds(prev => new Set(prev).add(id));
+    const { data } = await supabase
+      .from('modeles_pieces')
+      .select('*, piece:pieces_sous_ensembles(id, nom, reference, description_aide)')
+      .eq('modele_id', item.modele_id);
+    setItemPiecesCache(prev => ({ ...prev, [id]: data || [] }));
+    setLoadingExpandIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+  }, [itemPiecesCache]);
+
+  const markNettoye = async (piece, item) => {
+    await supabase.from('stock_pieces_mouvements').insert({
+      piece_id: piece.id,
+      type: 'nettoyage',
+      quantite: 0,
+      motif: `Nettoyage sur ${item.reference_sous_ensemble}`,
+      stock_defectueux_id: item.id,
+    });
+    showOk(`Pièce "${piece.nom}" marquée comme Nettoyée.`);
+  };
+
+  const openReplace = (piece, item = null) => {
+    if (item) setSelectedItem(item);
     setReplacingPiece(piece);
     setReplacePieceId('');
     setIsReplaceOpen(true);
@@ -204,24 +292,78 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
                 </p>
               ) : (
                 <div className="divide-y">
-                  {filteredStock.map(item => (
-                    <button
-                      key={item.id}
-                      className={`w-full text-left px-4 py-3 transition-colors hover:bg-muted/50 ${selectedItem?.id === item.id ? 'bg-primary/10 border-l-4 border-primary' : ''}`}
-                      onClick={() => loadItemDetail(item)}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-sm font-mono">{item.reference_sous_ensemble}</span>
-                        <StatutBadge statut={item.statut} />
+                  {filteredStock.map(item => {
+                    const isExpanded = expandedItems.has(item.id);
+                    const cachedPieces = itemPiecesCache[item.id];
+                    const isLoadingExpand = loadingExpandIds.has(item.id);
+                    const isSelected = selectedItem?.id === item.id;
+                    return (
+                      <div key={item.id} className={isSelected ? 'border-l-4 border-primary bg-primary/10' : ''}>
+                        <div className="flex items-stretch">
+                          <button
+                            className="flex-1 text-left px-4 py-3 transition-colors hover:bg-muted/50"
+                            onClick={() => loadItemDetail(item)}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium text-sm font-mono">{item.reference_sous_ensemble}</span>
+                              <StatutBadge statut={item.statut} />
+                            </div>
+                            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                              <Badge variant="outline" className="text-xs">{SOUS_ENSEMBLE_LABELS[item.type_sous_ensemble] || item.type_sous_ensemble}</Badge>
+                              {item.type_terminal && <span>• {item.type_terminal}</span>}
+                              {item.agence?.nom && <span>• {item.agence.nom}</span>}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-0.5">Entré le {formatDate(item.date_entree)}</div>
+                          </button>
+                          <button
+                            className="px-3 flex items-center justify-center hover:bg-muted/50 transition-colors text-muted-foreground"
+                            title={isExpanded ? 'Réduire' : 'Voir les pièces'}
+                            onClick={() => toggleExpand(item)}
+                          >
+                            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        {isExpanded && (
+                          <div className="px-3 pb-3 bg-muted/20 space-y-1.5">
+                            {isLoadingExpand ? (
+                              <p className="text-xs text-muted-foreground py-2 text-center">Chargement des pièces...</p>
+                            ) : !cachedPieces || cachedPieces.length === 0 ? (
+                              <p className="text-xs text-muted-foreground py-2 text-center">
+                                {!item.modele_id ? 'Aucun modèle associé.' : 'Aucune pièce référencée.'}
+                              </p>
+                            ) : cachedPieces.map(mp => {
+                              const sp = stockPiecesById[mp.piece?.id];
+                              return (
+                                <div key={mp.id} className="flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-xs">
+                                  <span className="flex-1 font-medium truncate">{mp.piece?.nom}</span>
+                                  {sp && (
+                                    <span className={`text-xs font-mono shrink-0 ${sp.quantite === 0 ? 'text-red-600' : sp.quantite <= (sp.seuil_alerte || 2) ? 'text-yellow-600' : 'text-green-700'}`}>
+                                      ×{sp.quantite}
+                                    </span>
+                                  )}
+                                  {mp.piece && (
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-primary shrink-0" title="Aide à la réparation" onClick={() => loadPieceHelp(mp.piece)}>
+                                      <HelpCircle className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
+                                  {canManage && mp.piece && (
+                                    <>
+                                      <Button size="sm" variant="outline" className="h-6 text-xs px-2 text-green-700 border-green-300 shrink-0" onClick={() => markNettoye(mp.piece, item)}>
+                                        <Sparkles className="mr-1 h-3 w-3" />Nettoyée
+                                      </Button>
+                                      <Button size="sm" variant="outline" className="h-6 text-xs px-2 shrink-0" onClick={() => openReplace(mp.piece, item)}>
+                                        <ArrowRight className="mr-1 h-3 w-3" />Remplacer
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                        <Badge variant="outline" className="text-xs">{SOUS_ENSEMBLE_LABELS[item.type_sous_ensemble] || item.type_sous_ensemble}</Badge>
-                        {item.type_terminal && <span>• {item.type_terminal}</span>}
-                        {item.agence?.nom && <span>• {item.agence.nom}</span>}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-0.5">Entré le {formatDate(item.date_entree)}</div>
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -277,64 +419,53 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
               </Card>
 
               {/* Pièces du modèle */}
-              <Card className="relative overflow-hidden shadow-lg">
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
-                <CardHeader className="relative pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base text-primary">
-                    <Wrench className="h-4 w-4" /> Pièces du modèle
-                  </CardTitle>
-                  {!selectedItem.modele_id && (
-                    <p className="text-sm text-muted-foreground">Aucun modèle associé à ce sous-ensemble.</p>
-                  )}
-                </CardHeader>
-                {itemPieces.length > 0 && (
-                  <CardContent className="p-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Pièce</TableHead>
-                          <TableHead>Référence</TableHead>
-                          <TableHead>Qté modèle</TableHead>
-                          <TableHead>Stock dispo</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {itemPieces.map(mp => {
-                          const sp = stockPiecesById[mp.piece?.id];
-                          return (
-                            <TableRow key={mp.id}>
-                              <TableCell className="font-medium">{mp.piece?.nom}</TableCell>
-                              <TableCell className="font-mono text-sm">{mp.piece?.reference}</TableCell>
-                              <TableCell>{mp.quantite}</TableCell>
-                              <TableCell>
-                                {sp ? (
-                                  <span className={sp.quantite === 0 ? 'text-red-600 font-bold' : sp.quantite <= sp.seuil_alerte ? 'text-yellow-600 font-semibold' : 'text-green-700'}>
-                                    {sp.quantite}
-                                  </span>
-                                ) : <span className="text-muted-foreground text-xs">Non suivi</span>}
-                              </TableCell>
-                              <TableCell className="text-right space-x-1">
-                                {mp.piece && (
-                                  <Button variant="ghost" size="icon" title="Aide réparation" className="text-primary" onClick={() => loadPieceHelp(mp.piece)}>
-                                    <HelpCircle className="h-4 w-4" />
-                                  </Button>
-                                )}
-                                {canManage && mp.piece && (
-                                  <Button size="sm" variant="outline" className="text-xs" onClick={() => openReplace(mp.piece)}>
-                                    <ArrowRight className="mr-1 h-3 w-3" /> Remplacer
-                                  </Button>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+              {(itemPieces.length > 0 || selectedItem.modele_id) && (
+                <Card className="relative overflow-hidden shadow-lg">
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+                  <CardHeader className="relative py-2 px-4">
+                    <CardTitle className="flex items-center gap-2 text-sm text-primary">
+                      <Wrench className="h-3.5 w-3.5" /> Pièces du modèle
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-3 pt-0 space-y-1.5">
+                    {itemPieces.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Aucune pièce référencée.</p>
+                    ) : itemPieces.map(mp => {
+                      const sp = stockPiecesById[mp.piece?.id];
+                      return (
+                        <div key={mp.id} className="flex items-center gap-2 rounded-md border bg-background/60 px-3 py-1.5 text-xs">
+                          <div className="flex-1 min-w-0">
+                            <span className="font-medium">{mp.piece?.nom}</span>
+                            <span className="ml-2 font-mono text-muted-foreground">{mp.piece?.reference}</span>
+                          </div>
+                          <span className="text-muted-foreground shrink-0">×{mp.quantite}</span>
+                          {sp ? (
+                            <span className={`font-semibold shrink-0 ${sp.quantite === 0 ? 'text-red-600' : sp.quantite <= (sp.seuil_alerte || 2) ? 'text-yellow-600' : 'text-green-700'}`}>
+                              Stock: {sp.quantite}
+                            </span>
+                          ) : <span className="text-muted-foreground shrink-0">Non suivi</span>}
+                          {mp.piece && (
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-primary shrink-0" title="Aide réparation" onClick={() => loadPieceHelp(mp.piece)}>
+                              <HelpCircle className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {canManage && mp.piece && (
+                            <>
+                              <Button size="sm" variant="outline" className="h-6 text-xs px-2 text-green-700 border-green-300 shrink-0" onClick={() => markNettoye(mp.piece, selectedItem)}>
+                                <Sparkles className="mr-1 h-3 w-3" />Nettoyée
+                              </Button>
+                              <Button size="sm" variant="outline" className="h-6 text-xs px-2 shrink-0" onClick={() => openReplace(mp.piece)}>
+                                <ArrowRight className="mr-1 h-3 w-3" />Remplacer
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
                   </CardContent>
-                )}
-              </Card>
+                </Card>
+              )}
             </>
           )}
         </div>
