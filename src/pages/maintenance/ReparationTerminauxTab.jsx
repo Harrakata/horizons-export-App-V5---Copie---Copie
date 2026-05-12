@@ -4,10 +4,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { AlertTriangle, CheckCircle2, HelpCircle, Package2, Wrench, ArrowRight, FlaskConical, ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, HelpCircle, Package2, Wrench, ArrowRight, FlaskConical, ChevronDown, ChevronRight, Sparkles, CheckCheck, Search, X } from 'lucide-react';
 
 const SOUS_ENSEMBLE_LABELS = {
   imprimante: 'Imprimante',
@@ -48,10 +49,13 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
 
   const [filterType, setFilterType] = useState('__all__');
   const [filterTerminal, setFilterTerminal] = useState('__all__');
+  const [pieceSearch, setPieceSearch] = useState('');
 
   const [expandedItems, setExpandedItems] = useState(new Set());
   const [itemPiecesCache, setItemPiecesCache] = useState({});
   const [loadingExpandIds, setLoadingExpandIds] = useState(new Set());
+  // { [itemId]: { [pieceId]: 'nettoyage' | 'remplacement' } }
+  const [treatedPieces, setTreatedPieces] = useState({});
 
   const EQUIP_TABLE_MAP = {
     imprimante: 'equipments_imprimantes',
@@ -123,6 +127,25 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
     [stock, filterType, filterTerminal]
   );
 
+  const pieceSearchLower = pieceSearch.trim().toLowerCase();
+
+  // Auto-expand items whose cached pieces match the search, and trigger load for uncached ones
+  useEffect(() => {
+    if (!pieceSearchLower) return;
+    filteredStock.forEach(item => {
+      const cached = itemPiecesCache[item.id];
+      if (cached === undefined) {
+        // trigger load so we can search inside
+        toggleExpand(item);
+      } else if (cached.some(mp =>
+        mp.piece?.nom?.toLowerCase().includes(pieceSearchLower) ||
+        mp.piece?.reference?.toLowerCase().includes(pieceSearchLower)
+      )) {
+        setExpandedItems(prev => { const n = new Set(prev); n.add(item.id); return n; });
+      }
+    });
+  }, [pieceSearchLower]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const loadItemDetail = useCallback(async (item) => {
     setSelectedItem(item);
     if (!item.modele_id) { setItemPieces([]); return; }
@@ -154,6 +177,7 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
     showOk('Sous-ensemble passé à "À tester".');
     setSelectedItem(prev => prev ? { ...prev, statut: 'a_tester' } : prev);
     setStock(prev => prev.map(s => s.id === itemId ? { ...s, statut: 'a_tester' } : s));
+    setTreatedPieces(prev => { const n = { ...prev }; delete n[itemId]; return n; });
   };
 
   const markRepare = async (itemId) => {
@@ -192,13 +216,18 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
   }, [itemPiecesCache]);
 
   const markNettoye = async (piece, item) => {
-    await supabase.from('stock_pieces_mouvements').insert({
+    const { error } = await supabase.from('stock_pieces_mouvements').insert({
       piece_id: piece.id,
       type: 'nettoyage',
       quantite: 0,
       motif: `Nettoyage sur ${item.reference_sous_ensemble}`,
       stock_defectueux_id: item.id,
     });
+    if (error) { showErr(error.message); return; }
+    setTreatedPieces(prev => ({
+      ...prev,
+      [item.id]: { ...(prev[item.id] || {}), [piece.id]: 'nettoyage' },
+    }));
     showOk(`Pièce "${piece.nom}" marquée comme Nettoyée.`);
   };
 
@@ -222,12 +251,11 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
       motif: `Remplacement sur ${selectedItem.reference_sous_ensemble}`,
       stock_defectueux_id: selectedItem.id,
     });
-    if (selectedItem.statut !== 'a_tester' && selectedItem.statut !== 'repare') {
-      await supabase.from('stock_defectueux').update({ statut: 'a_tester' }).eq('id', selectedItem.id);
-      setSelectedItem(prev => prev ? { ...prev, statut: 'a_tester' } : prev);
-      setStock(prev => prev.map(s => s.id === selectedItem.id ? { ...s, statut: 'a_tester' } : s));
-    }
-    showOk('Pièce remplacée — stock mis à jour. Sous-ensemble passé à "À tester".');
+    setTreatedPieces(prev => ({
+      ...prev,
+      [selectedItem.id]: { ...(prev[selectedItem.id] || {}), [replacingPiece.id]: 'remplacement' },
+    }));
+    showOk('Pièce remplacée — stock mis à jour.');
     setIsReplaceOpen(false);
     load();
     setIsLoading(false);
@@ -266,7 +294,7 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
               <CardTitle className="flex items-center gap-2 text-xl text-primary">
                 <Package2 className="h-5 w-5" /> Sous-ensembles à traiter
               </CardTitle>
-              <CardDescription>Filtre par type et terminal</CardDescription>
+              <CardDescription>Filtre par type, terminal ou pièce détachée</CardDescription>
               <div className="flex flex-wrap gap-2 pt-1">
                 <Select value={filterType} onValueChange={setFilterType}>
                   <SelectTrigger className="w-44"><SelectValue placeholder="Tous les types" /></SelectTrigger>
@@ -283,6 +311,23 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
                     <SelectItem value="2031">2031</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="relative pt-1">
+                <Search className="absolute left-2.5 top-[calc(0.25rem+0.5rem)] h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder="Rechercher une pièce détachée..."
+                  value={pieceSearch}
+                  onChange={e => setPieceSearch(e.target.value)}
+                  className="pl-8 pr-7 h-8 text-xs"
+                />
+                {pieceSearch && (
+                  <button
+                    className="absolute right-2 top-[calc(0.25rem+0.5rem)] text-muted-foreground hover:text-foreground"
+                    onClick={() => setPieceSearch('')}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -331,34 +376,78 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
                               <p className="text-xs text-muted-foreground py-2 text-center">
                                 {!item.modele_id ? 'Aucun modèle associé.' : 'Aucune pièce référencée.'}
                               </p>
-                            ) : cachedPieces.map(mp => {
-                              const sp = stockPiecesById[mp.piece?.id];
-                              return (
-                                <div key={mp.id} className="flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-xs">
-                                  <span className="flex-1 font-medium truncate">{mp.piece?.nom}</span>
-                                  {sp && (
-                                    <span className={`text-xs font-mono shrink-0 ${sp.quantite === 0 ? 'text-red-600' : sp.quantite <= (sp.seuil_alerte || 2) ? 'text-yellow-600' : 'text-green-700'}`}>
-                                      ×{sp.quantite}
-                                    </span>
-                                  )}
-                                  {mp.piece && (
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-primary shrink-0" title="Aide à la réparation" onClick={() => loadPieceHelp(mp.piece)}>
-                                      <HelpCircle className="h-3.5 w-3.5" />
-                                    </Button>
-                                  )}
-                                  {canManage && mp.piece && (
-                                    <>
-                                      <Button size="sm" variant="outline" className="h-6 text-xs px-2 text-green-700 border-green-300 shrink-0" onClick={() => markNettoye(mp.piece, item)}>
-                                        <Sparkles className="mr-1 h-3 w-3" />Nettoyée
+                            ) : (
+                              <>
+                                {pieceSearchLower && !cachedPieces.some(mp =>
+                                  mp.piece?.nom?.toLowerCase().includes(pieceSearchLower) ||
+                                  mp.piece?.reference?.toLowerCase().includes(pieceSearchLower)
+                                ) ? (
+                                  <p className="text-xs text-muted-foreground py-1 text-center italic">Aucune pièce ne correspond à la recherche.</p>
+                                ) : null}
+                                {cachedPieces
+                                  .filter(mp => !pieceSearchLower ||
+                                    mp.piece?.nom?.toLowerCase().includes(pieceSearchLower) ||
+                                    mp.piece?.reference?.toLowerCase().includes(pieceSearchLower)
+                                  )
+                                  .map(mp => {
+                                  const sp = stockPiecesById[mp.piece?.id];
+                                  const pieceAction = treatedPieces[item.id]?.[mp.piece?.id];
+                                  return (
+                                    <div key={mp.id} className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs transition-colors ${pieceAction ? 'bg-green-50 border-green-200' : 'bg-background'}`}>
+                                      <span className="flex-1 font-medium truncate">{mp.piece?.nom}</span>
+                                      {pieceAction && (
+                                        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${pieceAction === 'nettoyage' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                                          {pieceAction === 'nettoyage' ? '✓ Nettoyée' : '✓ Remplacée'}
+                                        </span>
+                                      )}
+                                      {sp && !pieceAction && (
+                                        <span className={`text-xs font-mono shrink-0 ${sp.quantite === 0 ? 'text-red-600' : sp.quantite <= (sp.seuil_alerte || 2) ? 'text-yellow-600' : 'text-green-700'}`}>
+                                          ×{sp.quantite}
+                                        </span>
+                                      )}
+                                      {mp.piece && (
+                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-primary shrink-0" title="Aide à la réparation" onClick={() => loadPieceHelp(mp.piece)}>
+                                          <HelpCircle className="h-3.5 w-3.5" />
+                                        </Button>
+                                      )}
+                                      {canManage && mp.piece && !pieceAction && (
+                                        <>
+                                          <Button size="sm" variant="outline" className="h-6 text-xs px-2 text-green-700 border-green-300 shrink-0" onClick={() => markNettoye(mp.piece, item)}>
+                                            <Sparkles className="mr-1 h-3 w-3" />Nettoyée
+                                          </Button>
+                                          <Button size="sm" variant="outline" className="h-6 text-xs px-2 shrink-0" onClick={() => openReplace(mp.piece, item)}>
+                                            <ArrowRight className="mr-1 h-3 w-3" />Remplacer
+                                          </Button>
+                                        </>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                                {canManage && item.statut !== 'a_tester' && item.statut !== 'repare' && (
+                                  <div className="pt-1.5 border-t border-dashed border-muted-foreground/20">
+                                    {Object.keys(treatedPieces[item.id] || {}).length > 0 ? (
+                                      <Button
+                                        size="sm"
+                                        className="w-full h-7 text-xs bg-yellow-500 hover:bg-yellow-600 text-white"
+                                        onClick={() => markATester(item.id)}
+                                      >
+                                        <FlaskConical className="mr-1.5 h-3.5 w-3.5" />
+                                        Passer en test ({Object.keys(treatedPieces[item.id]).length} pièce{Object.keys(treatedPieces[item.id]).length > 1 ? 's' : ''} traitée{Object.keys(treatedPieces[item.id]).length > 1 ? 's' : ''})
                                       </Button>
-                                      <Button size="sm" variant="outline" className="h-6 text-xs px-2 shrink-0" onClick={() => openReplace(mp.piece, item)}>
-                                        <ArrowRight className="mr-1 h-3 w-3" />Remplacer
-                                      </Button>
-                                    </>
-                                  )}
-                                </div>
-                              );
-                            })}
+                                    ) : (
+                                      <p className="text-[10px] text-center text-muted-foreground italic">
+                                        Traitez au moins une pièce pour passer en test.
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                                {item.statut === 'a_tester' && (
+                                  <div className="pt-1.5 border-t border-dashed border-muted-foreground/20">
+                                    <p className="text-[10px] text-center text-yellow-700 font-medium">En attente de test — sélectionnez pour marquer Réparé</p>
+                                  </div>
+                                )}
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
@@ -405,8 +494,19 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
                 <CardContent className="space-y-3">
                   <div className="flex flex-wrap gap-2">
                     {canManage && selectedItem.statut !== 'repare' && selectedItem.statut !== 'a_tester' && (
-                      <Button size="sm" variant="outline" className="text-yellow-700 border-yellow-300" onClick={() => markATester(selectedItem.id)}>
-                        <FlaskConical className="mr-2 h-4 w-4" /> Marquer À tester
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={Object.keys(treatedPieces[selectedItem.id] || {}).length > 0 ? 'bg-yellow-500 text-white border-yellow-500 hover:bg-yellow-600' : 'text-yellow-700 border-yellow-300'}
+                        onClick={() => markATester(selectedItem.id)}
+                      >
+                        <FlaskConical className="mr-2 h-4 w-4" />
+                        Passer en test
+                        {Object.keys(treatedPieces[selectedItem.id] || {}).length > 0 && (
+                          <span className="ml-1.5 rounded-full bg-white/30 px-1.5 text-[10px] font-bold">
+                            {Object.keys(treatedPieces[selectedItem.id]).length}
+                          </span>
+                        )}
                       </Button>
                     )}
                     {canManage && selectedItem.statut === 'a_tester' && (
@@ -415,6 +515,29 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
                       </Button>
                     )}
                   </div>
+
+                  {/* Pièces traitées dans la session */}
+                  {Object.keys(treatedPieces[selectedItem.id] || {}).length > 0 && (
+                    <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3 space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-primary/80 flex items-center gap-1.5">
+                        <CheckCheck className="h-3.5 w-3.5" /> Pièces traitées cette session
+                      </p>
+                      <div className="space-y-1.5">
+                        {Object.entries(treatedPieces[selectedItem.id]).map(([pieceId, action]) => {
+                          const piece = itemPieces.find(mp => String(mp.piece?.id) === String(pieceId))?.piece
+                            || (itemPiecesCache[selectedItem.id] || []).find(mp => String(mp.piece?.id) === String(pieceId))?.piece;
+                          return (
+                            <div key={pieceId} className="flex items-center justify-between gap-2 rounded-md bg-white px-2.5 py-1.5 text-xs shadow-sm border border-white">
+                              <span className="font-medium truncate">{piece?.nom || `Pièce #${pieceId}`}</span>
+                              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${action === 'nettoyage' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                                {action === 'nettoyage' ? '✓ Nettoyée' : '✓ Remplacée'}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
