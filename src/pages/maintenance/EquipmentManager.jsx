@@ -344,7 +344,7 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader className="relative">
-          <CardTitle className="text-2xl font-bold text-primary">Gestion des Équipements</CardTitle>
+          <CardTitle className="text-2xl font-bold text-primary">Gestion de sous-ensembles</CardTitle>
           <CardDescription>Gérez les imprimantes, écrans, lecteurs et afficheurs client disponibles pour les terminaux.</CardDescription>
         </CardHeader>
       </Card>

@@ -11,7 +11,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import {
-  AlertTriangle, BookOpen, Download, Edit, FileUp, HelpCircle, Layers, Package,
+  AlertTriangle, BookOpen, Check, Download, Edit, FileUp, HelpCircle, ImagePlus, Layers, Package,
   Plus, Search, Trash2, ArrowUpCircle, ArrowDownCircle, Wrench, X,
 } from 'lucide-react';
 
@@ -47,11 +47,21 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
   const [isPieceOpen, setIsPieceOpen] = useState(false);
   const [editingPiece, setEditingPiece] = useState(null);
   const [pieceForm, setPieceForm] = useState(DEFAULT_PIECE);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
 
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [helpPiece, setHelpPiece] = useState(null);
   const [newPanne, setNewPanne] = useState('');
   const [newProc, setNewProc] = useState({ description: '', image_url: '' });
+  const [editingPanneId, setEditingPanneId] = useState(null);
+  const [editingPanneText, setEditingPanneText] = useState('');
+  const [editingProcId, setEditingProcId] = useState(null);
+  const [editingProcData, setEditingProcData] = useState({ description: '', image_url: '' });
+  const [editingProcFile, setEditingProcFile] = useState(null);
+  const [editingProcPreview, setEditingProcPreview] = useState(null);
+  const [newProcFile, setNewProcFile] = useState(null);
+  const [newProcPreview, setNewProcPreview] = useState(null);
 
   const [isModeleOpen, setIsModeleOpen] = useState(false);
   const [editingModele, setEditingModele] = useState(null);
@@ -114,14 +124,41 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
   const showOk = (msg) => toast({ title: msg, className: 'bg-green-500 text-white' });
   const showErr = (msg) => toast({ title: 'Erreur', description: msg, variant: 'destructive' });
 
+  const resetPhotoState = () => {
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoFile(null);
+    setPhotoPreview(null);
+  };
+
   // --- PIECES CRUD ---
+  const uploadPiecePhoto = () => {
+    if (!photoFile) return Promise.resolve(pieceForm.photo_url);
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = () => reject(new Error('Erreur lors de la lecture du fichier image.'));
+      reader.readAsDataURL(photoFile);
+    });
+  };
+
   const savePiece = async () => {
     if (!pieceForm.nom.trim() || !pieceForm.reference.trim()) { showErr('Nom et référence requis.'); return; }
     setIsLoading(true);
-    const { error } = editingPiece
-      ? await supabase.from('pieces_sous_ensembles').update(pieceForm).eq('id', editingPiece.id)
-      : await supabase.from('pieces_sous_ensembles').insert(pieceForm);
-    if (error) { showErr(error.message); } else { showOk(`Pièce ${editingPiece ? 'modifiée' : 'ajoutée'}.`); setIsPieceOpen(false); load(); }
+    try {
+      const photo_url = await uploadPiecePhoto();
+      const dataToSave = { ...pieceForm, photo_url };
+      const { error } = editingPiece
+        ? await supabase.from('pieces_sous_ensembles').update(dataToSave).eq('id', editingPiece.id)
+        : await supabase.from('pieces_sous_ensembles').insert(dataToSave);
+      if (error) { showErr(error.message); } else {
+        showOk(`Pièce ${editingPiece ? 'modifiée' : 'ajoutée'}.`);
+        setIsPieceOpen(false);
+        resetPhotoState();
+        load();
+      }
+    } catch (err) {
+      showErr(err.message);
+    }
     setIsLoading(false);
   };
 
@@ -147,13 +184,43 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
 
   const delPanne = async (id) => { await supabase.from('pieces_pannes').delete().eq('id', id); loadHelp(helpPiece.id); };
 
+  const savePanneEdit = async () => {
+    if (!editingPanneText.trim()) return;
+    await supabase.from('pieces_pannes').update({ description: editingPanneText.trim() }).eq('id', editingPanneId);
+    setEditingPanneId(null); setEditingPanneText('');
+    loadHelp(helpPiece.id);
+  };
+
+  const fileToBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = () => reject(new Error('Erreur lecture fichier.'));
+    reader.readAsDataURL(file);
+  });
+
   const addProc = async () => {
     if (!newProc.description.trim()) return;
-    await supabase.from('pieces_procedures').insert({ piece_id: helpPiece.id, ordre: procedures.length + 1, ...newProc });
-    setNewProc({ description: '', image_url: '' }); loadHelp(helpPiece.id);
+    let image_url = newProc.image_url || null;
+    if (newProcFile) image_url = await fileToBase64(newProcFile);
+    await supabase.from('pieces_procedures').insert({ piece_id: helpPiece.id, ordre: procedures.length + 1, description: newProc.description, image_url });
+    setNewProc({ description: '', image_url: '' });
+    if (newProcPreview) URL.revokeObjectURL(newProcPreview);
+    setNewProcFile(null); setNewProcPreview(null);
+    loadHelp(helpPiece.id);
   };
 
   const delProc = async (id) => { await supabase.from('pieces_procedures').delete().eq('id', id); loadHelp(helpPiece.id); };
+
+  const saveProcEdit = async () => {
+    if (!editingProcData.description.trim()) return;
+    let image_url = editingProcData.image_url || null;
+    if (editingProcFile) image_url = await fileToBase64(editingProcFile);
+    await supabase.from('pieces_procedures').update({ description: editingProcData.description.trim(), image_url }).eq('id', editingProcId);
+    setEditingProcId(null); setEditingProcData({ description: '', image_url: '' });
+    if (editingProcPreview) URL.revokeObjectURL(editingProcPreview);
+    setEditingProcFile(null); setEditingProcPreview(null);
+    loadHelp(helpPiece.id);
+  };
 
   // --- MODELES CRUD ---
   const saveModele = async () => {
@@ -317,7 +384,7 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                   {canManage && (
                     <>
                       <Button variant="outline" onClick={() => { setImportRows([]); setImportErrors([]); setIsImportOpen(true); }}><FileUp className="mr-2 h-4 w-4" /> Importer</Button>
-                      <Button onClick={() => { setPieceForm(DEFAULT_PIECE); setEditingPiece(null); setIsPieceOpen(true); }}><Plus className="mr-2 h-4 w-4" /> Ajouter une pièce</Button>
+                      <Button onClick={() => { setPieceForm(DEFAULT_PIECE); setEditingPiece(null); resetPhotoState(); setIsPieceOpen(true); }}><Plus className="mr-2 h-4 w-4" /> Ajouter une pièce</Button>
                     </>
                   )}
                 </div>
@@ -389,7 +456,7 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                           <Button variant="ghost" size="icon" title="Aide réparation" className="text-primary" onClick={() => openHelp(p)}><HelpCircle className="h-4 w-4" /></Button>
                           {canManage && (
                             <>
-                              <Button variant="ghost" size="icon" className="text-blue-500" onClick={() => { setPieceForm({ ...p }); setEditingPiece(p); setIsPieceOpen(true); }}><Edit className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" className="text-blue-500" onClick={() => { setPieceForm({ ...p }); setEditingPiece(p); resetPhotoState(); setIsPieceOpen(true); }}><Edit className="h-4 w-4" /></Button>
                               <Button variant="ghost" size="icon" className="text-red-500" onClick={() => deletePiece(p.id)}><Trash2 className="h-4 w-4" /></Button>
                             </>
                           )}
@@ -463,8 +530,23 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                           <div className="space-y-2">
                             {pannes.map(p => (
                               <div key={p.id} className="flex items-start justify-between rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
-                                <span>{p.description}</span>
-                                {canManage && <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-red-400 ml-2" onClick={() => delPanne(p.id)}><Trash2 className="h-3 w-3" /></Button>}
+                                {editingPanneId === p.id ? (
+                                  <div className="flex flex-1 items-center gap-2">
+                                    <Input value={editingPanneText} onChange={e => setEditingPanneText(e.target.value)} className="flex-1 h-7 text-sm" autoFocus onKeyDown={e => { if (e.key === 'Enter') savePanneEdit(); if (e.key === 'Escape') { setEditingPanneId(null); setEditingPanneText(''); }}} />
+                                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-green-600" onClick={savePanneEdit}><Check className="h-3 w-3" /></Button>
+                                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground" onClick={() => { setEditingPanneId(null); setEditingPanneText(''); }}><X className="h-3 w-3" /></Button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <span className="flex-1">{p.description}</span>
+                                    {canManage && (
+                                      <div className="flex items-center gap-0.5 ml-2 shrink-0">
+                                        <Button variant="ghost" size="icon" className="h-5 w-5 text-blue-400 hover:text-blue-600" onClick={() => { setEditingPanneId(p.id); setEditingPanneText(p.description); }}><Edit className="h-3 w-3" /></Button>
+                                        <Button variant="ghost" size="icon" className="h-5 w-5 text-red-400 hover:text-red-600" onClick={() => delPanne(p.id)}><Trash2 className="h-3 w-3" /></Button>
+                                      </div>
+                                    )}
+                                  </>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -487,10 +569,47 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                               <div key={p.id} className="rounded-md border p-4 space-y-2">
                                 <div className="flex items-center justify-between">
                                   <span className="font-semibold text-primary text-sm">Étape {i + 1}</span>
-                                  {canManage && <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400" onClick={() => delProc(p.id)}><Trash2 className="h-3 w-3" /></Button>}
+                                  {canManage && (
+                                    <div className="flex items-center gap-0.5">
+                                      {editingProcId === p.id ? (
+                                        <>
+                                          <Button variant="ghost" size="icon" className="h-6 w-6 text-green-600" onClick={saveProcEdit}><Check className="h-3 w-3" /></Button>
+                                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={() => { setEditingProcId(null); setEditingProcData({ description: '', image_url: '' }); }}><X className="h-3 w-3" /></Button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-400 hover:text-blue-600" onClick={() => { setEditingProcId(p.id); setEditingProcData({ description: p.description, image_url: p.image_url || '' }); }}><Edit className="h-3 w-3" /></Button>
+                                          <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400 hover:text-red-600" onClick={() => delProc(p.id)}><Trash2 className="h-3 w-3" /></Button>
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
-                                <p className="text-sm">{p.description}</p>
-                                {p.image_url && <img src={p.image_url} alt={`Étape ${i + 1}`} className="max-h-56 rounded border object-contain w-full" />}
+                                {editingProcId === p.id ? (
+                                  <div className="space-y-2">
+                                    <textarea className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[60px]" value={editingProcData.description} onChange={e => setEditingProcData(d => ({ ...d, description: e.target.value }))} placeholder="Description de l'étape..." autoFocus />
+                                    {(editingProcPreview || editingProcData.image_url) && (
+                                      <div className="relative">
+                                        <img src={editingProcPreview || editingProcData.image_url} alt="aperçu" className="max-h-36 w-full rounded border object-contain bg-muted/30" onError={e => { e.currentTarget.style.display = 'none'; }} />
+                                        <button type="button" onClick={() => { setEditingProcData(d => ({ ...d, image_url: '' })); if (editingProcPreview) URL.revokeObjectURL(editingProcPreview); setEditingProcFile(null); setEditingProcPreview(null); }} className="absolute right-1 top-1 rounded-full bg-background/90 p-0.5 text-red-500 hover:bg-red-50 border border-red-200 shadow-sm"><X className="h-3 w-3" /></button>
+                                      </div>
+                                    )}
+                                    <Label htmlFor={`proc-edit-photo-${editingProcId}`} className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-primary/50 bg-primary/5 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10 transition-colors">
+                                      <ImagePlus className="h-3.5 w-3.5" />
+                                      {editingProcFile ? editingProcFile.name : 'Importer une photo'}
+                                      <input id={`proc-edit-photo-${editingProcId}`} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (!f) return; if (editingProcPreview) URL.revokeObjectURL(editingProcPreview); setEditingProcFile(f); setEditingProcPreview(URL.createObjectURL(f)); setEditingProcData(d => ({ ...d, image_url: '' })); e.target.value = ''; }} />
+                                    </Label>
+                                    <div className="flex items-center gap-2">
+                                      <span className="shrink-0 text-xs text-muted-foreground">ou URL :</span>
+                                      <Input value={editingProcData.image_url} onChange={e => { setEditingProcData(d => ({ ...d, image_url: e.target.value })); if (editingProcPreview) URL.revokeObjectURL(editingProcPreview); setEditingProcFile(null); setEditingProcPreview(null); }} placeholder="https://..." className="flex-1 text-xs" disabled={!!editingProcFile} />
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <p className="text-sm">{p.description}</p>
+                                    {p.image_url && <img src={p.image_url} alt={`Étape ${i + 1}`} className="max-h-56 rounded border object-contain w-full" />}
+                                  </>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -498,7 +617,21 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                             <div className="rounded-md border border-dashed p-4 space-y-3">
                               <p className="text-sm font-medium text-muted-foreground">Ajouter une étape</p>
                               <textarea className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" rows={2} value={newProc.description} onChange={e => setNewProc(p => ({ ...p, description: e.target.value }))} placeholder="Description de l'étape..." />
-                              <Input value={newProc.image_url} onChange={e => setNewProc(p => ({ ...p, image_url: e.target.value }))} placeholder="URL image optionnelle (https://...)" />
+                              {(newProcPreview || newProc.image_url) && (
+                                <div className="relative">
+                                  <img src={newProcPreview || newProc.image_url} alt="aperçu" className="max-h-36 w-full rounded border object-contain bg-muted/30" onError={e => { e.currentTarget.style.display = 'none'; }} />
+                                  <button type="button" onClick={() => { setNewProc(p => ({ ...p, image_url: '' })); if (newProcPreview) URL.revokeObjectURL(newProcPreview); setNewProcFile(null); setNewProcPreview(null); }} className="absolute right-1 top-1 rounded-full bg-background/90 p-0.5 text-red-500 hover:bg-red-50 border border-red-200 shadow-sm"><X className="h-3 w-3" /></button>
+                                </div>
+                              )}
+                              <Label htmlFor="proc-new-photo-tab" className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-primary/50 bg-primary/5 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10 transition-colors">
+                                <ImagePlus className="h-3.5 w-3.5" />
+                                {newProcFile ? newProcFile.name : 'Importer une photo'}
+                                <input id="proc-new-photo-tab" type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (!f) return; if (newProcPreview) URL.revokeObjectURL(newProcPreview); setNewProcFile(f); setNewProcPreview(URL.createObjectURL(f)); setNewProc(p => ({ ...p, image_url: '' })); e.target.value = ''; }} />
+                              </Label>
+                              <div className="flex items-center gap-2">
+                                <span className="shrink-0 text-xs text-muted-foreground">ou URL :</span>
+                                <Input value={newProc.image_url} onChange={e => { setNewProc(p => ({ ...p, image_url: e.target.value })); if (newProcPreview) URL.revokeObjectURL(newProcPreview); setNewProcFile(null); setNewProcPreview(null); }} placeholder="https://..." className="flex-1 text-xs" disabled={!!newProcFile} />
+                              </div>
                               <Button size="sm" onClick={addProc}><Plus className="mr-2 h-4 w-4" /> Ajouter l'étape</Button>
                             </div>
                           )}
@@ -636,7 +769,7 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
       </Tabs>
 
       {/* ===== DIALOG PIECE ===== */}
-      <Dialog open={isPieceOpen} onOpenChange={setIsPieceOpen}>
+      <Dialog open={isPieceOpen} onOpenChange={(open) => { if (!open) resetPhotoState(); setIsPieceOpen(open); }}>
         <DialogContent className="sm:max-w-lg relative overflow-hidden">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
@@ -645,13 +778,69 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
             {[
               { label: 'Nom *', key: 'nom', placeholder: 'Ex: Capteur papier' },
               { label: 'Référence *', key: 'reference', placeholder: 'Ex: CAP-PAP-001' },
-              { label: 'Photo URL', key: 'photo_url', placeholder: 'https://...' },
             ].map(({ label, key, placeholder }) => (
               <div key={key} className="grid grid-cols-4 items-center gap-3">
                 <Label className="text-right">{label}</Label>
                 <Input className="col-span-3" value={pieceForm[key]} onChange={e => setPieceForm(f => ({ ...f, [key]: e.target.value }))} placeholder={placeholder} />
               </div>
             ))}
+
+            {/* Photo — upload ou URL */}
+            <div className="grid grid-cols-4 items-start gap-3">
+              <Label className="pt-2 text-right">Photo</Label>
+              <div className="col-span-3 space-y-2">
+                {(photoPreview || pieceForm.photo_url) && (
+                  <div className="relative">
+                    <img
+                      src={photoPreview || pieceForm.photo_url}
+                      alt="Aperçu"
+                      className="w-full max-h-36 rounded-md border object-contain bg-muted/30"
+                      onError={e => { e.currentTarget.style.display = 'none'; }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setPieceForm(f => ({ ...f, photo_url: '' })); resetPhotoState(); }}
+                      className="absolute right-1 top-1 rounded-full bg-background/90 p-0.5 text-red-500 hover:bg-red-50 border border-red-200 shadow-sm"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+                <Label
+                  htmlFor="piece-photo-upload"
+                  className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-primary/50 bg-primary/5 px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <ImagePlus className="h-4 w-4" />
+                  {photoFile ? photoFile.name : 'Importer une photo'}
+                  <input
+                    id="piece-photo-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (photoPreview) URL.revokeObjectURL(photoPreview);
+                      setPhotoFile(file);
+                      setPhotoPreview(URL.createObjectURL(file));
+                      setPieceForm(f => ({ ...f, photo_url: '' }));
+                      e.target.value = '';
+                    }}
+                  />
+                </Label>
+                <div className="flex items-center gap-2">
+                  <span className="shrink-0 text-xs text-muted-foreground">ou URL :</span>
+                  <Input
+                    className="flex-1 text-xs"
+                    value={pieceForm.photo_url}
+                    onChange={e => { setPieceForm(f => ({ ...f, photo_url: e.target.value })); resetPhotoState(); }}
+                    placeholder="https://..."
+                    disabled={!!photoFile}
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-4 items-center gap-3">
               <Label className="text-right">Sous-ensemble</Label>
               <Select value={pieceForm.sous_ensemble} onValueChange={v => setPieceForm(f => ({ ...f, sous_ensemble: v }))}>
@@ -718,8 +907,23 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                   {pannes.length === 0 && <p className="text-sm text-muted-foreground">Aucune panne renseignée.</p>}
                   {pannes.map(p => (
                     <div key={p.id} className="flex items-start justify-between rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
-                      <span>{p.description}</span>
-                      {canManage && <Button variant="ghost" size="icon" className="h-5 w-5 text-red-400 shrink-0" onClick={() => delPanne(p.id)}><Trash2 className="h-3 w-3" /></Button>}
+                      {editingPanneId === p.id ? (
+                        <div className="flex flex-1 items-center gap-2">
+                          <Input value={editingPanneText} onChange={e => setEditingPanneText(e.target.value)} className="flex-1 h-7 text-sm" autoFocus onKeyDown={e => { if (e.key === 'Enter') savePanneEdit(); if (e.key === 'Escape') { setEditingPanneId(null); setEditingPanneText(''); }}} />
+                          <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-green-600" onClick={savePanneEdit}><Check className="h-3 w-3" /></Button>
+                          <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground" onClick={() => { setEditingPanneId(null); setEditingPanneText(''); }}><X className="h-3 w-3" /></Button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="flex-1">{p.description}</span>
+                          {canManage && (
+                            <div className="flex items-center gap-0.5 ml-2 shrink-0">
+                              <Button variant="ghost" size="icon" className="h-5 w-5 text-blue-400 hover:text-blue-600" onClick={() => { setEditingPanneId(p.id); setEditingPanneText(p.description); }}><Edit className="h-3 w-3" /></Button>
+                              <Button variant="ghost" size="icon" className="h-5 w-5 text-red-400 hover:text-red-600" onClick={() => delPanne(p.id)}><Trash2 className="h-3 w-3" /></Button>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -740,10 +944,34 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                     <div key={p.id} className="rounded-md border p-3 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="font-medium text-primary text-sm">Étape {i + 1}</span>
-                        {canManage && <Button variant="ghost" size="icon" className="h-5 w-5 text-red-400" onClick={() => delProc(p.id)}><Trash2 className="h-3 w-3" /></Button>}
+                        {canManage && (
+                          <div className="flex items-center gap-0.5">
+                            {editingProcId === p.id ? (
+                              <>
+                                <Button variant="ghost" size="icon" className="h-5 w-5 text-green-600" onClick={saveProcEdit}><Check className="h-3 w-3" /></Button>
+                                <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground" onClick={() => { setEditingProcId(null); setEditingProcData({ description: '', image_url: '' }); }}><X className="h-3 w-3" /></Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button variant="ghost" size="icon" className="h-5 w-5 text-blue-400 hover:text-blue-600" onClick={() => { setEditingProcId(p.id); setEditingProcData({ description: p.description, image_url: p.image_url || '' }); }}><Edit className="h-3 w-3" /></Button>
+                                <Button variant="ghost" size="icon" className="h-5 w-5 text-red-400 hover:text-red-600" onClick={() => delProc(p.id)}><Trash2 className="h-3 w-3" /></Button>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <p className="text-sm">{p.description}</p>
-                      {p.image_url && <img src={p.image_url} alt={`Étape ${i + 1}`} className="max-h-48 rounded border object-contain" />}
+                      {editingProcId === p.id ? (
+                        <div className="space-y-2">
+                          <textarea className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[60px]" value={editingProcData.description} onChange={e => setEditingProcData(d => ({ ...d, description: e.target.value }))} placeholder="Description de l'étape..." autoFocus />
+                          <Input value={editingProcData.image_url} onChange={e => setEditingProcData(d => ({ ...d, image_url: e.target.value }))} placeholder="URL image optionnelle (https://...)" className="text-sm" />
+                          {editingProcData.image_url && <img src={editingProcData.image_url} alt="aperçu" className="max-h-36 rounded border object-contain w-full" />}
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-sm">{p.description}</p>
+                          {p.image_url && <img src={p.image_url} alt={`Étape ${i + 1}`} className="max-h-48 rounded border object-contain" />}
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -751,7 +979,21 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                   <div className="space-y-2 rounded-md border p-3">
                     <Label className="text-sm font-medium">Ajouter une étape</Label>
                     <textarea className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" rows={2} value={newProc.description} onChange={e => setNewProc(p => ({ ...p, description: e.target.value }))} placeholder="Description de l'étape..." />
-                    <Input value={newProc.image_url} onChange={e => setNewProc(p => ({ ...p, image_url: e.target.value }))} placeholder="URL image optionnelle..." />
+                    {(newProcPreview || newProc.image_url) && (
+                      <div className="relative">
+                        <img src={newProcPreview || newProc.image_url} alt="aperçu" className="max-h-36 w-full rounded border object-contain bg-muted/30" onError={e => { e.currentTarget.style.display = 'none'; }} />
+                        <button type="button" onClick={() => { setNewProc(p => ({ ...p, image_url: '' })); if (newProcPreview) URL.revokeObjectURL(newProcPreview); setNewProcFile(null); setNewProcPreview(null); }} className="absolute right-1 top-1 rounded-full bg-background/90 p-0.5 text-red-500 hover:bg-red-50 border border-red-200 shadow-sm"><X className="h-3 w-3" /></button>
+                      </div>
+                    )}
+                    <Label htmlFor="proc-new-photo-dialog" className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-primary/50 bg-primary/5 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10 transition-colors">
+                      <ImagePlus className="h-3.5 w-3.5" />
+                      {newProcFile ? newProcFile.name : 'Importer une photo'}
+                      <input id="proc-new-photo-dialog" type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (!f) return; if (newProcPreview) URL.revokeObjectURL(newProcPreview); setNewProcFile(f); setNewProcPreview(URL.createObjectURL(f)); setNewProc(p => ({ ...p, image_url: '' })); e.target.value = ''; }} />
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <span className="shrink-0 text-xs text-muted-foreground">ou URL :</span>
+                      <Input value={newProc.image_url} onChange={e => { setNewProc(p => ({ ...p, image_url: e.target.value })); if (newProcPreview) URL.revokeObjectURL(newProcPreview); setNewProcFile(null); setNewProcPreview(null); }} placeholder="https://..." className="flex-1 text-xs" disabled={!!newProcFile} />
+                    </div>
                     <Button size="sm" onClick={addProc}><Plus className="mr-2 h-4 w-4" /> Ajouter</Button>
                   </div>
                 )}

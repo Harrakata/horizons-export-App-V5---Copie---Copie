@@ -50,13 +50,15 @@ const CodeTable = ({ title, description, icon, rows, canManage, onAdd, onEdit, o
               </TableCell>
               <TableCell className="text-sm">{row.libelle}</TableCell>
               {canManage && (
-                <TableCell className="text-right space-x-1">
-                  <Button variant="ghost" size="icon" className="text-blue-500" onClick={() => onEdit(row)}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="text-red-500" onClick={() => onDelete(row)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-500" onClick={() => onEdit(row)}>
+                      <Edit className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => onDelete(row)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </TableCell>
               )}
             </TableRow>

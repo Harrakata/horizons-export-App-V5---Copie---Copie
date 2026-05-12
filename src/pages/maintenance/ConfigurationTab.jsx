@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Combobox } from '@/components/ui/Combobox';
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -103,6 +104,7 @@ const ConfigurationTab = ({
   const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
   const [editingTerminalId, setEditingTerminalId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [parkFilters, setParkFilters] = useState({
     region: ALL_FILTER_VALUE,
     agenceId: ALL_FILTER_VALUE,
@@ -232,6 +234,7 @@ const ConfigurationTab = ({
   const resetForm = useCallback(() => {
     setFormData(DEFAULT_FORM_DATA);
     setEditingTerminalId(null);
+    setIsEditDialogOpen(false);
 
     if (resolvedLockedAgence?.id) {
       setAgenceId(String(resolvedLockedAgence.id));
@@ -316,6 +319,15 @@ const ConfigurationTab = ({
   const normalizedSelectedAgencyTerminalLimit = hasSelectedAgencyTerminalLimit
     ? Number(selectedAgencyTerminalLimit)
     : null;
+
+  const editingTerminal = useMemo(
+    () =>
+      editingTerminalId
+        ? terminaux.find((terminal) => String(terminal.id) === String(editingTerminalId)) || null
+        : null,
+    [editingTerminalId, terminaux]
+  );
+
   const isEditingOnSameAgency =
     Boolean(editingTerminalId) &&
     String(editingTerminal?.agence_id ?? '') === String(selectedAgency?.id ?? '');
@@ -347,14 +359,6 @@ const ConfigurationTab = ({
       variant: 'destructive',
     });
   };
-
-  const editingTerminal = useMemo(
-    () =>
-      editingTerminalId
-        ? terminaux.find((terminal) => String(terminal.id) === String(editingTerminalId)) || null
-        : null,
-    [editingTerminalId, terminaux]
-  );
 
   const ipOptions = useMemo(
     () =>
@@ -567,6 +571,8 @@ const ConfigurationTab = ({
       ecran: terminal.ecran_reference || '',
       afficheur: terminal.afficheur_reference || '',
     });
+
+    setIsEditDialogOpen(true);
   };
 
   const handleDeleteTerminal = async (terminal) => {
@@ -687,7 +693,7 @@ const ConfigurationTab = ({
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader className="relative">
-          <CardTitle>{editingTerminalId ? 'Modifier un terminal' : 'Configuration des terminaux'}</CardTitle>
+          <CardTitle>Configuration des terminaux</CardTitle>
           <CardDescription>
             {resolvedLockedAgence
               ? `Configurez les terminaux de ${resolvedLockedAgence.nom} en choisissant leurs sous-ensembles disponibles.`
@@ -884,10 +890,10 @@ const ConfigurationTab = ({
           <div className="flex flex-wrap gap-3">
             <Button
               onClick={handleSaveTerminal}
-              disabled={!agenceId || !formData.ref || isLoading || !canManage || selectedAgencyHasReachedCapacity}
+              disabled={!agenceId || !formData.ref || isLoading || !canManage || selectedAgencyHasReachedCapacity || Boolean(editingTerminalId)}
               className="bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90"
             >
-              {editingTerminalId ? 'Mettre à jour le terminal' : 'Sauvegarder le terminal'}
+              Sauvegarder le terminal
             </Button>
             <Button type="button" variant="outline" onClick={resetForm} disabled={isLoading}>
               Réinitialiser
@@ -1052,27 +1058,29 @@ const ConfigurationTab = ({
                         {terminal.statut || 'N/A'}
                       </Badge>
                     </TableCell>
-                    <TableCell className="space-x-1 text-right">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEditTerminal(terminal)}
-                        className="text-blue-500 hover:text-blue-700"
-                        disabled={isLoading || !canManage}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteTerminal(terminal)}
-                        className="text-red-500 hover:text-red-700"
-                        disabled={isLoading || !canManage}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditTerminal(terminal)}
+                          className="h-7 w-7 text-blue-500 hover:text-blue-700"
+                          disabled={isLoading || !canManage}
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteTerminal(terminal)}
+                          className="h-7 w-7 text-red-500 hover:text-red-700"
+                          disabled={isLoading || !canManage}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -1084,25 +1092,156 @@ const ConfigurationTab = ({
     </div>
   );
 
+  const editDialog = (
+    <Dialog open={isEditDialogOpen} onOpenChange={(open) => { if (!open) resetForm(); }}>
+      <DialogContent className="sm:max-w-3xl relative overflow-hidden p-0">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+        <div className="relative max-h-[90vh] overflow-y-auto px-6 pb-6 pt-6">
+        <DialogHeader className="mb-4">
+          <DialogTitle className="text-xl text-primary">
+            Modifier le terminal — {editingTerminal?.reference}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-5">
+          <div className="rounded-lg border border-primary/15 bg-primary/5 px-4 py-3 text-sm text-slate-600">
+            Un sous-ensemble déjà configuré sur un terminal ne peut pas être réaffecté à un autre tant qu'il n'a pas été libéré.
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label>Région</Label>
+              <Combobox
+                options={regionOptions}
+                value={formRegion}
+                onSelect={(value) => { if (resolvedLockedAgence) return; setFormRegion(value); setAgenceId(''); }}
+                placeholder="Choisir une région"
+                searchPlaceholder="Rechercher une région..."
+                emptyText="Aucune région trouvée."
+                disabled={isLoading || Boolean(resolvedLockedAgence)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Agence</Label>
+              <Combobox
+                options={agencesOptions}
+                value={agenceId}
+                onSelect={(value) => { setAgenceId(value); const a = agenciesById[String(value)]; if (a?.region) setFormRegion(a.region); }}
+                placeholder="Choisir une agence"
+                searchPlaceholder="Rechercher une agence..."
+                emptyText="Aucune agence trouvée."
+                disabled={isLoading || Boolean(resolvedLockedAgence)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Type de terminal</Label>
+              <Combobox
+                options={[{ value: '2020', label: '2020' }, { value: '2031', label: '2031' }]}
+                value={formData.type}
+                onSelect={(value) => setFormData((s) => ({ ...s, type: value }))}
+                placeholder="Choisir un type"
+                searchPlaceholder="Rechercher un type..."
+                emptyText="Aucun type trouvé."
+                disabled={isLoading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Référence</Label>
+              <Input value={formData.ref} onChange={(e) => setFormData((s) => ({ ...s, ref: e.target.value }))} placeholder="Ex: TERM-001" disabled={isLoading} />
+            </div>
+            <div className="space-y-2">
+              <Label>Position</Label>
+              <Input value={formData.position} onChange={(e) => setFormData((s) => ({ ...s, position: e.target.value }))} placeholder="Ex: Guichet 1" disabled={isLoading} />
+            </div>
+            <div className="space-y-2">
+              <Label>Adresse IP</Label>
+              <Combobox
+                options={ipOptions}
+                value={formData.ip}
+                onSelect={(value) => setFormData((s) => ({ ...s, ip: value }))}
+                placeholder="Choisir une adresse IP"
+                searchPlaceholder="Rechercher une IP..."
+                emptyText="Aucune IP disponible."
+                disabled={isLoading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Imprimante</Label>
+              <Combobox options={imprimantesOptions} value={formData.imprimante} onSelect={(v) => setFormData((s) => ({ ...s, imprimante: v }))} placeholder="Choisir une imprimante" searchPlaceholder="Rechercher..." emptyText="Aucune disponible." disabled={isLoading} />
+            </div>
+            <div className="space-y-2">
+              <Label>Lecteur</Label>
+              <Combobox options={lecteursOptions} value={formData.lecteur} onSelect={(v) => setFormData((s) => ({ ...s, lecteur: v }))} placeholder="Choisir un lecteur" searchPlaceholder="Rechercher..." emptyText="Aucun disponible." disabled={isLoading} />
+            </div>
+            <div className="space-y-2">
+              <Label>Écran</Label>
+              <Combobox options={ecransOptions} value={formData.ecran} onSelect={(v) => setFormData((s) => ({ ...s, ecran: v }))} placeholder="Choisir un écran" searchPlaceholder="Rechercher..." emptyText="Aucun disponible." disabled={isLoading} />
+            </div>
+            <div className="space-y-2">
+              <Label>Afficheur client</Label>
+              <Combobox options={afficheurOptions} value={formData.afficheur} onSelect={(v) => setFormData((s) => ({ ...s, afficheur: v }))} placeholder="Choisir un afficheur" searchPlaceholder="Rechercher..." emptyText="Aucun disponible." disabled={isLoading} />
+            </div>
+          </div>
+
+          {selectedAgency && (
+            <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm text-slate-600">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="inline-flex items-center gap-2 font-medium text-slate-800">
+                  <MapPinned className="h-4 w-4 text-primary" />{selectedAgency.nom}
+                </span>
+                <span>Région : {selectedAgency.region || 'N/A'}</span>
+                <span>Code PDV : {selectedAgency.codePDV || 'N/A'}</span>
+                <span>Terminaux : {selectedAgencyTerminalCount}{hasSelectedAgencyTerminalLimit ? ` / ${normalizedSelectedAgencyTerminalLimit}` : ''}</span>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" onClick={resetForm} disabled={isLoading}>Annuler</Button>
+            </DialogClose>
+            <Button
+              onClick={handleSaveTerminal}
+              disabled={!agenceId || !formData.ref || isLoading}
+              className="bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90"
+            >
+              {isLoading ? 'Enregistrement...' : 'Mettre à jour le terminal'}
+            </Button>
+          </DialogFooter>
+        </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
   if (!showEquipmentManagement) {
-    return <div className="space-y-6">{configurationContent}</div>;
+    return (
+      <>
+        <div className="space-y-6">{configurationContent}</div>
+        {editDialog}
+      </>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      <Tabs defaultValue="terminaux" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="terminaux">Configuration Terminaux</TabsTrigger>
-          <TabsTrigger value="equipements">Gestion Équipements</TabsTrigger>
-        </TabsList>
+    <>
+      <div className="space-y-6">
+        <Tabs defaultValue="terminaux" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="terminaux">Configuration Terminaux</TabsTrigger>
+            <TabsTrigger value="equipements">Gestion de sous-ensembles</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="terminaux">{configurationContent}</TabsContent>
+          <TabsContent value="terminaux">{configurationContent}</TabsContent>
 
-        <TabsContent value="equipements">
-          <EquipmentManager canManage={canManage} readOnlyMessage={readOnlyMessage} />
-        </TabsContent>
-      </Tabs>
-    </div>
+          <TabsContent value="equipements">
+            <EquipmentManager canManage={canManage} readOnlyMessage={readOnlyMessage} />
+          </TabsContent>
+        </Tabs>
+      </div>
+      {editDialog}
+    </>
   );
 };
 
