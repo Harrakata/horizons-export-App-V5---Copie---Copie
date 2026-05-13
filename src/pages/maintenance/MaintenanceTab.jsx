@@ -1357,6 +1357,7 @@ const MaintenanceTab = ({ technicien }) => {
         type_intervention: interventionData.typeIntervention,
         sous_ensemble: interventionData.sousEnsemble,
         commentaire: interventionData.commentaire,
+        description_panne: interventionData.panne || null,
         equipement_remplace: interventionData.remplace === 'oui',
         reference_remplacement: interventionData.remplacement || null,
         statut: 'Terminée',
@@ -1552,6 +1553,11 @@ const MaintenanceTab = ({ technicien }) => {
       const { data: publicUrlData } = supabase.storage
         .from('pmu-mali-storage')
         .getPublicUrl(data.path);
+
+      await supabase
+        .from('interventions_maintenance')
+        .update({ fiche_url: publicUrlData.publicUrl })
+        .eq('id', interventionId);
 
       return {
         fileName,

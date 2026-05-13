@@ -9,7 +9,8 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Edit, Monitor, PlusCircle, Printer, Scan, Search, Trash2, Tv } from 'lucide-react';
+import { Edit, Monitor, PlusCircle, Printer, Scan, Search, Trash2, Tv, CheckCircle2, Wrench, XCircle, Package } from 'lucide-react';
+import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { supabase } from '@/lib/supabaseClient';
 
 const STATUS_BADGE_COLORS = {
@@ -55,11 +56,28 @@ const EQUIPMENT_TYPES = {
   },
 };
 
-const EquipmentTable = ({ type, config, filteredEquipments, hasData, searchTerm, onSearchChange, onOpenDialog, onDelete, isLoading, canManage }) => (
+const KPI_STATS = [
+  { key: 'total',         label: 'Total',        helper: 'Équipements enregistrés.',             tone: 'primary', icon: Package },
+  { key: 'disponible',    label: 'Disponibles',  helper: 'Prêts à être assignés.',               tone: 'emerald', icon: CheckCircle2 },
+  { key: 'enService',     label: 'En service',   helper: 'Assignés à un terminal.',              tone: 'blue',    icon: CheckCircle2 },
+  { key: 'enMaintenance', label: 'Maintenance',  helper: 'En cours de maintenance.',             tone: 'amber',   icon: Wrench },
+  { key: 'horsService',   label: 'Hors service', helper: 'Retirés du parc.',                     tone: 'violet',  icon: XCircle },
+];
+
+const EquipmentTable = ({ type, config, allEquipments, filteredEquipments, hasData, searchTerm, onSearchChange, onOpenDialog, onDelete, isLoading, canManage }) => {
+  const kpi = {
+    total:         allEquipments.length,
+    disponible:    allEquipments.filter(e => e.statut === 'Disponible').length,
+    enService:     allEquipments.filter(e => e.statut === 'En service').length,
+    enMaintenance: allEquipments.filter(e => e.statut === 'En maintenance').length,
+    horsService:   allEquipments.filter(e => e.statut === 'Hors service').length,
+  };
+
+  return (
   <Card className="relative overflow-hidden shadow-lg">
     <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
     <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
-    <CardHeader className="relative">
+    <CardHeader className="relative space-y-4">
       <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
         <div className="flex items-center gap-2">
           {config.icon}
@@ -77,6 +95,14 @@ const EquipmentTable = ({ type, config, filteredEquipments, hasData, searchTerm,
           Ajouter
         </Button>
       </div>
+
+      {/* KPI row */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {KPI_STATS.map(({ key, label, helper, tone, icon }) => (
+          <KpiStatCard key={key} icon={icon} label={label} value={kpi[key]} helper={helper} tone={tone} />
+        ))}
+      </div>
+
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -171,7 +197,8 @@ const EquipmentTable = ({ type, config, filteredEquipments, hasData, searchTerm,
       )}
     </CardContent>
   </Card>
-);
+  );
+};
 
 const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
   const { toast } = useToast();
@@ -403,6 +430,7 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
             <EquipmentTable
               type={type}
               config={EQUIPMENT_TYPES[type]}
+              allEquipments={equipments[type]}
               filteredEquipments={getFilteredEquipments(type)}
               hasData={equipments[type].length > 0}
               searchTerm={searchTerms[type]}

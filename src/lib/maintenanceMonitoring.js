@@ -73,19 +73,26 @@ export const getTerminalSousEnsembles = (terminal) =>
     { key: 'afficheur', label: 'Afficheur client', reference: terminal?.afficheur_reference || '' },
   ].filter((item) => item.reference);
 
-const getLatestInterventionForReference = (interventions, terminalId, reference) =>
-  (interventions || [])
-    .filter(
-      (intervention) =>
-        String(intervention.terminal_id) === String(terminalId) &&
-        normalizeMaintenanceText(intervention.sous_ensemble) === normalizeMaintenanceText(reference) &&
-        intervention.statut !== 'Annulée'
-    )
+const getSousEnsemblePrefix = (reference) =>
+  (reference || '').replace(/\d+$/, '').toUpperCase();
+
+const getLatestInterventionForReference = (interventions, terminalId, reference) => {
+  const refPrefix = getSousEnsemblePrefix(reference);
+  return (interventions || [])
+    .filter((intervention) => {
+      if (String(intervention.terminal_id) !== String(terminalId)) return false;
+      if (intervention.statut === 'Annulée') return false;
+      // Exact reference match OR same category prefix (e.g. IMP03 matches IMP05 for same terminal)
+      if (normalizeMaintenanceText(intervention.sous_ensemble) === normalizeMaintenanceText(reference)) return true;
+      const iPrefix = getSousEnsemblePrefix(intervention.sous_ensemble);
+      return refPrefix && iPrefix && iPrefix === refPrefix;
+    })
     .sort((firstIntervention, secondIntervention) => {
       const secondDate = new Date(secondIntervention.date_intervention || 0).getTime();
       const firstDate = new Date(firstIntervention.date_intervention || 0).getTime();
       return secondDate - firstDate;
     })[0] || null;
+};
 
 export const buildTerminalSousEnsembleRows = (terminaux, interventions, agencesById = {}, referenceDate = new Date()) =>
   (terminaux || []).flatMap((terminal) => {

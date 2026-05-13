@@ -11,8 +11,8 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import {
-  AlertTriangle, BookOpen, Check, Download, Edit, FileUp, HelpCircle, ImagePlus, Layers, Package,
-  Plus, Search, Trash2, ArrowUpCircle, ArrowDownCircle, Wrench, X,
+  AlertTriangle, BookOpen, Check, ChevronDown, ChevronRight, Download, Edit, FileUp, HelpCircle,
+  ImagePlus, Layers, ListChecks, Package, Plus, Search, Trash2, ArrowUpCircle, ArrowDownCircle, Wrench, X,
 } from 'lucide-react';
 
 const SOUS_ENSEMBLE_LABELS = {
@@ -37,6 +37,7 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
   const [modeles, setModeles] = useState([]);
   const [stockPieces, setStockPieces] = useState([]);
   const [pannes, setPannes] = useState([]);
+  const [codesPannes, setCodesPannes] = useState([]);
   const [procedures, setProcedures] = useState([]);
   const [modelePieces, setModelePieces] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -53,15 +54,22 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [helpPiece, setHelpPiece] = useState(null);
   const [newPanne, setNewPanne] = useState('');
+  const [newPannePoids, setNewPannePoids] = useState(3);
+  const [panneSelectKey, setPanneSelectKey] = useState(0);
   const [newProc, setNewProc] = useState({ description: '', image_url: '' });
   const [editingPanneId, setEditingPanneId] = useState(null);
   const [editingPanneText, setEditingPanneText] = useState('');
+  const [editingPannePoids, setEditingPannePoids] = useState(3);
   const [editingProcId, setEditingProcId] = useState(null);
   const [editingProcData, setEditingProcData] = useState({ description: '', image_url: '' });
   const [editingProcFile, setEditingProcFile] = useState(null);
   const [editingProcPreview, setEditingProcPreview] = useState(null);
   const [newProcFile, setNewProcFile] = useState(null);
   const [newProcPreview, setNewProcPreview] = useState(null);
+
+  const [panneChecksMap, setPanneChecksMap] = useState({});
+  const [expandedPanneCheckId, setExpandedPanneCheckId] = useState(null);
+  const [newCheckForms, setNewCheckForms] = useState({});
 
   const [isModeleOpen, setIsModeleOpen] = useState(false);
   const [editingModele, setEditingModele] = useState(null);
@@ -82,14 +90,16 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
 
   const load = useCallback(async () => {
     setIsLoading(true);
-    const [pRes, mRes, sRes] = await Promise.all([
+    const [pRes, mRes, sRes, cpRes] = await Promise.all([
       supabase.from('pieces_sous_ensembles').select('*').order('nom'),
       supabase.from('modeles_sous_ensembles').select('*').order('nom'),
       supabase.from('stock_pieces').select('*, piece:pieces_sous_ensembles(nom, reference)').order('updated_at', { ascending: false }),
+      supabase.from('codes_pannes').select('id, code, libelle').order('code'),
     ]);
     if (!pRes.error) setPieces(pRes.data || []);
     if (!mRes.error) setModeles(mRes.data || []);
     if (!sRes.error) setStockPieces(sRes.data || []);
+    if (!cpRes.error) setCodesPannes(cpRes.data || []);
     setIsLoading(false);
   }, []);
 
@@ -100,7 +110,25 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
       supabase.from('pieces_pannes').select('*').eq('piece_id', pieceId).order('created_at'),
       supabase.from('pieces_procedures').select('*').eq('piece_id', pieceId).order('ordre'),
     ]);
-    if (!pnRes.error) setPannes(pnRes.data || []);
+    if (!pnRes.error) {
+      setPannes(pnRes.data || []);
+      const panneIds = (pnRes.data || []).map(p => p.id);
+      if (panneIds.length > 0) {
+        const { data: checks } = await supabase
+          .from('pieces_pannes_checks')
+          .select('*, piece:pieces_sous_ensembles(id, nom)')
+          .in('panne_id', panneIds)
+          .order('ordre');
+        const map = {};
+        for (const c of (checks || [])) {
+          if (!map[c.panne_id]) map[c.panne_id] = [];
+          map[c.panne_id].push(c);
+        }
+        setPanneChecksMap(map);
+      } else {
+        setPanneChecksMap({});
+      }
+    }
     if (!prRes.error) setProcedures(prRes.data || []);
   }, []);
 
@@ -179,16 +207,43 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
 
   const addPanne = async () => {
     if (!newPanne.trim()) return;
-    await supabase.from('pieces_pannes').insert({ piece_id: helpPiece.id, description: newPanne.trim() });
-    setNewPanne(''); loadHelp(helpPiece.id);
+    await supabase.from('pieces_pannes').insert({ piece_id: helpPiece.id, description: newPanne.trim(), poids: newPannePoids });
+    setNewPanne(''); setNewPannePoids(3); loadHelp(helpPiece.id);
+  };
+
+  const addPanneFromCode = async (libelle) => {
+    if (!libelle) return;
+    await supabase.from('pieces_pannes').insert({ piece_id: helpPiece.id, description: libelle, poids: newPannePoids });
+    setPanneSelectKey(k => k + 1);
+    loadHelp(helpPiece.id);
   };
 
   const delPanne = async (id) => { await supabase.from('pieces_pannes').delete().eq('id', id); loadHelp(helpPiece.id); };
 
   const savePanneEdit = async () => {
     if (!editingPanneText.trim()) return;
-    await supabase.from('pieces_pannes').update({ description: editingPanneText.trim() }).eq('id', editingPanneId);
-    setEditingPanneId(null); setEditingPanneText('');
+    await supabase.from('pieces_pannes').update({ description: editingPanneText.trim(), poids: editingPannePoids }).eq('id', editingPanneId);
+    setEditingPanneId(null); setEditingPanneText(''); setEditingPannePoids(3);
+    loadHelp(helpPiece.id);
+  };
+
+  const addPanneCheck = async (panneId) => {
+    const form = newCheckForms[panneId] || {};
+    if (!form.description_verification?.trim()) return;
+    const checks = panneChecksMap[panneId] || [];
+    const { error } = await supabase.from('pieces_pannes_checks').insert({
+      panne_id: panneId,
+      piece_id: (form.piece_id && form.piece_id !== '__none__') ? form.piece_id : null,
+      description_verification: form.description_verification.trim(),
+      ordre: checks.length,
+    });
+    if (error) { showErr(error.message); return; }
+    setNewCheckForms(prev => ({ ...prev, [panneId]: { description_verification: '', piece_id: '' } }));
+    loadHelp(helpPiece.id);
+  };
+
+  const delPanneCheck = async (checkId) => {
+    await supabase.from('pieces_pannes_checks').delete().eq('id', checkId);
     loadHelp(helpPiece.id);
   };
 
@@ -487,7 +542,7 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                 <div className="space-y-3">
                   <div className="space-y-1">
                     <Label>Sélectionner une pièce</Label>
-                    <Select value={helpPiece?.id || ''} onValueChange={async (v) => { const found = pieces.find(p => p.id === v); if (found) await openHelp(found); }}>
+                    <Select value={helpPiece?.id || ''} onValueChange={async (v) => { const found = pieces.find(p => p.id === v); if (found) { setHelpPiece(found); await loadHelp(found.id); } }}>
                       <SelectTrigger><SelectValue placeholder="Choisir une pièce..." /></SelectTrigger>
                       <SelectContent>
                         {pieces.map(p => <SelectItem key={p.id} value={p.id}>{p.nom} — {SOUS_ENSEMBLE_LABELS[p.sous_ensemble]}</SelectItem>)}
@@ -530,31 +585,132 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                           {pannes.length === 0 && <p className="text-sm text-muted-foreground">Aucune panne renseignée.</p>}
                           <div className="space-y-2">
                             {pannes.map(p => (
-                              <div key={p.id} className="flex items-start justify-between rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
-                                {editingPanneId === p.id ? (
-                                  <div className="flex flex-1 items-center gap-2">
-                                    <Input value={editingPanneText} onChange={e => setEditingPanneText(e.target.value)} className="flex-1 h-7 text-sm" autoFocus onKeyDown={e => { if (e.key === 'Enter') savePanneEdit(); if (e.key === 'Escape') { setEditingPanneId(null); setEditingPanneText(''); }}} />
-                                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-green-600" onClick={savePanneEdit}><Check className="h-3 w-3" /></Button>
-                                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground" onClick={() => { setEditingPanneId(null); setEditingPanneText(''); }}><X className="h-3 w-3" /></Button>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <span className="flex-1">{p.description}</span>
-                                    {canManage && (
+                              <div key={p.id} className="rounded-md border border-amber-200 bg-amber-50 text-sm">
+                                <div className="flex items-start justify-between px-3 py-2">
+                                  {editingPanneId === p.id ? (
+                                    <div className="flex flex-1 flex-wrap items-center gap-2">
+                                      <Select value={editingPanneText} onValueChange={setEditingPanneText}>
+                                        <SelectTrigger className="flex-1 h-7 text-xs min-w-0 border-amber-300 bg-white">
+                                          <SelectValue placeholder="Choisir un code panne…" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {codesPannes.map(c => (
+                                            <SelectItem key={c.id} value={c.libelle}>
+                                              <span className="font-mono font-semibold text-amber-700">{c.code}</span>&nbsp;—&nbsp;{c.libelle}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        <span className="text-xs text-muted-foreground">Poids</span>
+                                        {[1,2,3,4,5].map(n => (
+                                          <button key={n} onClick={() => setEditingPannePoids(n)} className={`h-5 w-5 rounded text-[10px] font-bold border transition-colors ${editingPannePoids === n ? 'bg-amber-500 border-amber-500 text-white' : 'border-amber-300 text-amber-700 hover:bg-amber-100'}`}>{n}</button>
+                                        ))}
+                                      </div>
+                                      <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-green-600" onClick={savePanneEdit} disabled={!editingPanneText.trim()}><Check className="h-3 w-3" /></Button>
+                                      <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground" onClick={() => { setEditingPanneId(null); setEditingPanneText(''); }}><X className="h-3 w-3" /></Button>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        <span className="flex-1 truncate">{p.description}</span>
+                                        <span title={`Poids : ${p.poids || 3}/5`} className={`shrink-0 h-5 w-5 rounded text-[10px] font-bold flex items-center justify-center ${(p.poids || 3) >= 4 ? 'bg-red-100 text-red-700' : (p.poids || 3) === 3 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>{p.poids || 3}</span>
+                                      </div>
                                       <div className="flex items-center gap-0.5 ml-2 shrink-0">
-                                        <Button variant="ghost" size="icon" className="h-5 w-5 text-blue-400 hover:text-blue-600" onClick={() => { setEditingPanneId(p.id); setEditingPanneText(p.description); }}><Edit className="h-3 w-3" /></Button>
-                                        <Button variant="ghost" size="icon" className="h-5 w-5 text-red-400 hover:text-red-600" onClick={() => delPanne(p.id)}><Trash2 className="h-3 w-3" /></Button>
+                                        <button
+                                          title="Étapes de vérification"
+                                          onClick={() => setExpandedPanneCheckId(prev => prev === p.id ? null : p.id)}
+                                          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-amber-700 hover:bg-amber-200 transition-colors"
+                                        >
+                                          <ListChecks className="h-3 w-3" />
+                                          {(panneChecksMap[p.id] || []).length}
+                                          {expandedPanneCheckId === p.id ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                        </button>
+                                        {canManage && (
+                                          <>
+                                            <Button variant="ghost" size="icon" className="h-5 w-5 text-blue-400 hover:text-blue-600" onClick={() => { setEditingPanneId(p.id); setEditingPanneText(p.description); setEditingPannePoids(p.poids || 3); }}><Edit className="h-3 w-3" /></Button>
+                                            <Button variant="ghost" size="icon" className="h-5 w-5 text-red-400 hover:text-red-600" onClick={() => delPanne(p.id)}><Trash2 className="h-3 w-3" /></Button>
+                                          </>
+                                        )}
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                                {expandedPanneCheckId === p.id && (
+                                  <div className="border-t border-amber-200 bg-amber-50/80 px-3 pb-3 pt-2 space-y-2">
+                                    <p className="text-xs font-semibold text-amber-800 flex items-center gap-1">
+                                      <ListChecks className="h-3 w-3" /> Étapes de vérification
+                                    </p>
+                                    {(panneChecksMap[p.id] || []).length === 0 && (
+                                      <p className="text-xs text-muted-foreground italic">Aucune vérification définie.</p>
+                                    )}
+                                    <div className="space-y-1">
+                                      {(panneChecksMap[p.id] || []).map(c => (
+                                        <div key={c.id} className="flex items-center gap-2 rounded bg-white/80 border border-amber-100 px-2.5 py-1.5 text-xs">
+                                          <span className="flex-1">{c.description_verification}</span>
+                                          {c.piece && <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-800">{c.piece.nom}</span>}
+                                          {canManage && (
+                                            <Button variant="ghost" size="icon" className="h-4 w-4 shrink-0 text-red-400 hover:text-red-600" onClick={() => delPanneCheck(c.id)}>
+                                              <Trash2 className="h-2.5 w-2.5" />
+                                            </Button>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                    {canManage && (
+                                      <div className="flex gap-1.5 pt-1">
+                                        <Input
+                                          value={newCheckForms[p.id]?.description_verification || ''}
+                                          onChange={e => setNewCheckForms(prev => ({ ...prev, [p.id]: { ...(prev[p.id] || {}), description_verification: e.target.value } }))}
+                                          placeholder="Ex: Vérifier l'alignement du rouleau..."
+                                          className="flex-1 h-7 text-xs"
+                                          onKeyDown={e => e.key === 'Enter' && addPanneCheck(p.id)}
+                                        />
+                                        <Select
+                                          value={newCheckForms[p.id]?.piece_id || '__none__'}
+                                          onValueChange={v => setNewCheckForms(prev => ({ ...prev, [p.id]: { ...(prev[p.id] || {}), piece_id: v === '__none__' ? '' : v } }))}
+                                        >
+                                          <SelectTrigger className="h-7 w-36 text-xs"><SelectValue placeholder="Pièce (opt.)" /></SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="__none__">Aucune</SelectItem>
+                                            {pieces.map(pc => <SelectItem key={pc.id} value={pc.id}>{pc.nom}</SelectItem>)}
+                                          </SelectContent>
+                                        </Select>
+                                        <Button size="icon" className="h-7 w-7 shrink-0" onClick={() => addPanneCheck(p.id)}>
+                                          <Plus className="h-3 w-3" />
+                                        </Button>
                                       </div>
                                     )}
-                                  </>
+                                  </div>
                                 )}
                               </div>
                             ))}
                           </div>
-                          {canManage && (
-                            <div className="flex gap-2">
-                              <Input value={newPanne} onChange={e => setNewPanne(e.target.value)} placeholder="Ex: Bourrage papier..." onKeyDown={e => e.key === 'Enter' && addPanne()} />
-                              <Button size="sm" onClick={addPanne}><Plus className="h-4 w-4" /></Button>
+                          {canManage && codesPannes.length > 0 && (
+                            <div className="rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2.5 space-y-1.5">
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-500">Ajouter un type de panne</p>
+                              <div className="flex items-center gap-2">
+                                <Select key={panneSelectKey} onValueChange={addPanneFromCode}>
+                                  <SelectTrigger className="flex-1 h-8 text-xs bg-white border-amber-200 hover:border-amber-400 transition-colors">
+                                    <SelectValue placeholder="Sélectionner un code panne…" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {codesPannes.map(c => (
+                                      <SelectItem key={c.id} value={c.libelle}>
+                                        <span className="font-mono font-semibold text-amber-700">{c.code}</span>&nbsp;—&nbsp;{c.libelle}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <div className="flex shrink-0 items-center gap-1">
+                                  {[1,2,3,4,5].map(n => (
+                                    <button key={n} onClick={() => setNewPannePoids(n)} className={`h-6 w-6 rounded text-xs font-bold border transition-colors ${newPannePoids === n ? 'bg-amber-500 border-amber-500 text-white' : 'border-amber-200 text-amber-600 hover:bg-amber-100'}`}>{n}</button>
+                                  ))}
+                                </div>
+                              </div>
+                              <p className="text-right text-[10px] text-amber-500 font-medium">
+                                Priorité&nbsp;: {newPannePoids <= 2 ? 'Faible' : newPannePoids === 3 ? 'Moyenne' : newPannePoids === 4 ? 'Élevée' : 'Critique'}
+                              </p>
                             </div>
                           )}
                         </CardContent>
@@ -874,17 +1030,17 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
 
       {/* ===== DIALOG AIDE REPARATION ===== */}
       <Dialog open={isHelpOpen} onOpenChange={setIsHelpOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[88vh] overflow-y-auto relative overflow-hidden">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+        <DialogContent className="sm:max-w-2xl flex flex-col max-h-[88vh] relative overflow-hidden p-0">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35 z-10" />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
-          <DialogHeader>
+          <DialogHeader className="relative shrink-0 px-6 pt-6 pb-3 border-b">
             <DialogTitle className="flex items-center gap-2 text-primary">
               <HelpCircle className="h-5 w-5 text-primary" />
               Aide à la Réparation — {helpPiece?.nom}
             </DialogTitle>
           </DialogHeader>
           {helpPiece && (
-            <div className="space-y-6 py-2">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
               {/* Description */}
               <div className="space-y-2">
                 <Label className="text-base font-semibold">Description de la pièce</Label>
@@ -909,9 +1065,26 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                   {pannes.map(p => (
                     <div key={p.id} className="flex items-start justify-between rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
                       {editingPanneId === p.id ? (
-                        <div className="flex flex-1 items-center gap-2">
-                          <Input value={editingPanneText} onChange={e => setEditingPanneText(e.target.value)} className="flex-1 h-7 text-sm" autoFocus onKeyDown={e => { if (e.key === 'Enter') savePanneEdit(); if (e.key === 'Escape') { setEditingPanneId(null); setEditingPanneText(''); }}} />
-                          <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-green-600" onClick={savePanneEdit}><Check className="h-3 w-3" /></Button>
+                        <div className="flex flex-1 flex-wrap items-center gap-2">
+                          <Select value={editingPanneText} onValueChange={setEditingPanneText}>
+                            <SelectTrigger className="flex-1 h-7 text-xs min-w-0 border-amber-300 bg-white">
+                              <SelectValue placeholder="Choisir un code panne…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {codesPannes.map(c => (
+                                <SelectItem key={c.id} value={c.libelle}>
+                                  <span className="font-mono font-semibold text-amber-700">{c.code}</span>&nbsp;—&nbsp;{c.libelle}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="text-xs text-muted-foreground">Poids</span>
+                            {[1,2,3,4,5].map(n => (
+                              <button key={n} onClick={() => setEditingPannePoids(n)} className={`h-5 w-5 rounded text-[10px] font-bold border transition-colors ${editingPannePoids === n ? 'bg-amber-500 border-amber-500 text-white' : 'border-amber-300 text-amber-700 hover:bg-amber-100'}`}>{n}</button>
+                            ))}
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-green-600" onClick={savePanneEdit} disabled={!editingPanneText.trim()}><Check className="h-3 w-3" /></Button>
                           <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground" onClick={() => { setEditingPanneId(null); setEditingPanneText(''); }}><X className="h-3 w-3" /></Button>
                         </div>
                       ) : (
@@ -928,10 +1101,31 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                     </div>
                   ))}
                 </div>
-                {canManage && (
-                  <div className="flex gap-2">
-                    <Input value={newPanne} onChange={e => setNewPanne(e.target.value)} placeholder="Ex: Bourrage papier..." onKeyDown={e => e.key === 'Enter' && addPanne()} />
-                    <Button size="sm" onClick={addPanne}><Plus className="h-4 w-4" /></Button>
+                {canManage && codesPannes.length > 0 && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2.5 space-y-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-500">Ajouter un type de panne</p>
+                    <div className="flex items-center gap-2">
+                      <Select key={panneSelectKey} onValueChange={addPanneFromCode}>
+                        <SelectTrigger className="flex-1 h-8 text-xs bg-white border-amber-200 hover:border-amber-400 transition-colors">
+                          <SelectValue placeholder="Sélectionner un code panne…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {codesPannes.map(c => (
+                            <SelectItem key={c.id} value={c.libelle}>
+                              <span className="font-mono font-semibold text-amber-700">{c.code}</span>&nbsp;—&nbsp;{c.libelle}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex shrink-0 items-center gap-1">
+                        {[1,2,3,4,5].map(n => (
+                          <button key={n} onClick={() => setNewPannePoids(n)} className={`h-6 w-6 rounded text-xs font-bold border transition-colors ${newPannePoids === n ? 'bg-amber-500 border-amber-500 text-white' : 'border-amber-200 text-amber-600 hover:bg-amber-100'}`}>{n}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-right text-[10px] text-amber-500 font-medium">
+                      Priorité&nbsp;: {newPannePoids <= 2 ? 'Faible' : newPannePoids === 3 ? 'Moyenne' : newPannePoids === 4 ? 'Élevée' : 'Critique'}
+                    </p>
                   </div>
                 )}
               </div>

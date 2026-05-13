@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
@@ -41,6 +42,9 @@ const MaintenanceTerminauxPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedTerminalIds, setExpandedTerminalIds] = useState({});
+  const [seHistoryOpen, setSeHistoryOpen] = useState({});
+  const [seHistoryLimit, setSeHistoryLimit] = useState({});
+  const [ficheDialog, setFicheDialog] = useState({ open: false, html: '', loading: false });
   const [selectedInterventionId, setSelectedInterventionId] = useState(null);
   const [maintenanceFollowUpFilter, setMaintenanceFollowUpFilter] = useState(ALL_FILTER_VALUE);
   const [planningRequests, setPlanningRequests] = useState([]);
@@ -341,6 +345,18 @@ const MaintenanceTerminauxPage = () => {
     }));
   };
 
+  const openFiche = async (url) => {
+    setFicheDialog({ open: true, html: '', loading: true });
+    try {
+      const res = await fetch(url);
+      const html = await res.text();
+      setFicheDialog({ open: true, html, loading: false });
+    } catch {
+      setFicheDialog({ open: false, html: '', loading: false });
+      window.open(url, '_blank', 'noreferrer');
+    }
+  };
+
   const handleProcessPlanningRequest = async (request, approve) => {
     setIsLoading(true);
 
@@ -591,66 +607,165 @@ const MaintenanceTerminauxPage = () => {
                         {isExpanded && (
                           <TableRow className="bg-muted/20 hover:bg-muted/20">
                             <TableCell colSpan={4} className="p-0">
-                              <div className="m-4 rounded-xl border bg-background/80 p-4 shadow-sm">
-                                <div className="mb-4 flex flex-col gap-1">
+                              <div className="m-4 space-y-3">
+                                <div className="flex items-center justify-between">
                                   <p className="font-semibold text-slate-900">
                                     Sous-ensembles du terminal {group.terminalReference}
                                   </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {group.sousEnsembles.length} sous-ensemble(s) suivi(s).
-                                  </p>
+                                  <span className="text-xs text-muted-foreground">
+                                    {group.sousEnsembles.length} sous-ensemble(s) suivi(s)
+                                  </span>
                                 </div>
 
-                                <div className="overflow-hidden rounded-lg border">
-                                  <table className="w-full text-sm">
-                                    <thead className="bg-muted/40">
-                                      <tr>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                          Sous-ensemble
-                                        </th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                          Référence
-                                        </th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                          Dernière maintenance
-                                        </th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                          Type recente
-                                        </th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                          Suivi maintenance
-                                        </th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {group.sousEnsembles.map((row) => (
-                                        <tr
-                                          key={`${group.terminalId}-${row.sousEnsembleReference}`}
-                                          className="border-t bg-white"
-                                        >
-                                          <td className="px-4 py-3 font-medium">{row.sousEnsembleLabel}</td>
-                                          <td className="px-4 py-3">{row.sousEnsembleReference}</td>
-                                          <td className="px-4 py-3">
-                                            {formatMaintenanceDateTime(row.latestIntervention?.date_intervention)}
-                                          </td>
-                                          <td className="px-4 py-3">
-                                            {row.latestIntervention
-                                              ? getMaintenanceInterventionTypeLabel(row.latestIntervention.type_intervention)
-                                              : 'Aucune'}
-                                          </td>
-                                          <td className="px-4 py-3">
-                                            <div className="space-y-2">
-                                              <Badge variant="outline" className={row.followUp.className}>
-                                                {row.followUp.label}
-                                              </Badge>
-                                              <p className="text-xs text-muted-foreground">{row.followUp.detail}</p>
+                                {group.sousEnsembles.map((row) => {
+                                  const seKey = `${group.terminalId}-${row.sousEnsembleReference}`;
+                                  const sePrefix = (row.sousEnsembleReference || '').replace(/\d+$/, '').toUpperCase();
+                                  const rowInterventions = interventions
+                                    .filter((i) => {
+                                      if (String(i.terminal_id) !== String(group.terminalId)) return false;
+                                      if (i.statut === 'Annulée') return false;
+                                      const iPrefix = (i.sous_ensemble || '').replace(/\d+$/, '').toUpperCase();
+                                      return sePrefix && iPrefix && iPrefix === sePrefix;
+                                    })
+                                    .sort((a, b) => new Date(b.date_intervention || 0) - new Date(a.date_intervention || 0));
+
+                                  const isGood = row.followUp.label === 'Maintenance à jour';
+                                  const historyOpen = !!seHistoryOpen[seKey];
+                                  const historyLimit = seHistoryLimit[seKey] ?? 3;
+                                  const visibleInterventions = historyLimit === 0 ? rowInterventions : rowInterventions.slice(0, historyLimit);
+
+                                  const toggleHistory = () =>
+                                    setSeHistoryOpen((prev) => ({ ...prev, [seKey]: !prev[seKey] }));
+                                  const setLimit = (val) =>
+                                    setSeHistoryLimit((prev) => ({ ...prev, [seKey]: val }));
+
+                                  return (
+                                    <div
+                                      key={seKey}
+                                      className={`overflow-hidden rounded-xl border bg-white shadow-sm ${isGood ? 'border-green-200' : 'border-red-200'}`}
+                                    >
+                                      {/* En-tête cliquable */}
+                                      <button
+                                        type="button"
+                                        onClick={rowInterventions.length > 0 ? toggleHistory : undefined}
+                                        className={`flex w-full items-center gap-3 px-4 py-3 text-left ${isGood ? 'bg-green-50' : 'bg-red-50'} ${rowInterventions.length > 0 ? 'cursor-pointer' : 'cursor-default'}`}
+                                      >
+                                        <div className="flex flex-1 flex-wrap items-center gap-2 min-w-0">
+                                          <span className="font-semibold text-slate-800">{row.sousEnsembleLabel}</span>
+                                          <span className={`rounded-full px-2 py-0.5 font-mono text-xs ${isGood ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                            {row.sousEnsembleReference}
+                                          </span>
+                                          <span className={`text-xs ${isGood ? 'text-green-700' : 'text-red-700'}`}>
+                                            {row.followUp.detail}
+                                          </span>
+                                        </div>
+                                        <div className="flex shrink-0 items-center gap-2">
+                                          <Badge variant="outline" className={`text-xs ${row.followUp.className}`}>
+                                            {row.followUp.label}
+                                          </Badge>
+                                          {rowInterventions.length > 0 && (
+                                            <span className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${historyOpen ? 'border-slate-300 bg-white text-slate-700' : 'border-slate-200 bg-white/70 text-muted-foreground'}`}>
+                                              {rowInterventions.length} interv.
+                                              {historyOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </button>
+
+                                      {/* Historique déroulant */}
+                                      {historyOpen && rowInterventions.length > 0 && (
+                                        <div className="border-t px-4 pb-3 pt-3">
+                                          <div className="mb-3 flex items-center justify-between">
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                              Historique ({rowInterventions.length})
+                                            </p>
+                                            <div className="flex items-center gap-1">
+                                              <span className="mr-1 text-[10px] text-muted-foreground">Afficher :</span>
+                                              {[3, 5, 10].map((n) => (
+                                                <button
+                                                  key={n}
+                                                  type="button"
+                                                  onClick={() => setLimit(n)}
+                                                  className={`rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${historyLimit === n ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                                                >
+                                                  {n}
+                                                </button>
+                                              ))}
+                                              <button
+                                                type="button"
+                                                onClick={() => setLimit(0)}
+                                                className={`rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${historyLimit === 0 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                                              >
+                                                Tout
+                                              </button>
                                             </div>
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
+                                          </div>
+
+                                          <div className="space-y-2">
+                                            {visibleInterventions.map((i) => {
+                                              const isCurative = i.type_intervention === 'curative';
+                                              return (
+                                                <div
+                                                  key={i.id}
+                                                  onClick={i.fiche_url ? () => openFiche(i.fiche_url) : undefined}
+                                                  className={`space-y-1.5 rounded-lg border px-3 py-2 text-xs ${isCurative ? 'border-red-100 bg-red-50/40' : 'border-blue-100 bg-blue-50/40'} ${i.fiche_url ? 'cursor-pointer transition-colors hover:border-primary/50 hover:bg-primary/5' : ''}`}
+                                                >
+                                                  <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="font-semibold text-slate-700">{formatMaintenanceDateTime(i.date_intervention)}</span>
+                                                    <Badge variant="outline" className={`text-[10px] ${isCurative ? 'border-red-200 bg-red-50 text-red-700' : 'border-blue-200 bg-blue-50 text-blue-700'}`}>
+                                                      {getMaintenanceInterventionTypeLabel(i.type_intervention)}
+                                                    </Badge>
+                                                    <Badge variant="outline" className={`text-[10px] ${getMaintenanceInterventionStatusClass(i.statut)}`}>
+                                                      {i.statut}
+                                                    </Badge>
+                                                    {i.technicienLabel && i.technicienLabel !== 'Non renseigné' && (
+                                                      <span className="text-muted-foreground">{i.technicienLabel}</span>
+                                                    )}
+                                                    {i.fiche_url && (
+                                                      <span className="ml-auto flex shrink-0 items-center gap-1 font-semibold text-primary">
+                                                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                                        Voir fiche
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                  {isCurative && (i.codeLabel !== 'N/A' || i.description_panne) && (
+                                                    <div className="flex flex-wrap items-start gap-3 rounded border border-red-100 bg-red-50 px-2 py-1.5">
+                                                      {i.codeLabel && i.codeLabel !== 'N/A' && (
+                                                        <div className="shrink-0">
+                                                          <span className="text-[10px] font-semibold uppercase text-red-400">Code panne</span>
+                                                          <p className="font-mono font-bold text-red-800">{i.codeLabel}</p>
+                                                        </div>
+                                                      )}
+                                                      {i.description_panne && (
+                                                        <div className="min-w-0">
+                                                          <span className="text-[10px] font-semibold uppercase text-red-400">Descriptif</span>
+                                                          <p className="text-red-800">{i.description_panne}</p>
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  )}
+                                                  {i.commentaire && (
+                                                    <p className="border-t pt-1 italic text-muted-foreground">{i.commentaire}</p>
+                                                  )}
+                                                </div>
+                                              );
+                                            })}
+
+                                            {historyLimit > 0 && rowInterventions.length > historyLimit && (
+                                              <p className="text-center text-[10px] text-muted-foreground">
+                                                {rowInterventions.length - historyLimit} intervention(s) masquée(s) — cliquez sur «Tout» pour tout afficher
+                                              </p>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {rowInterventions.length === 0 && (
+                                        <p className="px-4 py-2.5 text-xs text-muted-foreground">Aucune intervention enregistrée.</p>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -991,6 +1106,27 @@ const MaintenanceTerminauxPage = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Visionneuse fiche PDF */}
+      <Dialog open={ficheDialog.open} onOpenChange={(open) => !open && setFicheDialog({ open: false, html: '', loading: false })}>
+        <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0">
+            <DialogTitle>Fiche de maintenance</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden">
+            {ficheDialog.loading ? (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Chargement…</div>
+            ) : (
+              <iframe
+                srcDoc={ficheDialog.html}
+                sandbox="allow-same-origin"
+                className="h-full w-full border-0"
+                title="Fiche de maintenance"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 };

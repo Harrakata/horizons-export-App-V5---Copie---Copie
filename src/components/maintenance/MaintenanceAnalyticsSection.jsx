@@ -115,21 +115,16 @@ const MaintenanceAnalyticsSection = ({
 
   return (
     <Card className="shadow-xl glassmorphism">
-      <CardHeader className="space-y-4">
-        <div>
-          <CardTitle className="flex items-center gap-2 text-2xl text-primary">
-            <Activity className="h-6 w-6" />
-            {title}
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="flex items-center gap-2 text-lg text-primary truncate">
+            <Activity className="h-5 w-5 shrink-0" />
+            <span className="truncate">{title}</span>
           </CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </div>
-        {kpiSlot && <div>{kpiSlot}</div>}
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Répartition des non-conformités par</p>
+          <div className="flex shrink-0 items-center gap-2">
             <Select value={distributionDimension} onValueChange={setDistributionDimension}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choisir une granularité" />
+              <SelectTrigger className="h-8 w-36 text-xs">
+                <SelectValue placeholder="Répartition" />
               </SelectTrigger>
               <SelectContent>
                 {availableDimensions.map((dimension) => (
@@ -139,12 +134,9 @@ const MaintenanceAnalyticsSection = ({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Granularité de la courbe</p>
             <Select value={trendGranularity} onValueChange={setTrendGranularity}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choisir une granularité" />
+              <SelectTrigger className="h-8 w-32 text-xs">
+                <SelectValue placeholder="Période" />
               </SelectTrigger>
               <SelectContent>
                 {ANALYTICS_GRANULARITY_OPTIONS.map((option) => (
@@ -156,8 +148,10 @@ const MaintenanceAnalyticsSection = ({
             </Select>
           </div>
         </div>
+        <CardDescription className="text-xs">{description}</CardDescription>
+        {kpiSlot && <div className="mt-2">{kpiSlot}</div>}
       </CardHeader>
-      <CardContent className={`grid gap-4 ${showAdvancedCharts ? 'xl:grid-cols-2' : 'xl:grid-cols-2'}`}>
+      <CardContent className="grid gap-3 pt-0 xl:grid-cols-2">
         <StatsChartCard
           type="pie"
           title="Répartition actuelle"

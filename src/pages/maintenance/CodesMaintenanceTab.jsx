@@ -10,7 +10,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { useToast } from '@/components/ui/use-toast';
 import { AlertTriangle, Edit, Plus, Trash2, Wrench, Zap } from 'lucide-react';
 
-const DEFAULT_FORM = { code: '', libelle: '' };
+const DEFAULT_FORM = { code: '', libelle: '', descriptif: '' };
 
 const CodeTable = ({ title, description, icon, rows, canManage, onAdd, onEdit, onDelete, isLoading }) => (
   <Card className="relative overflow-hidden shadow-lg">
@@ -39,6 +39,7 @@ const CodeTable = ({ title, description, icon, rows, canManage, onAdd, onEdit, o
           <TableRow>
             <TableHead className="w-32">Code</TableHead>
             <TableHead>Libellé</TableHead>
+            <TableHead>Descriptif</TableHead>
             {canManage && <TableHead className="text-right w-24">Actions</TableHead>}
           </TableRow>
         </TableHeader>
@@ -49,6 +50,7 @@ const CodeTable = ({ title, description, icon, rows, canManage, onAdd, onEdit, o
                 <Badge variant="outline" className="font-mono">{row.code}</Badge>
               </TableCell>
               <TableCell className="text-sm">{row.libelle}</TableCell>
+              <TableCell className="text-sm text-muted-foreground">{row.descriptif || '—'}</TableCell>
               {canManage && (
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">
@@ -94,14 +96,14 @@ const CodesMaintenanceTab = ({ canManage = true }) => {
   useEffect(() => { load(); }, [load]);
 
   const openAdd = (table) => setDialogState({ open: true, table, editing: null, form: DEFAULT_FORM });
-  const openEdit = (table, row) => setDialogState({ open: true, table, editing: row, form: { code: row.code, libelle: row.libelle } });
+  const openEdit = (table, row) => setDialogState({ open: true, table, editing: row, form: { code: row.code, libelle: row.libelle, descriptif: row.descriptif || '' } });
   const closeDialog = () => setDialogState(s => ({ ...s, open: false }));
 
   const save = async () => {
     const { table, editing, form } = dialogState;
     if (!form.code.trim() || !form.libelle.trim()) { showErr('Code et libellé requis.'); return; }
     setIsLoading(true);
-    const payload = { code: form.code.trim().toUpperCase(), libelle: form.libelle.trim() };
+    const payload = { code: form.code.trim().toUpperCase(), libelle: form.libelle.trim(), descriptif: form.descriptif.trim() || null };
     const { error } = editing
       ? await supabase.from(table).update(payload).eq('id', editing.id)
       : await supabase.from(table).insert(payload);
@@ -191,7 +193,15 @@ const CodesMaintenanceTab = ({ canManage = true }) => {
                 placeholder="Ex: Bourrage papier"
                 value={dialogState.form.libelle}
                 onChange={e => setDialogState(s => ({ ...s, form: { ...s.form, libelle: e.target.value } }))}
-                onKeyDown={e => e.key === 'Enter' && save()}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-start gap-3">
+              <Label className="text-right pt-2">Descriptif</Label>
+              <textarea
+                className="col-span-3 min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                placeholder="Description détaillée de la panne (optionnel)"
+                value={dialogState.form.descriptif}
+                onChange={e => setDialogState(s => ({ ...s, form: { ...s.form, descriptif: e.target.value } }))}
               />
             </div>
           </div>

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { AlertTriangle, CheckCircle2, HelpCircle, Package2, Wrench, ArrowRight, FlaskConical, ChevronDown, ChevronRight, Sparkles, CheckCheck, Search, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, HelpCircle, Package2, Wrench, ArrowRight, FlaskConical, ChevronDown, ChevronUp, ChevronRight, ChevronLeft, Sparkles, CheckCheck, Search, X, Check, ListChecks, Stethoscope } from 'lucide-react';
 
 const SOUS_ENSEMBLE_LABELS = {
   imprimante: 'Imprimante',
@@ -57,6 +57,19 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
   // { [itemId]: { [pieceId]: 'nettoyage' | 'remplacement' } }
   const [treatedPieces, setTreatedPieces] = useState({});
 
+  const [helpTab, setHelpTab] = useState('guide');
+  const [panneChecksMap, setPanneChecksMap] = useState({});
+  const [wizardStep, setWizardStep] = useState(0);
+  const [wizardPanne, setWizardPanne] = useState(null);
+  const [wizardCheckedIds, setWizardCheckedIds] = useState(new Set());
+  const [wizardFilter, setWizardFilter] = useState(null);
+  const [wizardFromSEHelp, setWizardFromSEHelp] = useState(false);
+
+  const [isSEHelpOpen, setIsSEHelpOpen] = useState(false);
+  const [seHelpItem, setSeHelpItem] = useState(null);
+  const [seHelpPannes, setSeHelpPannes] = useState([]);
+  const [seHelpShowAll, setSeHelpShowAll] = useState(false);
+
   const EQUIP_TABLE_MAP = {
     imprimante: 'equipments_imprimantes',
     lecteur: 'equipments_lecteurs',
@@ -67,7 +80,7 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
   const load = useCallback(async () => {
     setIsLoading(true);
     const [sRes, pRes, spRes] = await Promise.all([
-      supabase.from('stock_defectueux').select('*, agence:agences(nom)').neq('statut', 'repare').order('date_entree', { ascending: false }),
+      supabase.from('stock_defectueux').select('*, agence:agences(nom), intervention:interventions_maintenance(id, type_intervention, commentaire, description_panne, code_panne:codes_pannes(code, libelle), code_intervention:codes_interventions(code, libelle))').neq('statut', 'repare').order('date_entree', { ascending: false }),
       supabase.from('pieces_sous_ensembles').select('*').order('nom'),
       supabase.from('stock_pieces').select('*, piece:pieces_sous_ensembles(nom, reference)'),
     ]);
@@ -129,6 +142,29 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
 
   const pieceSearchLower = pieceSearch.trim().toLowerCase();
 
+  const wizardChecks = useMemo(
+    () => (wizardPanne ? (panneChecksMap[wizardPanne.id] || []) : []),
+    [wizardPanne, panneChecksMap]
+  );
+
+  const uniquePiecesFromChecked = useMemo(() => {
+    const seen = new Set();
+    const result = [];
+    for (const checkId of wizardCheckedIds) {
+      const check = wizardChecks.find(c => c.id === checkId);
+      if (check?.piece && !seen.has(check.piece.id)) {
+        seen.add(check.piece.id);
+        result.push(check.piece);
+      }
+    }
+    return result;
+  }, [wizardCheckedIds, wizardChecks]);
+
+  const pannesWithChecks = useMemo(
+    () => pannes.filter(p => (panneChecksMap[p.id] || []).length > 0),
+    [pannes, panneChecksMap]
+  );
+
   // Auto-expand items whose cached pieces match the search, and trigger load for uncached ones
   useEffect(() => {
     if (!pieceSearchLower) return;
@@ -156,13 +192,45 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
     setItemPieces(data || []);
   }, []);
 
-  const loadPieceHelp = useCallback(async (piece) => {
+  const loadPieceHelp = useCallback(async (piece, preselectedPanneId = null, filterDescription = null) => {
     setSelectedPieceHelp(piece);
+    setWizardStep(0);
+    setWizardPanne(null);
+    setWizardCheckedIds(new Set());
+    setWizardFilter(filterDescription || null);
+    setWizardFromSEHelp(!!filterDescription);
+    setHelpTab('guide');
     const [pnRes, prRes] = await Promise.all([
       supabase.from('pieces_pannes').select('*').eq('piece_id', piece.id).order('created_at'),
       supabase.from('pieces_procedures').select('*').eq('piece_id', piece.id).order('ordre'),
     ]);
-    if (!pnRes.error) setPannes(pnRes.data || []);
+    if (!pnRes.error) {
+      const fetchedPannes = pnRes.data || [];
+      setPannes(fetchedPannes);
+      const panneIds = fetchedPannes.map(p => p.id);
+      if (panneIds.length > 0) {
+        const { data: checks } = await supabase
+          .from('pieces_pannes_checks')
+          .select('*, piece:pieces_sous_ensembles(id, nom)')
+          .in('panne_id', panneIds)
+          .order('ordre');
+        const map = {};
+        for (const c of (checks || [])) {
+          if (!map[c.panne_id]) map[c.panne_id] = [];
+          map[c.panne_id].push(c);
+        }
+        setPanneChecksMap(map);
+        if (preselectedPanneId) {
+          const found = fetchedPannes.find(p => p.id === preselectedPanneId);
+          if (found && (map[found.id] || []).length > 0) {
+            setWizardPanne(found);
+            setWizardStep(1);
+          }
+        }
+      } else {
+        setPanneChecksMap({});
+      }
+    }
     if (!prRes.error) setProcedures(prRes.data || []);
     setIsHelpOpen(true);
   }, []);
@@ -170,6 +238,31 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
   const showOk = (msg) => toast({ title: msg, className: 'bg-green-500 text-white' });
   const showErr = (msg) => toast({ title: 'Erreur', description: msg, variant: 'destructive' });
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '—';
+
+  const openSousEnsembleHelp = async (item, e) => {
+    e.stopPropagation();
+    setSeHelpItem(item);
+    setSeHelpPannes([]);
+    setSeHelpShowAll(false);
+    setIsSEHelpOpen(true);
+    if (!item.modele_id) return;
+    const { data: modelePieces } = await supabase
+      .from('modeles_pieces')
+      .select('piece_id, piece:pieces_sous_ensembles(id, nom, reference, sous_ensemble, description_aide, photo_url, commentaire)')
+      .eq('modele_id', item.modele_id);
+    const pieceIds = (modelePieces || []).map(mp => mp.piece_id).filter(Boolean);
+    if (!pieceIds.length) return;
+    const pieceMap = {};
+    for (const mp of (modelePieces || [])) {
+      if (mp.piece?.id) pieceMap[mp.piece.id] = mp.piece;
+    }
+    const { data: allPannes } = await supabase
+      .from('pieces_pannes')
+      .select('*')
+      .in('piece_id', pieceIds)
+      .order('poids', { ascending: false });
+    setSeHelpPannes((allPannes || []).map(p => ({ ...p, piece: pieceMap[p.piece_id] || null })));
+  };
 
   const markATester = async (itemId) => {
     const { error } = await supabase.from('stock_defectueux').update({ statut: 'a_tester' }).eq('id', itemId);
@@ -343,29 +436,31 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
                     const isLoadingExpand = loadingExpandIds.has(item.id);
                     const isSelected = selectedItem?.id === item.id;
                     return (
-                      <div key={item.id} className={isSelected ? 'border-l-4 border-primary bg-primary/10' : ''}>
-                        <div className="flex items-stretch">
+                      <div key={item.id} className={isSelected ? 'bg-primary/10' : ''}>
+                        <div className="flex items-center">
                           <button
-                            className="flex-1 text-left px-4 py-3 transition-colors hover:bg-muted/50"
+                            className="flex-1 text-left px-3 py-4 transition-colors hover:bg-muted/50"
                             onClick={() => loadItemDetail(item)}
                           >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-medium text-sm font-mono">{item.reference_sous_ensemble}</span>
-                              <StatutBadge statut={item.statut} />
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-bold text-base font-mono shrink-0">{item.reference_sous_ensemble}</span>
+                              <Badge variant="outline" className="text-sm shrink-0">{SOUS_ENSEMBLE_LABELS[item.type_sous_ensemble] || item.type_sous_ensemble}</Badge>
+                              {item.type_terminal && <span className="text-sm text-muted-foreground shrink-0">· {item.type_terminal}</span>}
                             </div>
-                            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                              <Badge variant="outline" className="text-xs">{SOUS_ENSEMBLE_LABELS[item.type_sous_ensemble] || item.type_sous_ensemble}</Badge>
-                              {item.type_terminal && <span>• {item.type_terminal}</span>}
-                              {item.agence?.nom && <span>• {item.agence.nom}</span>}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-0.5">Entré le {formatDate(item.date_entree)}</div>
                           </button>
                           <button
-                            className="px-3 flex items-center justify-center hover:bg-muted/50 transition-colors text-muted-foreground"
+                            className="px-2.5 self-stretch flex items-center justify-center gap-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors shrink-0"
+                            onClick={(e) => openSousEnsembleHelp(item, e)}
+                          >
+                            <Stethoscope className="h-3.5 w-3.5" />
+                            Diagnostiquer
+                          </button>
+                          <button
+                            className="px-1.5 self-stretch flex items-center justify-center hover:bg-muted/50 transition-colors text-muted-foreground"
                             title={isExpanded ? 'Réduire' : 'Voir les pièces'}
                             onClick={() => toggleExpand(item)}
                           >
-                            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                           </button>
                         </div>
                         {isExpanded && (
@@ -482,14 +577,48 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
                       <p className="text-sm text-muted-foreground mt-1">
                         {SOUS_ENSEMBLE_LABELS[selectedItem.type_sous_ensemble]} — {selectedItem.type_terminal || 'N/A'} — {selectedItem.agence?.nom || 'N/A'}
                       </p>
+                      <p className="text-xs text-muted-foreground">Entré le {formatDate(selectedItem.date_entree)}</p>
                     </div>
                     <StatutBadge statut={selectedItem.statut} />
                   </div>
-                  {selectedItem.commentaire && (
-                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 mt-2">
-                      <AlertTriangle className="inline h-4 w-4 mr-1" /> {selectedItem.commentaire}
-                    </div>
-                  )}
+                  {(() => {
+                    const inv = selectedItem.intervention;
+                    const cp = inv?.code_panne || inv?.code_intervention;
+                    const commentaire = inv?.commentaire || selectedItem.commentaire;
+                    if (!cp && !commentaire) return null;
+                    return (
+                      <div className="mt-3 space-y-2">
+                        {cp && (
+                          <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2">
+                            <AlertTriangle className="h-4 w-4 shrink-0 text-red-500 mt-0.5" />
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-4 flex-wrap">
+                                <div>
+                                  <p className="text-[10px] font-semibold uppercase tracking-wide text-red-400">Code panne</p>
+                                  <p className="text-sm font-mono font-bold text-red-800">{cp.code} — {cp.libelle}</p>
+                                </div>
+                              </div>
+                              {inv.description_panne && (
+                                <div className="mt-1.5 border-t border-red-200 pt-1.5">
+                                  <p className="text-[10px] font-semibold uppercase tracking-wide text-red-400">Descriptif panne</p>
+                                  <p className="text-sm text-red-800">{inv.description_panne}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {commentaire && (
+                          <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500 mt-0.5" />
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-400">Commentaire</p>
+                              <p className="text-sm text-amber-800">{commentaire}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex flex-wrap gap-2">
@@ -594,45 +723,451 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
         </div>
       </div>
 
+      {/* Dialog pannes sous-ensemble */}
+      <Dialog open={isSEHelpOpen} onOpenChange={setIsSEHelpOpen}>
+        <DialogContent className="sm:max-w-lg w-full flex flex-col h-[62vh] p-0 gap-0 overflow-hidden !rounded-2xl">
+
+          {/* Bande de couleur supérieure */}
+          <div className="h-1.5 w-full shrink-0 bg-gradient-to-r from-transparent via-green-400 to-transparent [box-shadow:0_0_16px_4px_rgba(74,222,128,0.55)]" />
+
+          {/* Header */}
+          <div className="shrink-0 px-6 pt-5 pb-4 border-b bg-gradient-to-b from-green-50/60 to-white">
+            <h2 className="text-xl font-bold text-green-600 leading-tight">
+              {seHelpItem?.reference_sous_ensemble}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {SOUS_ENSEMBLE_LABELS[seHelpItem?.type_sous_ensemble] || seHelpItem?.type_sous_ensemble}
+              {' · '}Pièces à inspecter classées par priorité de panne
+            </p>
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            {!seHelpItem?.modele_id ? (
+              <div className="flex flex-col items-center gap-2 py-10 text-center">
+                <Package2 className="h-8 w-8 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">Aucun modèle associé à ce sous-ensemble.</p>
+              </div>
+            ) : seHelpPannes.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-10 text-center">
+                <HelpCircle className="h-8 w-8 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">Aucune panne configurée pour ce sous-ensemble.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {(() => {
+                  const norm = s => (s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+                  const interventionLibelle = seHelpItem?.intervention?.code_panne?.libelle || '';
+                  const matchKey = norm(interventionLibelle);
+                  const INITIAL_GROUPS = 3;
+
+                  const groupMap = seHelpPannes.reduce((acc, p) => {
+                    const key = p.description || '(sans description)';
+                    if (!acc[key]) acc[key] = [];
+                    acc[key].push(p);
+                    return acc;
+                  }, {});
+                  const allEntries = Object.entries(groupMap);
+
+                  const matchedEntries = matchKey
+                    ? allEntries.filter(([desc]) => norm(desc) === matchKey)
+                    : [];
+                  const otherEntries = allEntries.filter(([desc]) => !matchedEntries.some(([d]) => d === desc));
+
+                  const hasMatch = matchedEntries.length > 0;
+                  const visibleEntries = hasMatch
+                    ? (seHelpShowAll ? [...matchedEntries, ...otherEntries] : matchedEntries)
+                    : (seHelpShowAll ? otherEntries : otherEntries.slice(0, INITIAL_GROUPS));
+                  const hiddenCount = hasMatch ? otherEntries.length : otherEntries.length - INITIAL_GROUPS;
+                  const showToggle = hasMatch ? otherEntries.length > 0 : otherEntries.length > INITIAL_GROUPS;
+
+                  const renderPanneCard = (p, isMatched) => {
+                    const poids = p.poids || 3;
+                    const cfg = poids >= 5
+                      ? { border: 'border-l-red-400',    grad: 'from-red-50 to-rose-50/40',     badge: 'bg-red-100 text-red-700',       dot: 'bg-gradient-to-br from-red-500 to-rose-400',     text: 'Critique' }
+                      : poids === 4
+                      ? { border: 'border-l-orange-400', grad: 'from-orange-50 to-amber-50/40', badge: 'bg-orange-100 text-orange-700',  dot: 'bg-gradient-to-br from-orange-500 to-amber-400', text: 'Élevé' }
+                      : poids === 3
+                      ? { border: 'border-l-amber-400',  grad: 'from-amber-50 to-yellow-50/30', badge: 'bg-amber-100 text-amber-700',    dot: 'bg-gradient-to-br from-amber-400 to-yellow-300', text: 'Moyen' }
+                      : poids === 2
+                      ? { border: 'border-l-blue-300',   grad: 'from-blue-50 to-sky-50/30',     badge: 'bg-blue-100 text-blue-600',     dot: 'bg-gradient-to-br from-blue-400 to-sky-300',    text: 'Faible' }
+                      : { border: 'border-l-gray-200',   grad: 'from-muted/40 to-muted/10',     badge: 'bg-gray-100 text-gray-500',     dot: 'bg-gradient-to-br from-gray-300 to-gray-200',   text: 'Minimal' };
+                    return (
+                      <div
+                        key={p.id}
+                        className={`flex items-center gap-3 rounded-xl border border-l-4 ${cfg.border} bg-gradient-to-r ${cfg.grad} pl-3 pr-3 py-2.5 shadow-sm`}
+                      >
+                        <div className={`shrink-0 h-6 w-6 rounded-lg ${cfg.dot} flex items-center justify-center`}>
+                          <span className="text-[9px] font-bold text-white">{poids}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          {p.piece ? (
+                            <button
+                              onClick={() => { setIsSEHelpOpen(false); loadPieceHelp(p.piece, p.id, p.description); }}
+                              className="group flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                            >
+                              <HelpCircle className="h-3.5 w-3.5 shrink-0 opacity-60 group-hover:opacity-100" />
+                              <span className="truncate">{p.piece.nom}</span>
+                              <ArrowRight className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">Pièce non renseignée</span>
+                          )}
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${cfg.badge}`}>{cfg.text}</span>
+                      </div>
+                    );
+                  };
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Bannière intervention */}
+                      {hasMatch && (
+                        <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-300 to-orange-400">
+                            <AlertTriangle className="h-4 w-4 text-white" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500">Code panne déclaré lors de l'intervention</p>
+                            <p className="mt-0.5 truncate text-[13px] font-semibold text-amber-800">{interventionLibelle}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Groupes visibles */}
+                      {visibleEntries.map(([description, items]) => {
+                        const isMatched = matchedEntries.some(([d]) => d === description);
+                        return (
+                          <div key={description} className="space-y-2">
+                            {/* Divider titre de groupe */}
+                            <div className={`flex items-center gap-2 ${isMatched ? 'text-amber-700' : 'text-muted-foreground'}`}>
+                              <div className={`h-px flex-1 ${isMatched ? 'bg-gradient-to-r from-transparent to-amber-300' : 'bg-border'}`} />
+                              <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest">{description}</span>
+                              {isMatched && (
+                                <span className="shrink-0 rounded-full bg-gradient-to-r from-amber-100 to-orange-100 px-2 py-0.5 text-[9px] font-bold text-amber-700 ring-1 ring-amber-200">
+                                  Intervention
+                                </span>
+                              )}
+                              <div className={`h-px flex-1 ${isMatched ? 'bg-gradient-to-l from-transparent to-amber-300' : 'bg-border'}`} />
+                            </div>
+                            <div className="space-y-1.5">
+                              {items.map(p => renderPanneCard(p, isMatched))}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Bouton Voir plus / Voir moins */}
+                      {showToggle && (
+                        <button
+                          onClick={() => setSeHelpShowAll(v => !v)}
+                          className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed py-2.5 text-xs font-medium text-muted-foreground hover:border-primary/40 hover:bg-muted/40 hover:text-foreground transition-colors"
+                        >
+                          {seHelpShowAll ? (
+                            <><ChevronUp className="h-3.5 w-3.5" />Voir moins</>
+                          ) : (
+                            <><ChevronDown className="h-3.5 w-3.5" />Voir {hiddenCount} autre{hiddenCount > 1 ? 's' : ''} type{hiddenCount > 1 ? 's' : ''} de panne</>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog aide réparation */}
       <Dialog open={isHelpOpen} onOpenChange={setIsHelpOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[88vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <HelpCircle className="h-5 w-5 text-primary" />
-              Aide à la Réparation — {selectedPieceHelp?.nom}
-            </DialogTitle>
-          </DialogHeader>
-          {selectedPieceHelp && (
-            <div className="space-y-6 py-2">
-              {selectedPieceHelp.description_aide && (
-                <div className="space-y-1">
-                  <Label className="text-sm font-semibold">Description</Label>
-                  <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm">{selectedPieceHelp.description_aide}</p>
-                </div>
+        <DialogContent className="sm:max-w-lg w-full flex flex-col h-[62vh] p-0 gap-0 overflow-hidden !rounded-2xl">
+
+          {/* Bande de couleur supérieure */}
+          <div className="h-1.5 w-full shrink-0 bg-gradient-to-r from-transparent via-green-400 to-transparent [box-shadow:0_0_16px_4px_rgba(74,222,128,0.55)]" />
+
+          {/* Header */}
+          <div className="shrink-0 px-6 pt-5 pb-0 border-b bg-gradient-to-b from-green-50/60 to-white">
+            <div className="flex items-start justify-between gap-2 pb-3">
+              <div className="min-w-0">
+                <h2 className="text-xl font-bold text-green-600 leading-tight truncate">
+                  {selectedPieceHelp?.nom}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">Guide de diagnostic par symptôme</p>
+              </div>
+              {wizardFromSEHelp && (
+                <button
+                  onClick={() => { setIsHelpOpen(false); setIsSEHelpOpen(true); }}
+                  className="shrink-0 flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:border-green-400 hover:text-green-600 transition-colors"
+                >
+                  <ChevronLeft className="h-3 w-3" /> Formulaire Diagnostique
+                </button>
               )}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-sm font-semibold">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" /> Types de pannes
-                </Label>
-                {pannes.length === 0 && <p className="text-sm text-muted-foreground">Aucune panne renseignée.</p>}
-                {pannes.map(p => (
-                  <div key={p.id} className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm">{p.description}</div>
-                ))}
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold">Procédure de réparation</Label>
-                {procedures.length === 0 && <p className="text-sm text-muted-foreground">Aucune procédure.</p>}
-                {procedures.map((p, i) => (
-                  <div key={p.id} className="rounded-md border p-3 space-y-2">
-                    <span className="font-medium text-primary text-sm">Étape {i + 1}</span>
-                    <p className="text-sm">{p.description}</p>
-                    {p.image_url && <img src={p.image_url} alt={`Étape ${i + 1}`} className="max-h-48 rounded border object-contain" />}
-                  </div>
-                ))}
-              </div>
             </div>
-          )}
+
+            {/* Filtre actif */}
+            {wizardFilter && (
+              <div className="mb-3 flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 px-2.5 py-1.5">
+                <AlertTriangle className="h-3 w-3 shrink-0 text-amber-500" />
+                <span className="text-[11px] text-amber-700">Filtré sur&nbsp;: <span className="font-semibold">{wizardFilter}</span></span>
+                <button onClick={() => setWizardFilter(null)} className="ml-auto text-amber-400 hover:text-amber-600 transition-colors"><X className="h-3 w-3" /></button>
+              </div>
+            )}
+
+            {/* Tabs */}
+            <div className="flex gap-0">
+              {[
+                { id: 'guide', icon: Stethoscope, label: 'Guide Diagnostic' },
+                { id: 'docs',  icon: HelpCircle,  label: 'Documentation' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setHelpTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+                    helpTab === tab.id
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                  }`}
+                >
+                  <tab.icon className="h-3.5 w-3.5" /> {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            {selectedPieceHelp && helpTab === 'guide' && (
+              <div className="space-y-4">
+                {pannes.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground gap-3">
+                    <ListChecks className="h-10 w-10 opacity-25" />
+                    <div>
+                      <p className="text-sm font-medium">Aucun guide de diagnostic configuré.</p>
+                      <p className="text-xs mt-1">Ajoutez des types de pannes avec leurs vérifications dans Exploitation → Aide à la Réparation.</p>
+                    </div>
+                    <button onClick={() => setHelpTab('docs')} className="text-xs text-primary underline">Voir la documentation</button>
+                  </div>
+                ) : wizardStep === 0 ? (
+                  <>
+                    {(() => {
+                      const normStr = s => (s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+                      const displayedPannes = wizardFilter
+                        ? [...pannes].filter(p => normStr(p.description) === normStr(wizardFilter)).sort((a, b) => (b.poids || 3) - (a.poids || 3))
+                        : [...pannes].sort((a, b) => (b.poids || 3) - (a.poids || 3));
+                      const displayedWithChecks = displayedPannes.filter(p => (panneChecksMap[p.id] || []).length > 0);
+                      return (
+                        <>
+                          {/* En-tête étape 1 */}
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-semibold">Quel est le symptôme ?</p>
+                              <span className="text-[11px] text-muted-foreground">{displayedWithChecks.length} / {displayedPannes.length} avec guide</span>
+                            </div>
+                            {/* Barre de progression dégradée */}
+                            <div className="relative h-2 rounded-full bg-muted overflow-hidden">
+                              <div className="absolute inset-y-0 left-0 w-1/4 rounded-full bg-gradient-to-r from-amber-400 to-primary" />
+                            </div>
+                            <div className="flex justify-between text-[10px] text-muted-foreground font-medium">
+                              <span className="text-amber-500">● Étape 1</span>
+                              <span>Vérifications ○</span>
+                            </div>
+                          </div>
+
+                          {/* Liste des symptômes */}
+                          <div className="space-y-2">
+                            {displayedPannes.map(panne => {
+                              const checks = panneChecksMap[panne.id] || [];
+                              const hasChecks = checks.length > 0;
+                              const poids = panne.poids || 3;
+                              const poidsGrad = poids >= 5
+                                ? 'from-red-500 to-red-400'
+                                : poids === 4 ? 'from-orange-500 to-amber-400'
+                                : poids === 3 ? 'from-amber-400 to-yellow-300'
+                                : 'from-blue-400 to-sky-300';
+                              return (
+                                <button
+                                  key={panne.id}
+                                  disabled={!hasChecks}
+                                  onClick={() => { setWizardPanne(panne); setWizardStep(1); setWizardCheckedIds(new Set()); }}
+                                  className={`group w-full text-left rounded-xl border transition-all ${
+                                    hasChecks
+                                      ? 'border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50/40 hover:from-amber-100 hover:to-orange-50 hover:border-amber-300 hover:shadow-sm cursor-pointer'
+                                      : 'border-muted bg-muted/20 cursor-default opacity-50'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3 px-4 py-3">
+                                    <div className={`shrink-0 h-6 w-6 rounded-lg bg-gradient-to-br ${poidsGrad} flex items-center justify-center`}>
+                                      <span className="text-[10px] font-bold text-white">{poids}</span>
+                                    </div>
+                                    <span className="flex-1 text-sm font-medium truncate">{panne.description}</span>
+                                    {hasChecks ? (
+                                      <div className="flex items-center gap-1 text-xs text-amber-600 shrink-0">
+                                        <ListChecks className="h-3.5 w-3.5" />
+                                        <span>{checks.length} vérif.</span>
+                                        <ChevronRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                      </div>
+                                    ) : (
+                                      <span className="text-[11px] text-muted-foreground shrink-0">Aucune vérification</span>
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </>
+                ) : (
+                  <>
+                    {/* En-tête étape 2 */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold">Vérifications à effectuer</p>
+                        <button
+                          onClick={() => { setWizardStep(0); setWizardPanne(null); setWizardCheckedIds(new Set()); }}
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          <ChevronLeft className="h-3.5 w-3.5" /> Retour aux symptômes
+                        </button>
+                      </div>
+                      {/* Barre dégradée progressive */}
+                      <div className="relative h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary to-green-500 transition-all duration-300"
+                          style={{ width: `${25 + Math.round((wizardCheckedIds.size / Math.max(wizardChecks.length, 1)) * 75)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[10px] text-muted-foreground font-medium">
+                        <span className="text-primary">● Étape 2</span>
+                        <span className={wizardCheckedIds.size === wizardChecks.length ? 'text-green-600 font-semibold' : ''}>
+                          {wizardCheckedIds.size} / {wizardChecks.length} vérifiés
+                        </span>
+                      </div>
+                      {/* Symptôme sélectionné */}
+                      <div className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/15 px-3 py-2">
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                        <span className="text-xs text-muted-foreground">Symptôme&nbsp;:&nbsp;</span>
+                        <span className="text-xs font-semibold text-foreground truncate">{wizardPanne?.description}</span>
+                      </div>
+                    </div>
+
+                    {/* Liste des vérifications */}
+                    <div className="space-y-2">
+                      {wizardChecks.map((check, idx) => {
+                        const isChecked = wizardCheckedIds.has(check.id);
+                        return (
+                          <button
+                            key={check.id}
+                            onClick={() => setWizardCheckedIds(prev => {
+                              const n = new Set(prev);
+                              if (n.has(check.id)) n.delete(check.id); else n.add(check.id);
+                              return n;
+                            })}
+                            className={`w-full text-left rounded-xl border px-4 py-3 flex items-start gap-3 transition-all ${
+                              isChecked
+                                ? 'bg-gradient-to-r from-green-50 to-emerald-50/60 border-green-300 shadow-sm'
+                                : 'bg-background border-muted hover:bg-muted/30 hover:border-border'
+                            }`}
+                          >
+                            <div className={`mt-0.5 h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                              isChecked
+                                ? 'bg-gradient-to-br from-green-400 to-emerald-500 border-green-400'
+                                : 'border-muted-foreground/30'
+                            }`}>
+                              {isChecked && <Check className="h-2.5 w-2.5 text-white" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm leading-snug ${isChecked ? 'line-through text-muted-foreground' : ''}`}>
+                                {check.description_verification}
+                              </p>
+                              {check.piece && (
+                                <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                                  <Package2 className="h-3 w-3 shrink-0" /> {check.piece.nom}
+                                </p>
+                              )}
+                            </div>
+                            <span className={`shrink-0 text-[10px] font-bold mt-0.5 ${isChecked ? 'text-green-600' : 'text-muted-foreground/50'}`}>
+                              {idx + 1}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Résumé pièces à traiter */}
+                    {wizardCheckedIds.size > 0 && (
+                      <div className="rounded-xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50/40 p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-emerald-500">
+                            <CheckCheck className="h-3.5 w-3.5 text-white" />
+                          </div>
+                          <p className="text-xs font-semibold text-green-800">
+                            {wizardCheckedIds.size === wizardChecks.length
+                              ? 'Toutes les vérifications effectuées'
+                              : `${wizardCheckedIds.size} / ${wizardChecks.length} vérifications effectuées`}
+                          </p>
+                        </div>
+                        {uniquePiecesFromChecked.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-[11px] text-green-700 font-medium uppercase tracking-wide">Pièces à traiter</p>
+                            {uniquePiecesFromChecked.map(piece => (
+                              <div key={piece.id} className="flex items-center justify-between gap-2 rounded-lg border border-green-200 bg-white/80 px-3 py-2">
+                                <span className="text-sm font-medium truncate">{piece.nom}</span>
+                                <div className="flex gap-1 shrink-0">
+                                  {selectedItem && canManage && (
+                                    <Button size="sm" variant="outline" className="h-6 text-xs px-2 text-green-700 border-green-300 hover:bg-green-50" onClick={() => markNettoye(piece, selectedItem)}>
+                                      <Sparkles className="mr-1 h-3 w-3" />Nettoyée
+                                    </Button>
+                                  )}
+                                  {selectedItem && canManage && (
+                                    <Button size="sm" variant="outline" className="h-6 text-xs px-2 hover:bg-primary/5" onClick={() => { setIsHelpOpen(false); openReplace(piece); }}>
+                                      <ArrowRight className="mr-1 h-3 w-3" />Remplacer
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {selectedPieceHelp && helpTab === 'docs' && (
+              <div className="space-y-6">
+                {selectedPieceHelp.description_aide && (
+                  <div className="space-y-1">
+                    <Label className="text-sm font-semibold">Description</Label>
+                    <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm">{selectedPieceHelp.description_aide}</p>
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-sm font-semibold">
+                    <AlertTriangle className="h-4 w-4 text-amber-500" /> Types de pannes
+                  </Label>
+                  {pannes.length === 0 && <p className="text-sm text-muted-foreground">Aucune panne renseignée.</p>}
+                  {pannes.map(p => (
+                    <div key={p.id} className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm">{p.description}</div>
+                  ))}
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Procédure de réparation</Label>
+                  {procedures.length === 0 && <p className="text-sm text-muted-foreground">Aucune procédure.</p>}
+                  {procedures.map((p, i) => (
+                    <div key={p.id} className="rounded-md border p-3 space-y-2">
+                      <span className="font-medium text-primary text-sm">Étape {i + 1}</span>
+                      <p className="text-sm">{p.description}</p>
+                      {p.image_url && <img src={p.image_url} alt={`Étape ${i + 1}`} className="max-h-48 rounded border object-contain" />}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

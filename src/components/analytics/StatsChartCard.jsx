@@ -48,54 +48,45 @@ const PieChartGraphic = ({ data }) => {
   const remaining = Math.max(data.length - visualData.length, 0);
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)] xl:items-center">
-      <div className="flex justify-center">
-        <div className="relative flex h-52 w-52 items-center justify-center rounded-full border border-white/60 bg-white/80 shadow-inner">
+    <div className="grid gap-3 xl:grid-cols-[160px_minmax(0,1fr)] xl:items-start">
+      <div className="flex justify-center pt-1">
+        <div className="relative flex h-40 w-40 items-center justify-center rounded-full border border-white/60 bg-white/80 shadow-inner">
           <div
-            className="h-44 w-44 rounded-full shadow-[inset_0_0_24px_rgba(15,23,42,0.12)]"
-            style={{ background: `conic-gradient(${gradientSegments.join(', ')})` }}
+            className="h-33 w-33 rounded-full shadow-[inset_0_0_18px_rgba(15,23,42,0.10)]"
+            style={{ background: `conic-gradient(${gradientSegments.join(', ')})`, width: '8.25rem', height: '8.25rem' }}
           />
-          <div className="absolute flex h-24 w-24 flex-col items-center justify-center rounded-full bg-background/95 shadow-lg ring-1 ring-border/60">
-            <span className="text-3xl font-bold text-foreground">{formatChartValue(total)}</span>
-            <span className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Total</span>
+          <div className="absolute flex h-18 w-18 flex-col items-center justify-center rounded-full bg-background/95 shadow-lg ring-1 ring-border/60" style={{ width: '4.5rem', height: '4.5rem' }}>
+            <span className="text-2xl font-bold text-foreground">{formatChartValue(total)}</span>
+            <span className="text-[9px] font-medium uppercase tracking-[0.15em] text-muted-foreground">Total</span>
           </div>
         </div>
       </div>
-      <div className="space-y-3">
+      <div className="max-h-[240px] overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
         {visualData.map((item, index) => {
           const value = Number(item.value) || 0;
           const percent = total === 0 ? 0 : (value / total) * 100;
           return (
             <div
               key={`${item.label}-${index}`}
-              className="rounded-2xl border border-border/70 bg-white/70 px-4 py-3 shadow-sm"
+              className="rounded-xl border border-border/70 bg-white/70 px-3 py-2 shadow-sm"
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span
-                    className="h-3.5 w-3.5 rounded-full shadow-sm"
-                    style={{ backgroundColor: getChartColor(index) }}
-                  />
-                  <span className="truncate text-sm font-medium text-foreground">{item.label}</span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full shadow-sm" style={{ backgroundColor: getChartColor(index) }} />
+                  <span className="truncate text-xs font-medium text-foreground">{item.label}</span>
                 </div>
-                <span className="shrink-0 text-sm font-semibold text-foreground">
+                <span className="shrink-0 text-xs font-semibold text-foreground">
                   {formatChartValue(value)} • {percent.toFixed(0)}%
                 </span>
               </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted/60">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${Math.max(percent, value > 0 ? 6 : 0)}%`,
-                    backgroundColor: getChartColor(index),
-                  }}
-                />
+              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted/60">
+                <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(percent, value > 0 ? 6 : 0)}%`, backgroundColor: getChartColor(index) }} />
               </div>
             </div>
           );
         })}
         {remaining > 0 ? (
-          <p className="text-xs text-muted-foreground">+ {remaining} autre(s) catégorie(s) non affichée(s) dans le détail.</p>
+          <p className="text-[11px] text-muted-foreground">+ {remaining} autre(s) non affichée(s).</p>
         ) : null}
       </div>
     </div>
@@ -146,25 +137,25 @@ const LineChartGraphic = ({ data }) => {
   const deltaLabel = delta === 0 ? 'Stable' : delta > 0 ? `+${formatChartValue(delta)}` : formatChartValue(delta);
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-border/70 bg-white/70 px-4 py-3 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Pic</p>
-          <p className="mt-1 text-2xl font-bold text-foreground">{formatChartValue(maxValue)}</p>
+    <div className="space-y-2">
+      <div className="grid gap-2 grid-cols-3">
+        <div className="rounded-xl border border-border/70 bg-white/70 px-3 py-2 shadow-sm">
+          <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Pic</p>
+          <p className="mt-0.5 text-xl font-bold text-foreground">{formatChartValue(maxValue)}</p>
         </div>
-        <div className="rounded-2xl border border-border/70 bg-white/70 px-4 py-3 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Dernière valeur</p>
-          <p className="mt-1 text-2xl font-bold text-foreground">{formatChartValue(latestValue)}</p>
+        <div className="rounded-xl border border-border/70 bg-white/70 px-3 py-2 shadow-sm">
+          <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Dernière valeur</p>
+          <p className="mt-0.5 text-xl font-bold text-foreground">{formatChartValue(latestValue)}</p>
         </div>
-        <div className="rounded-2xl border border-border/70 bg-white/70 px-4 py-3 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Variation</p>
-          <p className={`mt-1 text-2xl font-bold ${delta > 0 ? 'text-red-600' : delta < 0 ? 'text-emerald-600' : 'text-foreground'}`}>
+        <div className="rounded-xl border border-border/70 bg-white/70 px-3 py-2 shadow-sm">
+          <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Variation</p>
+          <p className={`mt-0.5 text-xl font-bold ${delta > 0 ? 'text-red-600' : delta < 0 ? 'text-emerald-600' : 'text-foreground'}`}>
             {deltaLabel}
           </p>
         </div>
       </div>
-      <div className="overflow-x-auto rounded-2xl border border-border/70 bg-white/70 p-3 shadow-sm">
-        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-64 min-w-[680px] w-full">
+      <div className="overflow-x-auto rounded-xl border border-border/70 bg-white/70 p-2 shadow-sm">
+        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-48 min-w-[580px] w-full">
           <defs>
             <linearGradient id="analytics-line-fill" x1="0" x2="0" y1="0" y2="1">
               <stop offset="0%" stopColor="#22c55e" stopOpacity="0.3" />
@@ -220,23 +211,23 @@ const BarChartGraphic = ({ data }) => {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="max-h-[300px] overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
       {visualData.map((item, index) => {
         const value = Number(item.value) || 0;
         const width = maxValue === 0 ? 0 : (value / maxValue) * 100;
 
         return (
-          <div key={`${item.label}-${index}`} className="rounded-2xl border border-border/70 bg-white/70 px-4 py-3 shadow-sm">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm" style={{ backgroundColor: getChartColor(index) }}>
+          <div key={`${item.label}-${index}`} className="rounded-xl border border-border/70 bg-white/70 px-3 py-2 shadow-sm">
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white shadow-sm" style={{ backgroundColor: getChartColor(index) }}>
                   {index + 1}
                 </span>
-                <span className="truncate text-sm font-medium text-foreground">{item.label}</span>
+                <span className="truncate text-xs font-medium text-foreground">{item.label}</span>
               </div>
-              <span className="shrink-0 text-sm font-semibold text-foreground">{formatChartValue(value)}</span>
+              <span className="shrink-0 text-xs font-semibold text-foreground">{formatChartValue(value)}</span>
             </div>
-            <div className="h-3 overflow-hidden rounded-full bg-muted/60">
+            <div className="h-2 overflow-hidden rounded-full bg-muted/60">
               <div
                 className="h-full rounded-full transition-all"
                 style={{
@@ -261,18 +252,16 @@ const ProgressChartGraphic = ({ data }) => {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="rounded-2xl border border-border/70 bg-white/70 p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between gap-3">
+    <div className="space-y-2">
+      <div className="rounded-xl border border-border/70 bg-white/70 px-3 py-2 shadow-sm">
+        <div className="mb-2 flex items-center justify-between gap-2">
           <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Volume total</p>
-            <p className="text-3xl font-bold text-foreground">{formatChartValue(total)}</p>
+            <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Volume total</p>
+            <p className="text-xl font-bold text-foreground">{formatChartValue(total)}</p>
           </div>
-          <div className="text-right text-sm text-muted-foreground">
-            {visualData.length} segment(s)
-          </div>
+          <div className="text-right text-xs text-muted-foreground">{visualData.length} segment(s)</div>
         </div>
-        <div className="flex h-4 overflow-hidden rounded-full bg-muted/60">
+        <div className="flex h-3 overflow-hidden rounded-full bg-muted/60">
           {visualData.map((item, index) => {
             const value = Number(item.value) || 0;
             const width = (value / total) * 100;
@@ -280,28 +269,25 @@ const ProgressChartGraphic = ({ data }) => {
               <div
                 key={`${item.label}-${index}`}
                 className="h-full transition-all"
-                style={{
-                  width: `${width}%`,
-                  backgroundColor: getChartColor(index),
-                }}
+                style={{ width: `${width}%`, backgroundColor: getChartColor(index) }}
                 title={`${item.label} • ${formatChartValue(value)}`}
               />
             );
           })}
         </div>
       </div>
-      <div className="grid gap-3">
+      <div className="max-h-[220px] overflow-y-auto grid gap-1.5 pr-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
         {visualData.map((item, index) => {
           const value = Number(item.value) || 0;
           const percent = total === 0 ? 0 : (value / total) * 100;
           return (
-            <div key={`${item.label}-${index}`} className="rounded-2xl border border-border/70 px-4 py-3 shadow-sm" style={{ backgroundColor: getChartSoftBackground(index) }}>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="h-3.5 w-3.5 rounded-full shadow-sm" style={{ backgroundColor: getChartColor(index) }} />
-                  <span className="truncate text-sm font-medium text-foreground">{item.label}</span>
+            <div key={`${item.label}-${index}`} className="rounded-xl border border-border/70 px-3 py-2 shadow-sm" style={{ backgroundColor: getChartSoftBackground(index) }}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full shadow-sm" style={{ backgroundColor: getChartColor(index) }} />
+                  <span className="truncate text-xs font-medium text-foreground">{item.label}</span>
                 </div>
-                <span className="shrink-0 text-sm font-semibold text-foreground">
+                <span className="shrink-0 text-xs font-semibold text-foreground">
                   {formatChartValue(value)} • {percent.toFixed(0)}%
                 </span>
               </div>
@@ -354,14 +340,14 @@ const StatsChartCard = ({ title, description, type = 'pie', data = [] }) => {
 
   return (
     <Card className="overflow-hidden border-white/70 bg-white/75 shadow-sm backdrop-blur">
-      <CardHeader className="border-b border-border/60 bg-gradient-to-br from-white/70 via-white/40 to-transparent">
-        <CardTitle className="flex items-center gap-2 text-lg text-primary">
-          <Icon className="h-5 w-5" />
+      <CardHeader className="border-b border-border/60 bg-gradient-to-br from-white/70 via-white/40 to-transparent px-4 py-3">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold text-primary">
+          <Icon className="h-4 w-4 shrink-0" />
           {title}
         </CardTitle>
-        {description ? <CardDescription>{description}</CardDescription> : null}
+        {description ? <CardDescription className="text-xs">{description}</CardDescription> : null}
       </CardHeader>
-      <CardContent className="p-5">
+      <CardContent className="p-3">
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
           {content}
         </motion.div>
