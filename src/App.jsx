@@ -18,7 +18,8 @@ import AutorisationsPaiementGainPage from '@/pages/exploitation/AutorisationsPai
 import ReferentielParametresPage from '@/pages/exploitation/ReferentielParametresPage';
 import ProfilsExploitationPage from '@/pages/exploitation/ProfilsExploitationPage';
 import ParametresPage from '@/pages/exploitation/ParametresPage';
-import StatistiquesPage from '@/pages/exploitation/StatistiquesPage'; 
+import StatistiquesPage from '@/pages/exploitation/StatistiquesPage';
+import CcopeGlobPage from '@/pages/exploitation/CcopeGlobPage';
 import PaiementGrosGainPage from '@/pages/PaiementGrosGainPage';
 
 import EspaceChefAgencePage from '@/pages/EspaceChefAgencePage';
@@ -71,7 +72,7 @@ const App = () => {
             </Route>
             
             <Route path="/espace-exploitation" element={<EspaceExploitationPage />}>
-              <Route index element={<Navigate to="guichetieres" replace />} />
+              <Route index element={<Navigate to="maintenance-terminaux" replace />} />
               <Route path="agences" element={<AgencesPage />} />
               <Route path="chefs-agence" element={<ChefsAgencePage />} />
               <Route path="guichetieres" element={<GuichetieresPageExploitation />} />
@@ -86,6 +87,7 @@ const App = () => {
               <Route path="referentiel-parametres" element={<ReferentielParametresPage />} />
               <Route path="etat-planning-general" element={<EtatPlanningGeneralPage />} />
               <Route path="statistiques" element={<StatistiquesPage />} />
+              <Route path="ccopeglob" element={<CcopeGlobPage />} />
               <Route path="parametres" element={<ParametresPage />} />
               <Route path="profils-exploitation" element={<ProfilsExploitationPage />} />
             </Route>

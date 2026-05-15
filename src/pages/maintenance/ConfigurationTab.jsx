@@ -707,7 +707,7 @@ const ConfigurationTab = ({
   }, [parkFilters, parkTerminalRows]);
 
   const configurationContent = (
-    <div className="space-y-6">
+    <div className={showEquipmentManagement ? 'space-y-6' : 'space-y-4'}>
       <Card className="relative overflow-hidden shadow-lg">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
@@ -719,7 +719,7 @@ const ConfigurationTab = ({
               : 'Choisissez une région, puis une agence, afin de configurer ses terminaux.'}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5">
+        <CardContent className={showEquipmentManagement ? 'space-y-5' : 'space-y-4'}>
           {readOnlyMessage ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
               {readOnlyMessage}
@@ -731,40 +731,43 @@ const ConfigurationTab = ({
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label>Région</Label>
-              <Combobox
-                options={regionOptions}
-                value={formRegion}
-                onSelect={(value) => {
-                  if (resolvedLockedAgence) return;
-                  setFormRegion(value);
-                  setAgenceId('');
-                }}
-                placeholder="Choisir une région"
-                searchPlaceholder="Rechercher une région..."
-                emptyText="Aucune région trouvée."
-                disabled={isLoading || Boolean(resolvedLockedAgence)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Agence</Label>
-              <Combobox
-                options={agencesOptions}
-                value={agenceId}
-                onSelect={(value) => {
-                  setAgenceId(value);
-                  const nextAgency = agenciesById[String(value)];
-                  if (nextAgency?.region) {
-                    setFormRegion(nextAgency.region);
-                  }
-                }}
-                placeholder="Choisir une agence"
-                searchPlaceholder="Rechercher une agence..."
-                emptyText="Aucune agence trouvée."
-                disabled={isLoading || Boolean(resolvedLockedAgence) || (!formRegion && !resolvedLockedAgence)}
-              />
-            </div>
+            {!resolvedLockedAgence && (
+              <div className="space-y-2">
+                <Label>Région</Label>
+                <Combobox
+                  options={regionOptions}
+                  value={formRegion}
+                  onSelect={(value) => {
+                    setFormRegion(value);
+                    setAgenceId('');
+                  }}
+                  placeholder="Choisir une région"
+                  searchPlaceholder="Rechercher une région..."
+                  emptyText="Aucune région trouvée."
+                  disabled={isLoading}
+                />
+              </div>
+            )}
+            {!resolvedLockedAgence && (
+              <div className="space-y-2">
+                <Label>Agence</Label>
+                <Combobox
+                  options={agencesOptions}
+                  value={agenceId}
+                  onSelect={(value) => {
+                    setAgenceId(value);
+                    const nextAgency = agenciesById[String(value)];
+                    if (nextAgency?.region) {
+                      setFormRegion(nextAgency.region);
+                    }
+                  }}
+                  placeholder="Choisir une agence"
+                  searchPlaceholder="Rechercher une agence..."
+                  emptyText="Aucune agence trouvée."
+                  disabled={isLoading || !formRegion}
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Type de terminal</Label>
               <Combobox
@@ -924,7 +927,7 @@ const ConfigurationTab = ({
       <Card className="relative overflow-hidden shadow-lg">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
-        <CardHeader className="relative space-y-4">
+        <CardHeader className={showEquipmentManagement ? 'relative space-y-4' : 'relative space-y-3'}>
           <div className="flex flex-col gap-2">
             <CardTitle>Parc de Terminaux</CardTitle>
             <CardDescription>
@@ -932,42 +935,46 @@ const ConfigurationTab = ({
             </CardDescription>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-            <div className="space-y-2">
-              <Label>Région</Label>
-              <Combobox
-                options={parkRegionOptions}
-                value={parkFilters.region}
-                onSelect={(value) =>
-                  setParkFilters((previousState) => ({
-                    ...previousState,
-                    region: value || ALL_FILTER_VALUE,
-                    agenceId: ALL_FILTER_VALUE,
-                  }))
-                }
-                placeholder="Toutes les régions"
-                searchPlaceholder="Rechercher une région..."
-                emptyText="Aucune région trouvée."
-                disabled={isLoading || Boolean(resolvedLockedAgence)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Agence</Label>
-              <Combobox
-                options={parkAgencyOptions}
-                value={parkFilters.agenceId}
-                onSelect={(value) =>
-                  setParkFilters((previousState) => ({
-                    ...previousState,
-                    agenceId: value || ALL_FILTER_VALUE,
-                  }))
-                }
-                placeholder="Toutes les agences"
-                searchPlaceholder="Rechercher une agence..."
-                emptyText="Aucune agence trouvée."
-                disabled={isLoading || Boolean(resolvedLockedAgence)}
-              />
-            </div>
+          <div className={resolvedLockedAgence ? 'grid gap-4 md:grid-cols-3' : 'grid gap-4 md:grid-cols-2 xl:grid-cols-5'}>
+            {!resolvedLockedAgence && (
+              <div className="space-y-2">
+                <Label>Région</Label>
+                <Combobox
+                  options={parkRegionOptions}
+                  value={parkFilters.region}
+                  onSelect={(value) =>
+                    setParkFilters((previousState) => ({
+                      ...previousState,
+                      region: value || ALL_FILTER_VALUE,
+                      agenceId: ALL_FILTER_VALUE,
+                    }))
+                  }
+                  placeholder="Toutes les régions"
+                  searchPlaceholder="Rechercher une région..."
+                  emptyText="Aucune région trouvée."
+                  disabled={isLoading}
+                />
+              </div>
+            )}
+            {!resolvedLockedAgence && (
+              <div className="space-y-2">
+                <Label>Agence</Label>
+                <Combobox
+                  options={parkAgencyOptions}
+                  value={parkFilters.agenceId}
+                  onSelect={(value) =>
+                    setParkFilters((previousState) => ({
+                      ...previousState,
+                      agenceId: value || ALL_FILTER_VALUE,
+                    }))
+                  }
+                  placeholder="Toutes les agences"
+                  searchPlaceholder="Rechercher une agence..."
+                  emptyText="Aucune agence trouvée."
+                  disabled={isLoading}
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Type</Label>
               <Combobox
@@ -1237,7 +1244,7 @@ const ConfigurationTab = ({
   if (!showEquipmentManagement) {
     return (
       <>
-        <div className="space-y-6">{configurationContent}</div>
+        {configurationContent}
         {editDialog}
       </>
     );

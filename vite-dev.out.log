@@ -1,0 +1,34 @@
+
+> pmu-mali-gestion@0.0.1 dev
+> vite --host 127.0.0.1 --port 5174
+
+
+  [32m[1mVITE[22m v4.5.14[39m  [2mready in [0m[1m630[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5174[22m/[39m
+[2m11:11:29[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/CcopeGlobPage.jsx, /src/index.css[22m
+[2m11:11:33[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/CcopeGlobPage.jsx, /src/index.css[22m
+[2m11:11:43[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/CcopeGlobPage.jsx, /src/index.css[22m
+[2m11:11:57[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/CcopeGlobPage.jsx, /src/index.css[22m
+[2m11:12:20[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mdist/index.html[22m
+[2m11:14:31[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/CcopeGlobPage.jsx, /src/index.css[22m
+[2m11:14:38[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/CcopeGlobPage.jsx, /src/index.css[22m
+[2m11:14:42[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/CcopeGlobPage.jsx, /src/index.css[22m
+[2m11:14:52[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/CcopeGlobPage.jsx, /src/index.css[22m
+[2m11:15:07[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/CcopeGlobPage.jsx, /src/index.css[22m
+[2m11:15:16[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/CcopeGlobPage.jsx, /src/index.css[22m
+[2m11:15:41[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mdist/index.html[22m
+[2m11:20:56[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/PointsVenteMobiPage.jsx, /src/index.css[22m
+[2m11:21:02[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/PointsVenteMobiPage.jsx, /src/index.css[22m
+[2m11:21:20[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mdist/index.html[22m
+[2m11:25:52[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/CcopeGlobPage.jsx, /src/index.css[22m
+[2m11:26:08[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/CcopeGlobPage.jsx, /src/index.css[22m
+[2m11:26:31[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/CcopeGlobPage.jsx, /src/index.css[22m
+[2m11:27:04[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mdist/index.html[22m
+[2m11:28:05[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/CcopeGlobPage.jsx, /src/index.css[22m
+[2m11:28:24[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mdist/index.html[22m
+[2m11:31:54[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/CcopeGlobPage.jsx, /src/index.css[22m
+[2m11:32:00[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/CcopeGlobPage.jsx, /src/index.css[22m
+[2m11:46:55[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/EspaceExploitationPage.jsx, /src/index.css[22m
+[2m11:46:59[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/Layout.jsx, /src/pages/exploitation/AgencesPage.jsx, /src/pages/exploitation/ValidationPaiementGainPage.jsx, /src/pages/exploitation/TerminauxMobiPage.jsx, /src/pages/exploitation/ChefsAgencePage.jsx, /src/pages/EspaceGuichetierePage.jsx, /src/pages/exploitation/ProfilsExploitationPage.jsx, /src/pages/exploitation/MaintenanceTerminauxPage.jsx, /src/pages/EspaceChefAgencePage.jsx, /src/pages/EspaceMaintenancePage.jsx, /src/pages/EspaceExploitationPage.jsx, /src/pages/exploitation/RegionsPage.jsx, /src/pages/exploitation/TechniciensPage.jsx, /src/pages/exploitation/ReferentielParametresPage.jsx, /src/pages/EspaceValidationPaiementGainPage.jsx, /src/pages/exploitation/GuichetieresPage.jsx, /src/pages/exploitation/PointsVenteMobiPage.jsx[22m
+[2m11:47:12[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/exploitation/CcopeGlobPage.jsx, /src/index.css[22m
