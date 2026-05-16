@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { usePageState } from '@/hooks/usePageState';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption } from '@/components/ui/table';
@@ -15,7 +16,7 @@ const MesGuichetieresPage = () => {
   const { nomAgence } = useOutletContext();
   const { toast } = useToast();
   const [guichetieres, setGuichetieres] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = usePageState('chef-mes-guichetieres', 'searchTerm', '');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {

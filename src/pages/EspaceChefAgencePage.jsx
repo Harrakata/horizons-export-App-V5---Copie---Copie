@@ -551,6 +551,14 @@ const EspaceChefAgencePage = () => {
     return () => window.removeEventListener('app-space-tabs-updated', handleSpaceTabsUpdated);
   }, []);
 
+  useEffect(() => {
+    const prefix = '/espace-chef-agence/';
+    if (location.pathname.startsWith(prefix)) {
+      const subPath = location.pathname.slice(prefix.length).replace(/\/$/, '');
+      if (subPath) try { localStorage.setItem('ps:chef-agence:lastPath', subPath); } catch {}
+    }
+  }, [location.pathname]);
+
   const handleLogin = (status, chefData) => {
     setIsAuthenticated(status);
     if (status && chefData) {
@@ -673,7 +681,12 @@ const EspaceChefAgencePage = () => {
     const validPaths = menuItems.map((item) => `/espace-chef-agence/${item.path}`);
 
     if (!validPaths.includes(normalizedPathname)) {
-      navigate(`/espace-chef-agence/${fallbackPath}`, { replace: true });
+      let savedPath;
+      try { savedPath = localStorage.getItem('ps:chef-agence:lastPath'); } catch {}
+      const target = (savedPath && validPaths.includes(`/espace-chef-agence/${savedPath}`))
+        ? savedPath
+        : fallbackPath;
+      navigate(`/espace-chef-agence/${target}`, { replace: true });
     }
   }, [isAuthenticated, menuItems, navigate, normalizedPathname, spaceTabFunctionalities]);
 

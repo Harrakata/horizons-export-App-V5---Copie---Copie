@@ -159,6 +159,14 @@ const EspaceGuichetierePage = () => {
   }, []);
 
   useEffect(() => {
+    const prefix = '/espace-guichetiere/';
+    if (location.pathname.startsWith(prefix)) {
+      const subPath = location.pathname.slice(prefix.length).replace(/\/$/, '');
+      if (subPath) try { localStorage.setItem('ps:guichetiere:lastPath', subPath); } catch {}
+    }
+  }, [location.pathname]);
+
+  useEffect(() => {
     const handleSpaceTabsUpdated = (event) => {
       const normalizedSettings = normalizeAppSpaceTabFunctionalities(event.detail);
       setSpaceTabFunctionalities(normalizedSettings);
@@ -223,7 +231,12 @@ const EspaceGuichetierePage = () => {
       normalizedPathname === '/espace-guichetiere/' ||
       !menuItems.some((item) => isMenuItemActive(item.path))
     ) {
-      navigate(`/espace-guichetiere/${fallbackPath}`, { replace: true });
+      let savedPath;
+      try { savedPath = localStorage.getItem('ps:guichetiere:lastPath'); } catch {}
+      const target = (savedPath && menuItems.some((item) => item.path === savedPath))
+        ? savedPath
+        : fallbackPath;
+      navigate(`/espace-guichetiere/${target}`, { replace: true });
     }
   }, [isAuthenticated, isMenuItemActive, menuItems, navigate, normalizedPathname, spaceTabFunctionalities]);
 

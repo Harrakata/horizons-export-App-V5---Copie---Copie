@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { usePageState } from '@/hooks/usePageState';
 import { motion } from 'framer-motion';
 import {
   CheckCircle2,
@@ -192,15 +193,16 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const spaceConfig = SPACE_CONFIGS[spaceMode] || SPACE_CONFIGS.regional;
+  const spaceLsKey = spaceMode === 'general' ? 'directeur-general' : 'directeur-regional';
   const [validator, setValidator] = useState(() =>
     getStoredValidatorForSpace(spaceConfig.storageKey, spaceConfig.expectedFunction)
   );
-  const [activeSection, setActiveSection] = useState('paiement');
+  const [activeSection, setActiveSection] = usePageState(spaceLsKey, 'activeSection', 'paiement');
   const [demandes, setDemandes] = useState([]);
   const [events, setEvents] = useState([]);
   const [selectedDemandeId, setSelectedDemandeId] = useState(null);
-  const [pendingSearchTerm, setPendingSearchTerm] = useState('');
-  const [historySearchTerm, setHistorySearchTerm] = useState('');
+  const [pendingSearchTerm, setPendingSearchTerm] = usePageState(spaceLsKey, 'pendingSearch', '');
+  const [historySearchTerm, setHistorySearchTerm] = usePageState(spaceLsKey, 'historySearch', '');
   const [actionComment, setActionComment] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
@@ -229,7 +231,6 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
     setEvents([]);
     setSelectedDemandeId(null);
     setActionComment('');
-    setActiveSection('paiement');
   }, [spaceConfig.expectedFunction, spaceConfig.storageKey]);
 
   const loadData = useCallback(async () => {

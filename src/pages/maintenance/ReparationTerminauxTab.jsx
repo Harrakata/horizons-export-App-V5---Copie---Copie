@@ -15,6 +15,8 @@ const SOUS_ENSEMBLE_LABELS = {
   lecteur: 'Lecteur',
   ecran: 'Écran',
   afficheur: 'Afficheur client',
+  buc: 'BUC',
+  carrosserie: 'Carrosserie',
 };
 
 const STATUT_CONFIG = {
@@ -75,6 +77,8 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
     lecteur: 'equipments_lecteurs',
     ecran: 'equipments_ecrans',
     afficheur: 'equipments_afficheurs',
+    buc: 'equipments_bucs',
+    carrosserie: 'equipments_carrosseries',
   };
 
   const load = useCallback(async () => {

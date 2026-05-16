@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { usePageState } from '@/hooks/usePageState';
 import { motion } from 'framer-motion';
 import { BarChart3, ClipboardCheck, Clock3, Search, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -29,8 +30,8 @@ const SuiviPointagePage = () => {
   const [creneauxCount, setCreneauxCount] = useState(2);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
   const [selectedDetailGuichetiereId, setSelectedDetailGuichetiereId] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [trendGranularity, setTrendGranularity] = useState('week');
+  const [searchTerm, setSearchTerm] = usePageState('chef-suivi-pointage', 'searchTerm', '');
+  const [trendGranularity, setTrendGranularity] = usePageState('chef-suivi-pointage', 'trendGranularity', 'week');
   const [isLoading, setIsLoading] = useState(false);
 
   const loadData = useCallback(async () => {

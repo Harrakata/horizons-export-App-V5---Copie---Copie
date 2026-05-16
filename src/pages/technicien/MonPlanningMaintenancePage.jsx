@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { usePageState } from '@/hooks/usePageState';
 import {
   addMonths,
   addWeeks,
@@ -87,7 +88,7 @@ const STATUT_CONFIG_TECH = {
 const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => {
   const { toast } = useToast();
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [viewMode, setViewMode] = useState('month');
+  const [viewMode, setViewMode] = usePageState('planning-maintenance', 'viewMode', 'month');
   const [planningEntries, setPlanningEntries] = useState([]);
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(false);

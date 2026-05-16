@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { usePageState } from '@/hooks/usePageState';
 import { motion } from 'framer-motion';
 import {
   Building2,
@@ -99,10 +100,12 @@ const PaiementGrosGainPage = () => {
   const [photoPreview, setPhotoPreview] = useState(null);
   const [chefDecisionComment, setChefDecisionComment] = useState('');
   const [paymentComment, setPaymentComment] = useState('');
-  const [ownDemandesSearchTerm, setOwnDemandesSearchTerm] = useState('');
-  const [ownDemandesStatusFilter, setOwnDemandesStatusFilter] = useState(ALL_FILTER_VALUE);
-  const [agencyDemandesSearchTerm, setAgencyDemandesSearchTerm] = useState('');
-  const [agencyDemandesStatusFilter, setAgencyDemandesStatusFilter] = useState(ALL_FILTER_VALUE);
+  const [ownDemandesSearchTerm, setOwnDemandesSearchTerm] = usePageState('paiement-gros-gain', 'ownSearch', '');
+  const [ownDemandesStatusFilter, setOwnDemandesStatusFilter] = usePageState('paiement-gros-gain', 'ownStatus', ALL_FILTER_VALUE);
+  const [agencyDemandesSearchTerm, setAgencyDemandesSearchTerm] = usePageState('paiement-gros-gain', 'agencySearch', '');
+  const [agencyDemandesStatusFilter, setAgencyDemandesStatusFilter] = usePageState('paiement-gros-gain', 'agencyStatus', ALL_FILTER_VALUE);
+  const [chefTab, setChefTab] = usePageState('paiement-gros-gain', 'chefTab', 'pending');
+  const [userTab, setUserTab] = usePageState('paiement-gros-gain', 'userTab', 'demande');
   const [selectedOwnDemandeId, setSelectedOwnDemandeId] = useState(null);
   const [selectedAgencyDemandeId, setSelectedAgencyDemandeId] = useState(null);
   const [selectedChefActionDemandeId, setSelectedChefActionDemandeId] = useState(null);
@@ -1072,7 +1075,7 @@ const PaiementGrosGainPage = () => {
       </div>
 
       {isChefAgenceWorkspace ? (
-        <Tabs defaultValue="pending" className="space-y-6">
+        <Tabs value={chefTab} onValueChange={setChefTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="pending">Demandes à traiter</TabsTrigger>
             <TabsTrigger value="history">Historique</TabsTrigger>
@@ -1342,7 +1345,7 @@ const PaiementGrosGainPage = () => {
           </TabsContent>
         </Tabs>
       ) : (
-        <Tabs defaultValue="demande" className="space-y-6">
+        <Tabs value={userTab} onValueChange={setUserTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="demande">Demande de Paiement de Gain</TabsTrigger>
           <TabsTrigger value="autorisation">Autorisation de Paiement de Gain</TabsTrigger>

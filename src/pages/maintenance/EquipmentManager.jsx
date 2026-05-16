@@ -9,7 +9,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Edit, Monitor, PlusCircle, Printer, Scan, Search, Trash2, Tv, CheckCircle2, Wrench, XCircle, Package } from 'lucide-react';
+import { Edit, Monitor, PlusCircle, Printer, Scan, Search, Trash2, Tv, CheckCircle2, Wrench, XCircle, Package, Box, Shield } from 'lucide-react';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -53,6 +53,20 @@ const EQUIPMENT_TYPES = {
     icon: <Tv className="h-5 w-5" />,
     table: 'equipments_afficheurs',
     sousEnsemble: 'afficheur',
+  },
+  bucs: {
+    label: 'BUC',
+    singular: 'BUC',
+    icon: <Box className="h-5 w-5" />,
+    table: 'equipments_bucs',
+    sousEnsemble: 'buc',
+  },
+  carrosseries: {
+    label: 'Carrosseries',
+    singular: 'Carrosserie',
+    icon: <Shield className="h-5 w-5" />,
+    table: 'equipments_carrosseries',
+    sousEnsemble: 'carrosserie',
   },
 };
 
@@ -207,6 +221,8 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
     ecrans: [],
     lecteurs: [],
     afficheurs: [],
+    bucs: [],
+    carrosseries: [],
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentEquipment, setCurrentEquipment] = useState(null);
@@ -223,6 +239,8 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
     ecrans: '',
     lecteurs: '',
     afficheurs: '',
+    bucs: '',
+    carrosseries: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [modeleOptions, setModeleOptions] = useState([]);
@@ -230,15 +248,17 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
   const syncStatutsDepuisTerminaux = async () => {
     const { data: allTerminaux } = await supabase
       .from('terminaux')
-      .select('imprimante_reference, lecteur_reference, ecran_reference, afficheur_reference');
+      .select('imprimante_reference, lecteur_reference, ecran_reference, afficheur_reference, buc_reference, carrosserie_reference');
 
     if (!allTerminaux?.length) return;
 
     const typeConfigs = [
-      { field: 'imprimante_reference', table: 'equipments_imprimantes' },
-      { field: 'lecteur_reference',    table: 'equipments_lecteurs' },
-      { field: 'ecran_reference',      table: 'equipments_ecrans' },
-      { field: 'afficheur_reference',  table: 'equipments_afficheurs' },
+      { field: 'imprimante_reference',  table: 'equipments_imprimantes' },
+      { field: 'lecteur_reference',     table: 'equipments_lecteurs' },
+      { field: 'ecran_reference',       table: 'equipments_ecrans' },
+      { field: 'afficheur_reference',   table: 'equipments_afficheurs' },
+      { field: 'buc_reference',         table: 'equipments_bucs' },
+      { field: 'carrosserie_reference', table: 'equipments_carrosseries' },
     ];
 
     const ops = [];
@@ -401,12 +421,12 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader className="relative">
           <CardTitle className="text-2xl font-bold text-primary">Gestion de sous-ensembles</CardTitle>
-          <CardDescription>Gérez les imprimantes, écrans, lecteurs et afficheurs client disponibles pour les terminaux.</CardDescription>
+          <CardDescription>Gérez les imprimantes, écrans, lecteurs, afficheurs client, BUC et carrosseries disponibles pour les terminaux.</CardDescription>
         </CardHeader>
       </Card>
 
       <Tabs defaultValue="imprimantes" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3 md:grid-cols-6">
           <TabsTrigger value="imprimantes" className="flex items-center gap-2">
             <Printer className="h-4 w-4" />
             Imprimantes
@@ -422,6 +442,14 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
           <TabsTrigger value="afficheurs" className="flex items-center gap-2">
             <Tv className="h-4 w-4" />
             Afficheurs client
+          </TabsTrigger>
+          <TabsTrigger value="bucs" className="flex items-center gap-2">
+            <Box className="h-4 w-4" />
+            BUC
+          </TabsTrigger>
+          <TabsTrigger value="carrosseries" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Carrosseries
           </TabsTrigger>
         </TabsList>
 

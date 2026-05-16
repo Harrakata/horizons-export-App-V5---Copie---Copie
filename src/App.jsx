@@ -20,6 +20,7 @@ import ProfilsExploitationPage from '@/pages/exploitation/ProfilsExploitationPag
 import ParametresPage from '@/pages/exploitation/ParametresPage';
 import StatistiquesPage from '@/pages/exploitation/StatistiquesPage';
 import CcopeGlobPage from '@/pages/exploitation/CcopeGlobPage';
+import CcopePage from '@/pages/exploitation/CcopePage';
 import PaiementGrosGainPage from '@/pages/PaiementGrosGainPage';
 
 import EspaceChefAgencePage from '@/pages/EspaceChefAgencePage';
@@ -88,6 +89,7 @@ const App = () => {
               <Route path="etat-planning-general" element={<EtatPlanningGeneralPage />} />
               <Route path="statistiques" element={<StatistiquesPage />} />
               <Route path="ccopeglob" element={<CcopeGlobPage />} />
+              <Route path="ccope" element={<CcopePage />} />
               <Route path="parametres" element={<ParametresPage />} />
               <Route path="profils-exploitation" element={<ProfilsExploitationPage />} />
             </Route>

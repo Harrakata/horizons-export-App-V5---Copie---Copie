@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { usePageState } from '@/hooks/usePageState';
 import { motion } from 'framer-motion';
 import { Building2, History, MapPin, Search } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,11 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
-
-const ALL_FILTER_VALUE = '__all__';
 
 const normalizeText = (value) =>
   String(value ?? '')
@@ -39,11 +39,10 @@ const PointsVenteMobiChefPage = () => {
   const { toast } = useToast();
   const [pointsVente, setPointsVente] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeSearchTerm, setActiveSearchTerm] = useState('');
-  const [historySearchTerm, setHistorySearchTerm] = useState('');
+  const [activeSearchTerm, setActiveSearchTerm] = usePageState('chef-points-vente-mobi', 'activeSearchTerm', '');
+  const [pageSize, setPageSize] = usePageState('chef-points-vente-mobi', 'pageSize', '10');
   const [selectedActivePointUid, setSelectedActivePointUid] = useState('');
-  const [historyPointUidFilter, setHistoryPointUidFilter] = useState(ALL_FILTER_VALUE);
-  const [historyStatusFilter, setHistoryStatusFilter] = useState(ALL_FILTER_VALUE);
+  const [historyDialogUid, setHistoryDialogUid] = useState(null);
 
   const loadData = useCallback(async () => {
     if (!nomAgence) return;
@@ -110,17 +109,6 @@ const PointsVenteMobiChefPage = () => {
     }
   }, [activePoints, selectedActivePointUid]);
 
-  const activePointOptions = useMemo(
-    () => [
-      { value: ALL_FILTER_VALUE, label: 'Tous les points actifs' },
-      ...activePoints.map((pointVente) => ({
-        value: pointVente.pointVenteUid,
-        label: `${pointVente.codePointVente} • ${pointVente.terminalReference || 'Sans terminal'}`,
-      })),
-    ],
-    [activePoints]
-  );
-
   const filteredActivePoints = useMemo(() => {
     const searchValue = normalizeText(activeSearchTerm);
 
@@ -137,45 +125,10 @@ const PointsVenteMobiChefPage = () => {
     );
   }, [activePoints, activeSearchTerm]);
 
-  const filteredHistory = useMemo(() => {
-    const searchValue = normalizeText(historySearchTerm);
-
-    return agencePoints
-      .filter((pointVente) => historyPointUidFilter === ALL_FILTER_VALUE || pointVente.pointVenteUid === historyPointUidFilter)
-      .filter((pointVente) => historyStatusFilter === ALL_FILTER_VALUE || pointVente.statut === historyStatusFilter)
-      .filter((pointVente) =>
-        !searchValue ||
-        [
-          pointVente.codePointVente,
-          pointVente.region,
-          pointVente.agenceNom,
-          pointVente.terminalReference,
-          pointVente.guichetiereNom,
-          pointVente.guichetiereMatricule,
-          pointVente.statut,
-        ].some((value) => normalizeText(value).includes(searchValue))
-      )
-      .sort((firstPoint, secondPoint) => {
-        const secondDate = secondPoint.dateDebutValidite || secondPoint.created_at || '';
-        const firstDate = firstPoint.dateDebutValidite || firstPoint.created_at || '';
-        return new Date(secondDate) - new Date(firstDate);
-      });
-  }, [agencePoints, historyPointUidFilter, historySearchTerm, historyStatusFilter]);
-
-  const selectedActivePoint =
-    activePoints.find((pointVente) => pointVente.pointVenteUid === selectedActivePointUid) || null;
-
-  const selectedActivePointHistory = useMemo(() => {
-    if (!selectedActivePoint) return [];
-
-    return agencePoints
-      .filter((pointVente) => pointVente.pointVenteUid === selectedActivePoint.pointVenteUid)
-      .sort((firstPoint, secondPoint) => {
-        const secondDate = secondPoint.dateDebutValidite || secondPoint.created_at || '';
-        const firstDate = firstPoint.dateDebutValidite || firstPoint.created_at || '';
-        return new Date(secondDate) - new Date(firstDate);
-      });
-  }, [agencePoints, selectedActivePoint]);
+  const displayedActivePoints = useMemo(
+    () => (pageSize === 'all' ? filteredActivePoints : filteredActivePoints.slice(0, Number(pageSize))),
+    [filteredActivePoints, pageSize]
+  );
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -227,15 +180,29 @@ const PointsVenteMobiChefPage = () => {
               </CardDescription>
             </div>
 
-            <div className="relative w-full md:max-w-md">
-              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={activeSearchTerm}
-                onChange={(event) => setActiveSearchTerm(event.target.value)}
-                placeholder="Rechercher un point actif..."
-                className="pl-10"
-                disabled={isLoading}
-              />
+            <div className="flex w-full items-center gap-2 md:max-w-lg">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={activeSearchTerm}
+                  onChange={(event) => setActiveSearchTerm(event.target.value)}
+                  placeholder="Rechercher un point actif..."
+                  className="pl-10"
+                  disabled={isLoading}
+                />
+              </div>
+              <Select value={pageSize} onValueChange={setPageSize}>
+                <SelectTrigger className="w-28 shrink-0">
+                  <SelectValue placeholder="Afficher" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5 lignes</SelectItem>
+                  <SelectItem value="10">10 lignes</SelectItem>
+                  <SelectItem value="20">20 lignes</SelectItem>
+                  <SelectItem value="50">50 lignes</SelectItem>
+                  <SelectItem value="all">Tous</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardHeader>
@@ -248,7 +215,7 @@ const PointsVenteMobiChefPage = () => {
               <TableCaption>
                 {filteredActivePoints.length === 0
                   ? 'Aucun point de vente mobi actif pour cette agence.'
-                  : `${filteredActivePoints.length} point(s) de vente mobi actif(s) affiché(s).`}
+                  : `${displayedActivePoints.length} / ${filteredActivePoints.length} point(s) de vente mobi actif(s) affiché(s).`}
               </TableCaption>
               <TableHeader>
                 <TableRow>
@@ -258,10 +225,11 @@ const PointsVenteMobiChefPage = () => {
                   <TableHead>Guichetière</TableHead>
                   <TableHead>Début validité</TableHead>
                   <TableHead>Statut</TableHead>
+                  <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredActivePoints.map((pointVente, index) => (
+                {displayedActivePoints.map((pointVente, index) => (
                   <motion.tr
                     key={pointVente.id}
                     initial={{ opacity: 0, y: 10 }}
@@ -292,179 +260,14 @@ const PointsVenteMobiChefPage = () => {
                         {pointVente.statut}
                       </Badge>
                     </TableCell>
-                  </motion.tr>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      {selectedActivePoint && (
-        <Card className="shadow-xl glassmorphism">
-          <CardHeader>
-            <CardTitle className="text-2xl text-primary">Historique du point actif sélectionné</CardTitle>
-            <CardDescription>
-              {selectedActivePoint.codePointVente} • {selectedActivePoint.terminalReference || 'Sans terminal'} • {selectedActivePoint.guichetiereNom || 'Sans guichetière'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableCaption>
-                {selectedActivePointHistory.length === 0
-                  ? 'Aucune version historique trouvée pour ce point de vente.'
-                  : `${selectedActivePointHistory.length} version(s) pour ${selectedActivePoint.codePointVente}.`}
-              </TableCaption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Point de vente</TableHead>
-                  <TableHead>Terminal Mobi</TableHead>
-                  <TableHead>Guichetière</TableHead>
-                  <TableHead>Début validité</TableHead>
-                  <TableHead>Fin validité</TableHead>
-                  <TableHead>Statut</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {selectedActivePointHistory.map((pointVente, index) => (
-                  <motion.tr
-                    key={pointVente.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.03 }}
-                  >
-                    <TableCell className="font-medium">{pointVente.codePointVente}</TableCell>
                     <TableCell>
-                      <div className="flex flex-col">
-                        <span>{pointVente.terminalReference || 'N/A'}</span>
-                        <span className="text-xs text-muted-foreground">{pointVente.terminalModele || 'Sans modèle'}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span>{pointVente.guichetiereNom || 'N/A'}</span>
-                        <span className="text-xs text-muted-foreground">{pointVente.guichetiereMatricule || 'N/A'}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatDisplayDate(pointVente.dateDebutValidite)}</TableCell>
-                    <TableCell>{formatDisplayDate(pointVente.dateFinValidite)}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={getStatusBadgeClass(pointVente.statut)}>
-                        {pointVente.statut}
-                      </Badge>
-                    </TableCell>
-                  </motion.tr>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card className="shadow-xl glassmorphism">
-        <CardHeader className="space-y-4">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <CardTitle className="text-2xl text-primary">Historique global de l’agence</CardTitle>
-              <CardDescription>
-                Filtrez l’historique des changements sur les points de vente mobi rattachés à votre agence.
-              </CardDescription>
-            </div>
-
-            <div className="relative w-full md:max-w-md">
-              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={historySearchTerm}
-                onChange={(event) => setHistorySearchTerm(event.target.value)}
-                placeholder="Rechercher dans l’historique..."
-                className="pl-10"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Point de vente actif</p>
-              <Select value={historyPointUidFilter} onValueChange={setHistoryPointUidFilter} disabled={isLoading}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Tous les points actifs" />
-                </SelectTrigger>
-                <SelectContent>
-                  {activePointOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Statut</p>
-              <Select value={historyStatusFilter} onValueChange={setHistoryStatusFilter} disabled={isLoading}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Tous les statuts" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_FILTER_VALUE}>Tous les statuts</SelectItem>
-                  <SelectItem value="Actif">Actif</SelectItem>
-                  <SelectItem value="Inactif">Inactif</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          {isLoading && agencePoints.length === 0 ? (
-            <p className="py-8 text-center text-muted-foreground">Chargement de l’historique...</p>
-          ) : (
-            <Table>
-              <TableCaption>
-                {filteredHistory.length === 0
-                  ? 'Aucune ligne historique trouvée pour les filtres actuels.'
-                  : `${filteredHistory.length} ligne(s) historique(s) affichée(s).`}
-              </TableCaption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Point de vente</TableHead>
-                  <TableHead>Région</TableHead>
-                  <TableHead>Terminal Mobi</TableHead>
-                  <TableHead>Guichetière</TableHead>
-                  <TableHead>Début validité</TableHead>
-                  <TableHead>Fin validité</TableHead>
-                  <TableHead>Statut</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredHistory.map((pointVente, index) => (
-                  <motion.tr
-                    key={pointVente.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.03 }}
-                  >
-                    <TableCell className="font-medium">{pointVente.codePointVente}</TableCell>
-                    <TableCell>{pointVente.region || 'N/A'}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span>{pointVente.terminalReference || 'N/A'}</span>
-                        <span className="text-xs text-muted-foreground">{pointVente.terminalModele || 'Sans modèle'}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span>{pointVente.guichetiereNom || 'N/A'}</span>
-                        <span className="text-xs text-muted-foreground">{pointVente.guichetiereMatricule || 'N/A'}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatDisplayDate(pointVente.dateDebutValidite)}</TableCell>
-                    <TableCell>{formatDisplayDate(pointVente.dateFinValidite)}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={getStatusBadgeClass(pointVente.statut)}>
-                        {pointVente.statut}
-                      </Badge>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setHistoryDialogUid(pointVente.pointVenteUid); }}
+                        title="Voir l'historique"
+                        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                      >
+                        <History className="h-4 w-4" />
+                      </button>
                     </TableCell>
                   </motion.tr>
                 ))}
@@ -473,6 +276,91 @@ const PointsVenteMobiChefPage = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* ── Dialog Historique PDV ───────────────────────────────────────── */}
+      {(() => {
+        const dialogPdv = historyDialogUid
+          ? agencePoints.find((p) => p.pointVenteUid === historyDialogUid)
+          : null;
+        const dialogHistory = historyDialogUid
+          ? agencePoints
+              .filter((p) => p.pointVenteUid === historyDialogUid)
+              .sort((a, b) => {
+                const da = a.dateDebutValidite || a.created_at || '';
+                const db = b.dateDebutValidite || b.created_at || '';
+                return new Date(db) - new Date(da);
+              })
+          : [];
+
+        return (
+          <Dialog open={!!historyDialogUid} onOpenChange={(open) => { if (!open) setHistoryDialogUid(null); }}>
+            <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-primary">
+                  <History className="h-5 w-5" />
+                  Historique — {dialogPdv?.codePointVente ?? ''}
+                </DialogTitle>
+                <DialogDescription>
+                  {dialogPdv
+                    ? `${dialogPdv.terminalReference || 'Sans terminal'} · ${dialogPdv.guichetiereNom || 'Sans guichetière'}`
+                    : ''}
+                </DialogDescription>
+              </DialogHeader>
+
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Point de vente</TableHead>
+                    <TableHead>Terminal Mobi</TableHead>
+                    <TableHead>Guichetière</TableHead>
+                    <TableHead>Début validité</TableHead>
+                    <TableHead>Fin validité</TableHead>
+                    <TableHead>Statut</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dialogHistory.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                        Aucun historique pour ce point de vente.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    dialogHistory.map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-medium">{p.codePointVente}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span>{p.terminalReference || 'N/A'}</span>
+                            <span className="text-xs text-muted-foreground">{p.terminalModele || ''}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span>{p.guichetiereNom || 'N/A'}</span>
+                            <span className="text-xs text-muted-foreground">{p.guichetiereMatricule || ''}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{formatDisplayDate(p.dateDebutValidite)}</TableCell>
+                        <TableCell>{formatDisplayDate(p.dateFinValidite)}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={getStatusBadgeClass(p.statut)}>
+                            {p.statut}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+              <TableCaption className="mt-0 pb-1 text-xs">
+                {dialogHistory.length} version(s) pour ce point de vente.
+              </TableCaption>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
+
     </motion.div>
   );
 };

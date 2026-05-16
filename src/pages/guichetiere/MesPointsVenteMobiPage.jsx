@@ -49,6 +49,7 @@ const MesPointsVenteMobiPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedPointVente, setSelectedPointVente] = useState(null);
+  const [historyDialogUid, setHistoryDialogUid] = useState(null);
   const [requestForm, setRequestForm] = useState(defaultRequestForm);
 
   const loadData = useCallback(async () => {
@@ -308,6 +309,7 @@ const MesPointsVenteMobiPage = () => {
                 <TableHead>Agence</TableHead>
                 <TableHead>Terminal</TableHead>
                 <TableHead>Action</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -321,6 +323,15 @@ const MesPointsVenteMobiPage = () => {
                     <Button size="sm" variant="outline" onClick={() => openDialog(pointVente)}>
                       Demander une modification
                     </Button>
+                  </TableCell>
+                  <TableCell>
+                    <button
+                      onClick={() => setHistoryDialogUid(pointVente.pointVenteUid)}
+                      title="Voir l'historique"
+                      className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                    >
+                      <History className="h-4 w-4" />
+                    </button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -367,44 +378,77 @@ const MesPointsVenteMobiPage = () => {
         </CardContent>
       </Card>
 
-      <Card className="shadow-xl glassmorphism">
-        <CardHeader>
-          <CardTitle className="text-2xl text-primary">Historique des affectations</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableCaption>
-              {pointsVente.length === 0 ? 'Aucun historique disponible.' : `${pointsVente.length} version(s) d’affectation.`}
-            </TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Point de vente</TableHead>
-                <TableHead>Agence</TableHead>
-                <TableHead>Terminal</TableHead>
-                <TableHead>Début validité</TableHead>
-                <TableHead>Fin validité</TableHead>
-                <TableHead>Statut</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pointsVente.map((pointVente) => (
-                <TableRow key={pointVente.id}>
-                  <TableCell>{pointVente.codePointVente}</TableCell>
-                  <TableCell>{pointVente.agenceNom}</TableCell>
-                  <TableCell>{pointVente.terminalReference}</TableCell>
-                  <TableCell>{formatDisplayDate(pointVente.dateDebutValidite)}</TableCell>
-                  <TableCell>{formatDisplayDate(pointVente.dateFinValidite)}</TableCell>
-                  <TableCell>
-                    <Badge className={pointVente.statut === 'Actif' ? 'border-green-200 bg-green-50 text-green-700' : 'border-slate-200 bg-slate-100 text-slate-700'}>
-                      {pointVente.statut}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* ── Dialog Historique PDV ───────────────────────────────────────── */}
+      {(() => {
+        const dialogPdv = historyDialogUid
+          ? pointsVente.find((p) => p.pointVenteUid === historyDialogUid)
+          : null;
+        const dialogHistory = historyDialogUid
+          ? pointsVente
+              .filter((p) => p.pointVenteUid === historyDialogUid)
+              .sort((a, b) => {
+                const da = a.dateDebutValidite || a.created_at || '';
+                const db = b.dateDebutValidite || b.created_at || '';
+                return new Date(db) - new Date(da);
+              })
+          : [];
+
+        return (
+          <Dialog open={!!historyDialogUid} onOpenChange={(open) => { if (!open) setHistoryDialogUid(null); }}>
+            <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-primary">
+                  <History className="h-5 w-5" />
+                  Historique — {dialogPdv?.codePointVente ?? ''}
+                </DialogTitle>
+                <DialogDescription>
+                  {dialogPdv ? `${dialogPdv.agenceNom || 'N/A'} · ${dialogPdv.terminalReference || 'Sans terminal'}` : ''}
+                </DialogDescription>
+              </DialogHeader>
+
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Point de vente</TableHead>
+                    <TableHead>Agence</TableHead>
+                    <TableHead>Terminal</TableHead>
+                    <TableHead>Début validité</TableHead>
+                    <TableHead>Fin validité</TableHead>
+                    <TableHead>Statut</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dialogHistory.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                        Aucun historique pour ce point de vente.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    dialogHistory.map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-medium">{p.codePointVente}</TableCell>
+                        <TableCell>{p.agenceNom || 'N/A'}</TableCell>
+                        <TableCell>{p.terminalReference || 'N/A'}</TableCell>
+                        <TableCell>{formatDisplayDate(p.dateDebutValidite)}</TableCell>
+                        <TableCell>{formatDisplayDate(p.dateFinValidite)}</TableCell>
+                        <TableCell>
+                          <Badge className={p.statut === 'Actif' ? 'border-green-200 bg-green-50 text-green-700' : 'border-slate-200 bg-slate-100 text-slate-700'}>
+                            {p.statut}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+              <TableCaption className="mt-0 pb-1 text-xs">
+                {dialogHistory.length} version(s) pour ce point de vente.
+              </TableCaption>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-xl glassmorphism">

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { usePageState } from '@/hooks/usePageState';
 import { motion } from 'framer-motion';
 import { Activity, CalendarClock, ChevronDown, ChevronUp, Search, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -40,21 +41,22 @@ const MaintenanceTerminauxPage = () => {
   const [terminaux, setTerminaux] = useState([]);
   const [interventions, setInterventions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = usePageState('chef-maintenance', 'searchTerm', '');
   const [expandedTerminalIds, setExpandedTerminalIds] = useState({});
   const [seHistoryOpen, setSeHistoryOpen] = useState({});
   const [seHistoryLimit, setSeHistoryLimit] = useState({});
   const [ficheDialog, setFicheDialog] = useState({ open: false, html: '', loading: false });
   const [selectedInterventionId, setSelectedInterventionId] = useState(null);
-  const [maintenanceFollowUpFilter, setMaintenanceFollowUpFilter] = useState(ALL_FILTER_VALUE);
+  const [maintenanceFollowUpFilter, setMaintenanceFollowUpFilter] = usePageState('chef-maintenance', 'maintenanceFollowUpFilter', ALL_FILTER_VALUE);
   const [planningRequests, setPlanningRequests] = useState([]);
   const [isPlanningRequestTableMissing, setIsPlanningRequestTableMissing] = useState(false);
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = usePageState('chef-maintenance', 'filters', {
     terminalId: ALL_FILTER_VALUE,
     type: ALL_FILTER_VALUE,
     statut: ALL_FILTER_VALUE,
     sousEnsemble: ALL_FILTER_VALUE,
   });
+  const [activeTab, setActiveTab] = usePageState('chef-maintenance', 'activeTab', 'suivi');
 
   const loadData = useCallback(async () => {
     if (!nomAgence) return;
@@ -422,7 +424,7 @@ const MaintenanceTerminauxPage = () => {
         </CardHeader>
       </Card>
 
-      <Tabs defaultValue="suivi" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="configuration">Configuration des Terminaux</TabsTrigger>
           <TabsTrigger value="suivi">Suivi des Terminaux</TabsTrigger>

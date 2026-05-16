@@ -36,6 +36,8 @@ const DEFAULT_FORM_DATA = {
   lecteur: '',
   ecran: '',
   afficheur: '',
+  buc: '',
+  carrosserie: '',
 };
 
 const EQUIPMENT_FIELD_CONFIG = [
@@ -66,6 +68,20 @@ const EQUIPMENT_FIELD_CONFIG = [
     terminalKey: 'afficheur_reference',
     table: 'equipments_afficheurs',
     label: 'Afficheur client',
+  },
+  {
+    formKey: 'buc',
+    pluralKey: 'bucs',
+    terminalKey: 'buc_reference',
+    table: 'equipments_bucs',
+    label: 'BUC',
+  },
+  {
+    formKey: 'carrosserie',
+    pluralKey: 'carrosseries',
+    terminalKey: 'carrosserie_reference',
+    table: 'equipments_carrosseries',
+    label: 'Carrosserie',
   },
 ];
 
@@ -102,6 +118,8 @@ const ConfigurationTab = ({
     ecrans: [],
     lecteurs: [],
     afficheurs: [],
+    bucs: [],
+    carrosseries: [],
   });
   const [agenceId, setAgenceId] = useState('');
   const [formRegion, setFormRegion] = useState('');
@@ -132,19 +150,23 @@ const ConfigurationTab = ({
         ecransResponse,
         lecteursResponse,
         afficheurResponse,
+        bucsResponse,
+        carrosseriesResponse,
       ] = await Promise.all([
         fetchRegions(),
         supabase.from('agences').select('id, nom, nbreTerminaux, codePDV, region').order('nom', { ascending: true }),
         supabase
           .from('terminaux')
           .select(
-            'id, reference, type_terminal, position, adresse_ip, agence_id, imprimante_reference, lecteur_reference, ecran_reference, afficheur_reference, statut'
+            'id, reference, type_terminal, position, adresse_ip, agence_id, imprimante_reference, lecteur_reference, ecran_reference, afficheur_reference, buc_reference, carrosserie_reference, statut'
           )
           .order('reference', { ascending: true }),
         supabase.from('equipments_imprimantes').select('*').order('reference', { ascending: true }),
         supabase.from('equipments_ecrans').select('*').order('reference', { ascending: true }),
         supabase.from('equipments_lecteurs').select('*').order('reference', { ascending: true }),
         supabase.from('equipments_afficheurs').select('*').order('reference', { ascending: true }),
+        supabase.from('equipments_bucs').select('*').order('reference', { ascending: true }),
+        supabase.from('equipments_carrosseries').select('*').order('reference', { ascending: true }),
       ]);
 
       if (regionsResponse.error) {
@@ -182,6 +204,8 @@ const ConfigurationTab = ({
         { key: 'ecrans', response: ecransResponse },
         { key: 'lecteurs', response: lecteursResponse },
         { key: 'afficheurs', response: afficheurResponse },
+        { key: 'bucs', response: bucsResponse },
+        { key: 'carrosseries', response: carrosseriesResponse },
       ];
 
       const equipmentData = {};
@@ -399,6 +423,8 @@ const ConfigurationTab = ({
             lecteurs: new Set(),
             ecrans: new Set(),
             afficheurs: new Set(),
+            bucs: new Set(),
+            carrosseries: new Set(),
           }
         ),
     [editingTerminalId, terminaux]
@@ -435,6 +461,14 @@ const ConfigurationTab = ({
   const afficheurOptions = useMemo(
     () => buildEquipmentOptions(equipments.afficheurs, 'afficheurs', formData.afficheur),
     [buildEquipmentOptions, equipments.afficheurs, formData.afficheur]
+  );
+  const bucsOptions = useMemo(
+    () => buildEquipmentOptions(equipments.bucs || [], 'bucs', formData.buc),
+    [buildEquipmentOptions, equipments.bucs, formData.buc]
+  );
+  const carrosseriesOptions = useMemo(
+    () => buildEquipmentOptions(equipments.carrosseries || [], 'carrosseries', formData.carrosserie),
+    [buildEquipmentOptions, equipments.carrosseries, formData.carrosserie]
   );
 
   const findEquipmentConflict = useCallback(
@@ -521,6 +555,8 @@ const ConfigurationTab = ({
       lecteur_reference: formData.lecteur || null,
       ecran_reference: formData.ecran || null,
       afficheur_reference: formData.afficheur || null,
+      buc_reference: formData.buc || null,
+      carrosserie_reference: formData.carrosserie || null,
       statut: editingTerminal?.statut || 'Actif',
     };
 
@@ -589,6 +625,8 @@ const ConfigurationTab = ({
       lecteur: terminal.lecteur_reference || '',
       ecran: terminal.ecran_reference || '',
       afficheur: terminal.afficheur_reference || '',
+      buc: terminal.buc_reference || '',
+      carrosserie: terminal.carrosserie_reference || '',
     });
 
     setIsEditDialogOpen(true);
@@ -867,6 +905,30 @@ const ConfigurationTab = ({
                 disabled={isLoading}
               />
             </div>
+            <div className="space-y-2">
+              <Label>BUC</Label>
+              <Combobox
+                options={bucsOptions}
+                value={formData.buc}
+                onSelect={(value) => setFormData((previousState) => ({ ...previousState, buc: value }))}
+                placeholder="Choisir un BUC"
+                searchPlaceholder="Rechercher un BUC..."
+                emptyText="Aucun BUC disponible."
+                disabled={isLoading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Carrosserie</Label>
+              <Combobox
+                options={carrosseriesOptions}
+                value={formData.carrosserie}
+                onSelect={(value) => setFormData((previousState) => ({ ...previousState, carrosserie: value }))}
+                placeholder="Choisir une carrosserie"
+                searchPlaceholder="Rechercher une carrosserie..."
+                emptyText="Aucune carrosserie disponible."
+                disabled={isLoading}
+              />
+            </div>
           </div>
 
           {selectedAgency ? (
@@ -1057,6 +1119,8 @@ const ConfigurationTab = ({
                   <TableHead>Lecteur</TableHead>
                   <TableHead>Écran</TableHead>
                   <TableHead>Afficheur client</TableHead>
+                  <TableHead>BUC</TableHead>
+                  <TableHead>Carrosserie</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -1079,6 +1143,8 @@ const ConfigurationTab = ({
                     <TableCell>{terminal.lecteur_reference || 'Non affecté'}</TableCell>
                     <TableCell>{terminal.ecran_reference || 'Non affecté'}</TableCell>
                     <TableCell>{terminal.afficheur_reference || 'Non affecté'}</TableCell>
+                    <TableCell>{terminal.buc_reference || 'Non affecté'}</TableCell>
+                    <TableCell>{terminal.carrosserie_reference || 'Non affectée'}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={getTerminalStatusBadgeClass(terminal.statut)}>
                         {terminal.statut || 'N/A'}
@@ -1207,6 +1273,14 @@ const ConfigurationTab = ({
             <div className="space-y-2">
               <Label>Afficheur client</Label>
               <Combobox options={afficheurOptions} value={formData.afficheur} onSelect={(v) => setFormData((s) => ({ ...s, afficheur: v }))} placeholder="Choisir un afficheur" searchPlaceholder="Rechercher..." emptyText="Aucun disponible." disabled={isLoading} />
+            </div>
+            <div className="space-y-2">
+              <Label>BUC</Label>
+              <Combobox options={bucsOptions} value={formData.buc} onSelect={(v) => setFormData((s) => ({ ...s, buc: v }))} placeholder="Choisir un BUC" searchPlaceholder="Rechercher..." emptyText="Aucun disponible." disabled={isLoading} />
+            </div>
+            <div className="space-y-2">
+              <Label>Carrosserie</Label>
+              <Combobox options={carrosseriesOptions} value={formData.carrosserie} onSelect={(v) => setFormData((s) => ({ ...s, carrosserie: v }))} placeholder="Choisir une carrosserie" searchPlaceholder="Rechercher..." emptyText="Aucune disponible." disabled={isLoading} />
             </div>
           </div>
 

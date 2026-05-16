@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { usePageState } from '@/hooks/usePageState';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   CalendarDays,
@@ -65,7 +66,7 @@ const MonPlanningGuichetierePage = () => {
   const { guichetiereInfo, guichetiereDetails, nomAgence } = useOutletContext();
   const { toast } = useToast();
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [viewMode, setViewMode] = useState('month');
+  const [viewMode, setViewMode] = usePageState('planning-guichetiere', 'viewMode', 'month');
   const [planningEntries, setPlanningEntries] = useState([]);
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
