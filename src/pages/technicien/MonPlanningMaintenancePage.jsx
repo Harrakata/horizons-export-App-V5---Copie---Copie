@@ -76,6 +76,8 @@ const SOUS_ENSEMBLE_LABELS_TECH = {
   lecteur: 'Lecteur',
   ecran: 'Écran',
   afficheur: 'Afficheur client',
+  buc: 'BUC',
+  carrosserie: 'Carrosserie',
 };
 
 const STATUT_CONFIG_TECH = {

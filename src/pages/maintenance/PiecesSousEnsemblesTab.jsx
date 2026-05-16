@@ -20,6 +20,8 @@ const SOUS_ENSEMBLE_LABELS = {
   lecteur: 'Lecteur',
   ecran: 'Écran',
   afficheur: 'Afficheur client',
+  buc: 'BUC',
+  carrosserie: 'Carrosserie',
 };
 
 const DEFAULT_PIECE = { nom: '', reference: '', sous_ensemble: 'imprimante', type_terminal: 'tous', commentaire: '', photo_url: '', description_aide: '' };
@@ -1378,7 +1380,7 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
             <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 space-y-1">
               <p className="font-semibold">Format attendu (colonnes CSV) :</p>
               <p className="font-mono text-xs">Nom, Référence, Sous-ensemble, Type terminal, Commentaire</p>
-              <p className="text-xs mt-1">Valeurs Sous-ensemble : <span className="font-mono">imprimante | lecteur | ecran | afficheur</span> (ou leur libellé français)</p>
+              <p className="text-xs mt-1">Valeurs Sous-ensemble : <span className="font-mono">imprimante | lecteur | ecran | afficheur | buc | carrosserie</span> (ou leur libellé français)</p>
               <p className="text-xs">Valeurs Type terminal : <span className="font-mono">tous | 2020 | 2031</span></p>
             </div>
 

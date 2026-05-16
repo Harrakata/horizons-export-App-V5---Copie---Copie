@@ -19,6 +19,8 @@ const SOUS_ENSEMBLE_LABELS = {
   lecteur: 'Lecteur',
   ecran: 'Écran',
   afficheur: 'Afficheur client',
+  buc: 'BUC',
+  carrosserie: 'Carrosserie',
 };
 
 const STATUT_CONFIG = {

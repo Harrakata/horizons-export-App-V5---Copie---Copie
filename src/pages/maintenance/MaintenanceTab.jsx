@@ -503,6 +503,8 @@ const MaintenanceTab = ({ technicien }) => {
     else if (terminal.lecteur_reference === form.sousEnsemble) type = 'lecteur';
     else if (terminal.ecran_reference === form.sousEnsemble) type = 'ecran';
     else if (terminal.afficheur_reference === form.sousEnsemble) type = 'afficheur';
+    else if (terminal.buc_reference === form.sousEnsemble) type = 'buc';
+    else if (terminal.carrosserie_reference === form.sousEnsemble) type = 'carrosserie';
 
     if (!type) {
       setReplacementOptions([]);
@@ -521,6 +523,8 @@ const MaintenanceTab = ({ technicien }) => {
       lecteur: 'lecteur_reference',
       ecran: 'ecran_reference',
       afficheur: 'afficheur_reference',
+      buc: 'buc_reference',
+      carrosserie: 'carrosserie_reference',
     };
 
     const normalizeRef = (v) => String(v ?? '').trim().toLowerCase();
@@ -530,7 +534,7 @@ const MaintenanceTab = ({ technicien }) => {
       // Récupérer toutes les références déjà assignées à d'autres terminaux (tous agences confondus)
       const { data: autresTerminaux, error: termError } = await supabase
         .from('terminaux')
-        .select('id, imprimante_reference, lecteur_reference, ecran_reference, afficheur_reference')
+        .select('id, imprimante_reference, lecteur_reference, ecran_reference, afficheur_reference, buc_reference, carrosserie_reference')
         .neq('id', terminal.id);
 
       if (termError) console.error('Erreur filtre terminaux:', termError);
@@ -587,7 +591,16 @@ const MaintenanceTab = ({ technicien }) => {
     if (terminal.ecran_reference) {
       sousEnsembles.push({ value: terminal.ecran_reference, label: `Écran - ${terminal.ecran_reference}` });
     }
-    
+    if (terminal.afficheur_reference) {
+      sousEnsembles.push({ value: terminal.afficheur_reference, label: `Afficheur client - ${terminal.afficheur_reference}` });
+    }
+    if (terminal.buc_reference) {
+      sousEnsembles.push({ value: terminal.buc_reference, label: `BUC - ${terminal.buc_reference}` });
+    }
+    if (terminal.carrosserie_reference) {
+      sousEnsembles.push({ value: terminal.carrosserie_reference, label: `Carrosserie - ${terminal.carrosserie_reference}` });
+    }
+
     return sousEnsembles;
   };
 
@@ -1443,10 +1456,12 @@ const MaintenanceTab = ({ technicien }) => {
           else if (terminal.lecteur_reference === interventionData.sousEnsemble) type = 'lecteur';
           else if (terminal.ecran_reference === interventionData.sousEnsemble) type = 'ecran';
           else if (terminal.afficheur_reference === interventionData.sousEnsemble) type = 'afficheur';
+          else if (terminal.buc_reference === interventionData.sousEnsemble) type = 'buc';
+          else if (terminal.carrosserie_reference === interventionData.sousEnsemble) type = 'carrosserie';
 
           if (type) {
-            const fieldMap = { imprimante: 'imprimante_reference', lecteur: 'lecteur_reference', ecran: 'ecran_reference', afficheur: 'afficheur_reference' };
-            const equipTableMap = { imprimante: 'equipments_imprimantes', lecteur: 'equipments_lecteurs', ecran: 'equipments_ecrans', afficheur: 'equipments_afficheurs' };
+            const fieldMap = { imprimante: 'imprimante_reference', lecteur: 'lecteur_reference', ecran: 'ecran_reference', afficheur: 'afficheur_reference', buc: 'buc_reference', carrosserie: 'carrosserie_reference' };
+            const equipTableMap = { imprimante: 'equipments_imprimantes', lecteur: 'equipments_lecteurs', ecran: 'equipments_ecrans', afficheur: 'equipments_afficheurs', buc: 'equipments_bucs', carrosserie: 'equipments_carrosseries' };
 
             await Promise.all([
               supabase.from('terminaux').update({ [fieldMap[type]]: interventionData.remplacement }).eq('id', terminal.id),
