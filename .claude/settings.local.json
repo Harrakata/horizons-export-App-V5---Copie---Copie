@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(node -e ' *)",
-      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\ar.kader\\\\OneDrive - GROUPE CARRUS\\\\Documents\\\\Web App\\\\horizons-export-App-V5---Copie---Copie\\\\src\\\\pages\\\\technicien\" -File)"
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\ar.kader\\\\OneDrive - GROUPE CARRUS\\\\Documents\\\\Web App\\\\horizons-export-App-V5---Copie---Copie\\\\src\\\\pages\\\\technicien\" -File)",
+      "PowerShell(Head -30)",
+      "Bash(cd '/c/Users/ar.kader/OneDrive - GROUPE CARRUS/Documents/Web App/horizons-export-App-V5---Copie---Copie' && find src -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" -o -name \"*.jsx\" -o -name \"*.js\" \\\\\\) | head -50)",
+      "Read(//c/c/Users/ar.kader/OneDrive - GROUPE CARRUS/Documents/Web App/horizons-export-App-V5---Copie---Copie/**)"
     ]
   }
 }

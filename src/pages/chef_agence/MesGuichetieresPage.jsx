@@ -5,12 +5,14 @@ import { usePageState } from '@/hooks/usePageState';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption } from '@/components/ui/table';
-import { Search, User, Phone, CircleDot, Users2, CalendarOff, Loader2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Search, User, Phone, CircleDot, Users2, CalendarOff, Loader2, Wallet } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format, differenceInDays, parseISO, isValid as isValidDate } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
+import SalaireGuichetiereTab from '@/pages/exploitation/SalaireGuichetiereTab';
 
 const MesGuichetieresPage = () => {
   const { nomAgence } = useOutletContext();
@@ -87,6 +89,17 @@ const MesGuichetieresPage = () => {
       transition={{ duration: 0.5 }}
       className="space-y-6"
     >
+      <Tabs defaultValue="liste" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="liste" className="gap-1.5">
+            <Users2 className="h-4 w-4" /> Mes Guichetières
+          </TabsTrigger>
+          <TabsTrigger value="salaire" className="gap-1.5">
+            <Wallet className="h-4 w-4" /> Salaire
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="liste">
       <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
@@ -157,6 +170,12 @@ const MesGuichetieresPage = () => {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="salaire">
+          <SalaireGuichetiereTab fixedAgence={nomAgence} canWrite={true} />
+        </TabsContent>
+      </Tabs>
     </motion.div>
   );
 };
