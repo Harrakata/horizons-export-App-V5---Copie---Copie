@@ -54,6 +54,7 @@ import ReparationTerminauxTab from '@/pages/maintenance/ReparationTerminauxTab';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { supabase } from '@/lib/supabaseClient';
 import { formatDisplayDate, formatDisplayDateTime } from '@/lib/guichetiereSpace';
+import { APP_SPACE_TAB_SETTINGS_KEY, normalizeAppSpaceTabFunctionalities } from '@/lib/exploitationProfiles';
 import {
   getMaintenancePlanningShiftLabel,
 } from '@/lib/maintenancePlanning';
@@ -91,6 +92,18 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
   const { toast } = useToast();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [viewMode, setViewMode] = usePageState('planning-maintenance', 'viewMode', 'month');
+
+  const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
+    try {
+      return normalizeAppSpaceTabFunctionalities(JSON.parse(localStorage.getItem(APP_SPACE_TAB_SETTINGS_KEY) || '{}'));
+    } catch { return normalizeAppSpaceTabFunctionalities({}); }
+  });
+  useEffect(() => {
+    const handler = (e) => setSpaceTabFunctionalities(normalizeAppSpaceTabFunctionalities(e.detail || {}));
+    window.addEventListener('app-space-tabs-updated', handler);
+    return () => window.removeEventListener('app-space-tabs-updated', handler);
+  }, []);
+  const tabEnabled = (key) => spaceTabFunctionalities?.['espace-technicien']?.[key] !== false;
   const [planningEntries, setPlanningEntries] = useState([]);
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -397,15 +410,32 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
         </Card>
       )}
 
-      <Tabs value={view || 'planning'} className="space-y-6">
-        {!view && (
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="planning" className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4" /> Mon Planning
-            </TabsTrigger>
-            <TabsTrigger value="reparation" className="flex items-center gap-2">
-              <Wrench className="h-4 w-4" /> Réparation
-            </TabsTrigger>
+      {(() => {
+        const showPlanning   = tabEnabled('planning.mon-planning');
+        const showReparation = tabEnabled('planning.reparation');
+        const visibleMain    = [showPlanning, showReparation].filter(Boolean).length;
+        const gridMain       = visibleMain === 1 ? 'grid-cols-1' : 'grid-cols-2';
+        const showAtelier    = tabEnabled('planning.reparation.atelier');
+        const showStock      = tabEnabled('planning.reparation.stock-defectueux');
+        const showPieces     = tabEnabled('planning.reparation.pieces-detachees');
+        const visibleSub     = [showAtelier, showStock, showPieces].filter(Boolean).length;
+        const gridSub        = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3' }[visibleSub] || 'grid-cols-3';
+        const defaultMain    = showPlanning ? 'planning' : showReparation ? 'reparation' : 'planning';
+        const defaultSub     = showAtelier ? 'atelier' : showStock ? 'stock_defectueux' : showPieces ? 'pieces' : 'atelier';
+        return (
+      <Tabs value={view || defaultMain} className="space-y-6">
+        {!view && visibleMain > 0 && (
+          <TabsList className={`grid w-full ${gridMain}`}>
+            {showPlanning && (
+              <TabsTrigger value="planning" className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4" /> Mon Planning
+              </TabsTrigger>
+            )}
+            {showReparation && (
+              <TabsTrigger value="reparation" className="flex items-center gap-2">
+                <Wrench className="h-4 w-4" /> Réparation
+              </TabsTrigger>
+            )}
           </TabsList>
         )}
 
@@ -809,24 +839,34 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
         </TabsContent>
 
         <TabsContent value="reparation">
-          <Tabs defaultValue="atelier" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="atelier">Atelier</TabsTrigger>
-              <TabsTrigger value="stock_defectueux">Stock Défectueux</TabsTrigger>
-              <TabsTrigger value="pieces">Pièces détachées</TabsTrigger>
-            </TabsList>
-            <TabsContent value="atelier">
-              <ReparationTerminauxTab canManage={true} />
-            </TabsContent>
-            <TabsContent value="stock_defectueux">
-              <StockDefectueuxTab canManage={false} technicienId={technicien?.id} />
-            </TabsContent>
-            <TabsContent value="pieces">
-              <PiecesSousEnsemblesTab canManage={false} />
-            </TabsContent>
+          <Tabs defaultValue={defaultSub} className="space-y-4">
+            {visibleSub > 0 && (
+              <TabsList className={`grid w-full ${gridSub}`}>
+                {showAtelier && <TabsTrigger value="atelier">Atelier</TabsTrigger>}
+                {showStock   && <TabsTrigger value="stock_defectueux">Stock Défectueux</TabsTrigger>}
+                {showPieces  && <TabsTrigger value="pieces">Pièces détachées</TabsTrigger>}
+              </TabsList>
+            )}
+            {showAtelier && (
+              <TabsContent value="atelier">
+                <ReparationTerminauxTab canManage={true} />
+              </TabsContent>
+            )}
+            {showStock && (
+              <TabsContent value="stock_defectueux">
+                <StockDefectueuxTab canManage={false} technicienId={technicien?.id} />
+              </TabsContent>
+            )}
+            {showPieces && (
+              <TabsContent value="pieces">
+                <PiecesSousEnsemblesTab canManage={false} />
+              </TabsContent>
+            )}
           </Tabs>
         </TabsContent>
       </Tabs>
+        );
+      })()}
     </motion.div>
   );
 };

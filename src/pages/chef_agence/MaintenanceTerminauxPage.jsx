@@ -31,6 +31,7 @@ import {
   getMaintenanceInterventionTypeLabel,
   normalizeMaintenanceText,
 } from '@/lib/maintenanceMonitoring';
+import { APP_SPACE_TAB_SETTINGS_KEY, normalizeAppSpaceTabFunctionalities } from '@/lib/exploitationProfiles';
 
 const ALL_FILTER_VALUE = '__all__';
 
@@ -57,6 +58,18 @@ const MaintenanceTerminauxPage = () => {
     sousEnsemble: ALL_FILTER_VALUE,
   });
   const [activeTab, setActiveTab] = usePageState('chef-maintenance', 'activeTab', 'suivi');
+
+  const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
+    try {
+      return normalizeAppSpaceTabFunctionalities(JSON.parse(localStorage.getItem(APP_SPACE_TAB_SETTINGS_KEY) || '{}'));
+    } catch { return normalizeAppSpaceTabFunctionalities({}); }
+  });
+  useEffect(() => {
+    const handler = (e) => setSpaceTabFunctionalities(normalizeAppSpaceTabFunctionalities(e.detail || {}));
+    window.addEventListener('app-space-tabs-updated', handler);
+    return () => window.removeEventListener('app-space-tabs-updated', handler);
+  }, []);
+  const tabEnabled = (key) => spaceTabFunctionalities?.['espace-chef-agence']?.[key] !== false;
 
   const loadData = useCallback(async () => {
     if (!nomAgence) return;
@@ -424,12 +437,23 @@ const MaintenanceTerminauxPage = () => {
         </CardHeader>
       </Card>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="configuration">Configuration des Terminaux</TabsTrigger>
-          <TabsTrigger value="suivi">Suivi des Terminaux</TabsTrigger>
-          <TabsTrigger value="planning">Planification de Maintenance</TabsTrigger>
-        </TabsList>
+      {(() => {
+        const showConfig   = tabEnabled('maintenance-terminaux.configuration');
+        const showSuivi    = tabEnabled('maintenance-terminaux.suivi');
+        const showPlanning = tabEnabled('maintenance-terminaux.planning');
+        const visibleCount = [showConfig, showSuivi, showPlanning].filter(Boolean).length;
+        const gridCols = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3' }[visibleCount] || 'grid-cols-3';
+        const validTabs = [showConfig && 'configuration', showSuivi && 'suivi', showPlanning && 'planning'].filter(Boolean);
+        const safeTab = validTabs.includes(activeTab) ? activeTab : (validTabs[0] ?? activeTab);
+        return (
+      <Tabs value={safeTab} onValueChange={setActiveTab} className="space-y-6">
+        {visibleCount > 1 && (
+          <TabsList className={`grid w-full ${gridCols}`}>
+            {showConfig   && <TabsTrigger value="configuration">Configuration des Terminaux</TabsTrigger>}
+            {showSuivi    && <TabsTrigger value="suivi">Suivi des Terminaux</TabsTrigger>}
+            {showPlanning && <TabsTrigger value="planning">Planification de Maintenance</TabsTrigger>}
+          </TabsList>
+        )}
 
         <TabsContent value="configuration">
           <ConfigurationTab
@@ -1108,6 +1132,8 @@ const MaintenanceTerminauxPage = () => {
           </div>
         </TabsContent>
       </Tabs>
+        );
+      })()}
 
       {/* Visionneuse fiche PDF */}
       <Dialog open={ficheDialog.open} onOpenChange={(open) => !open && setFicheDialog({ open: false, html: '', loading: false })}>

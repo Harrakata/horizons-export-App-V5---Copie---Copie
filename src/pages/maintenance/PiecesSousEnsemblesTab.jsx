@@ -542,14 +542,16 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                           ) : <span className="text-muted-foreground text-xs">Non géré</span>}
                         </TableCell>
                         <TableCell className="max-w-[180px] truncate text-muted-foreground text-sm">{p.commentaire || '—'}</TableCell>
-                        <TableCell className="text-right space-x-1">
-                          <Button variant="ghost" size="icon" title="Aide réparation" className="text-primary" onClick={() => openHelp(p)}><HelpCircle className="h-4 w-4" /></Button>
-                          {canManage && (
-                            <>
-                              <Button variant="ghost" size="icon" className="text-blue-500" onClick={() => { setPieceForm({ ...p }); setEditingPiece(p); resetPhotoState(); setIsPieceOpen(true); }}><Edit className="h-4 w-4" /></Button>
-                              <Button variant="ghost" size="icon" className="text-red-500" onClick={() => deletePiece(p.id)}><Trash2 className="h-4 w-4" /></Button>
-                            </>
-                          )}
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-0.5">
+                            <Button variant="ghost" size="icon" title="Aide réparation" className="h-7 w-7 text-primary" onClick={() => openHelp(p)}><HelpCircle className="h-4 w-4" /></Button>
+                            {canManage && (
+                              <>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-500" onClick={() => { setPieceForm({ ...p }); setEditingPiece(p); resetPhotoState(); setIsPieceOpen(true); }}><Edit className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => deletePiece(p.id)}><Trash2 className="h-4 w-4" /></Button>
+                              </>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
