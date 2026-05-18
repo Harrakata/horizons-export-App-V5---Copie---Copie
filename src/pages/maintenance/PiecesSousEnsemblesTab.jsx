@@ -370,9 +370,10 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
       const text = e.target.result.replace(/^﻿/, '');
       const lines = text.split(/\r?\n/).filter(l => l.trim());
       if (lines.length < 2) { showErr('Fichier vide ou sans données.'); return; }
+      const delimiter = lines[0].includes(';') ? ';' : ',';
       const parsed = []; const errors = [];
       lines.slice(1).forEach((line, i) => {
-        const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
+        const cols = line.split(delimiter).map(c => c.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
         const [nom, reference, seRaw, typeRaw, commentaire] = cols;
         const rowNum = i + 2;
         const rowErrors = [];
@@ -391,16 +392,47 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
   };
 
   const executeImport = async () => {
-    const validRows = importRows.filter(r => r._errors.length === 0).map(({ _errors, ...r }) => r);
+    const rawValid = importRows.filter(r => r._errors.length === 0).map(({ _errors, ...r }) => r);
+    // Dédupliquer par référence (garde la dernière occurrence) pour éviter "ON CONFLICT DO UPDATE ... row a second time"
+    const seen = new Map();
+    rawValid.forEach(r => seen.set(r.reference, r));
+    const validRows = [...seen.values()];
     if (!validRows.length) { showErr('Aucune ligne valide à importer.'); return; }
     setIsImporting(true);
-    const { error } = await supabase.from('pieces_sous_ensembles').insert(validRows);
-    if (error) { showErr(error.message); } else {
-      showOk(`${validRows.length} pièce(s) importée(s).`);
+
+    const CHUNK = 50;
+    let imported = 0;
+    const failedRefs = [];
+
+    for (let i = 0; i < validRows.length; i += CHUNK) {
+      const chunk = validRows.slice(i, i + CHUNK);
+      const { error: chunkErr } = await supabase
+        .from('pieces_sous_ensembles')
+        .upsert(chunk, { onConflict: 'reference', ignoreDuplicates: false });
+      if (!chunkErr) {
+        imported += chunk.length;
+      } else {
+        // Réessayer ligne par ligne pour identifier les lignes rejetées
+        for (const row of chunk) {
+          const { error: rowErr } = await supabase
+            .from('pieces_sous_ensembles')
+            .upsert([row], { onConflict: 'reference', ignoreDuplicates: false });
+          if (rowErr) failedRefs.push(row.reference);
+          else imported++;
+        }
+      }
+    }
+
+    setIsImporting(false);
+
+    if (imported > 0) {
+      showOk(`${imported} pièce(s) importée(s) ou mise(s) à jour.`);
       setIsImportOpen(false); setImportRows([]); setImportErrors([]);
       load();
     }
-    setIsImporting(false);
+    if (failedRefs.length) {
+      showErr(`${failedRefs.length} ligne(s) rejetée(s) par la base de données : ${failedRefs.slice(0, 5).join(', ')}${failedRefs.length > 5 ? `… (+${failedRefs.length - 5})` : ''}`);
+    }
   };
 
   return (

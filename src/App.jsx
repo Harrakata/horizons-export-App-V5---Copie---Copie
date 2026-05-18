@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
+import PbiViewerPage from '@/pages/PbiViewerPage';
 import HomePage from '@/pages/HomePage';
 import PointagePage from '@/pages/PointagePage';
 import EspaceExploitationPage from '@/pages/EspaceExploitationPage';
@@ -51,6 +52,7 @@ const App = () => {
     <TooltipProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/pbi-viewer" element={<PbiViewerPage />} />
           <Route element={<Layout />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/pointage" element={<PointagePage />} />

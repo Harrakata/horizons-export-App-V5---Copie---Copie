@@ -48,7 +48,7 @@ const EQUIPMENT_TYPES = {
     sousEnsemble: 'lecteur',
   },
   afficheurs: {
-    label: 'Afficheurs client',
+    label: 'Afficheur client',
     singular: 'Afficheur client',
     icon: <Tv className="h-5 w-5" />,
     table: 'equipments_afficheurs',
@@ -421,7 +421,7 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader className="relative">
           <CardTitle className="text-2xl font-bold text-primary">Gestion de sous-ensembles</CardTitle>
-          <CardDescription>Gérez les imprimantes, écrans, lecteurs, afficheurs client, BUC et carrosseries disponibles pour les terminaux.</CardDescription>
+          <CardDescription>Gérez les imprimantes, écrans, lecteurs, afficheur client, BUC et carrosseries disponibles pour les terminaux.</CardDescription>
         </CardHeader>
       </Card>
 
@@ -441,7 +441,7 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
           </TabsTrigger>
           <TabsTrigger value="afficheurs" className="flex items-center gap-2">
             <Tv className="h-4 w-4" />
-            Afficheurs client
+            Afficheur client
           </TabsTrigger>
           <TabsTrigger value="bucs" className="flex items-center gap-2">
             <Box className="h-4 w-4" />
