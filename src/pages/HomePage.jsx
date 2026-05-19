@@ -39,7 +39,11 @@ const HomePage = () => {
           <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
           <CardContent className="relative flex flex-col items-center text-center py-10 px-6 md:px-12">
-            <img className="w-24 h-24 md:w-32 md:h-32 mx-auto mb-6 rounded-full shadow-lg border-4 border-primary/30" alt="Logo Star3000+" src="https://pzmapmxjkkqhuiamdvjd.supabase.co/storage/v1/object/public/pmu-mali-storage//326291198_1368954473860231_6856823940381691525_n.jpg" />
+            <img
+              src="/carrus-logo.png"
+              alt="CARRUS Betting Solutions & Services"
+              className="mx-auto mb-6 h-32 md:h-44 w-auto object-contain drop-shadow-md"
+            />
             <h1 className="text-5xl md:text-6xl font-extrabold mb-4">
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-green-400">
                 Star3000+

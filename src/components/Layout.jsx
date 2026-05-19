@@ -143,27 +143,14 @@ const Layout = () => {
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/8 via-primary/4 to-transparent" />
         <div className="container relative flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center gap-3 group">
-            <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} className="relative">
-              <div className="h-10 w-10 rounded-xl overflow-hidden ring-2 ring-primary/30 shadow-md shadow-primary/20 group-hover:ring-primary/50 transition-all">
-                <img
-                  alt="Star3000+"
-                  className="h-full w-full object-cover"
-                  src="https://pzmapmxjkkqhuiamdvjd.supabase.co/storage/v1/object/public/pmu-mali-storage//326291198_1368954473860231_6856823940381691525_n.jpg"
-                />
-              </div>
-              <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-primary ring-2 ring-background flex items-center justify-center">
-                <span className="h-1.5 w-1.5 rounded-full bg-white" />
-              </span>
+          <Link to="/" className="flex items-center group">
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>
+              <img
+                src="/carrus-logo.png"
+                alt="CARRUS Betting Solutions & Services"
+                className="h-20 w-auto object-contain drop-shadow-sm"
+              />
             </motion.div>
-            <div className="flex flex-col leading-none">
-              <span className="font-extrabold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/90 to-emerald-500">
-                Star3000+
-              </span>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80 mt-0.5">
-                PMC
-              </span>
-            </div>
           </Link>
 
           <nav className="hidden md:flex items-center gap-2">

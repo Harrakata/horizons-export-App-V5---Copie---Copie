@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CalendarDays, LogOut, MapPin, FileText, ShieldCheck } from 'lucide-react';
+import { CalendarDays, LogOut, MapPin, FileText, ShieldCheck, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -214,6 +214,7 @@ const EspaceGuichetierePage = () => {
     { path: 'mon-planning', label: 'Mon Planning', icon: <CalendarDays className="h-5 w-5" /> },
     { path: 'mes-pointages', label: 'Mes Pointages', icon: <FileText className="h-5 w-5" /> },
     { path: 'mes-points-vente-mobi', label: 'Mes Points de Vente Mobi', icon: <MapPin className="h-5 w-5" /> },
+    { path: 'etat-caisse', label: 'État de Caisse', icon: <Wallet className="h-5 w-5" /> },
   ].filter((item) => isAppSpaceTabEnabled(spaceTabFunctionalities, 'espace-guichetiere', item.path));
 
   const normalizedPathname = location.pathname.replace(/\/+$/, '');

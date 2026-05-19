@@ -89,45 +89,47 @@ const MesGuichetieresPage = () => {
       transition={{ duration: 0.5 }}
       className="space-y-6"
     >
-      <Tabs defaultValue="liste" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="liste" className="gap-1.5">
-            <Users2 className="h-4 w-4" /> Mes Guichetières
-          </TabsTrigger>
-          <TabsTrigger value="salaire" className="gap-1.5">
-            <Wallet className="h-4 w-4" /> Salaire
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="liste">
+      {/* Titre — toujours en haut */}
       <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <CardTitle className="text-3xl font-bold text-primary flex items-center">
-                <Users2 className="mr-3 h-8 w-8" /> Mes Guichetières ({nomAgence})
-              </CardTitle>
-              <CardDescription>
-                Liste des guichetières assignées à votre agence.
-              </CardDescription>
-            </div>
-          </div>
-          <div className="mt-6 flex flex-col md:flex-row gap-4">
-            <div className="relative flex-grow">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input 
-                type="text" 
-                placeholder="Rechercher une guichetière..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full"
-                disabled={isLoading}
-              />
-            </div>
+          <div>
+            <CardTitle className="text-3xl font-bold text-primary flex items-center">
+              <Users2 className="mr-3 h-8 w-8" /> Mes Guichetières ({nomAgence})
+            </CardTitle>
+            <CardDescription>Liste des guichetières assignées à votre agence.</CardDescription>
           </div>
         </CardHeader>
+      </Card>
+
+      <Tabs defaultValue="salaire" className="w-full">
+        <TabsList className="mb-4 grid w-full grid-cols-2">
+          <TabsTrigger value="salaire" className="gap-1.5">
+            <Wallet className="h-4 w-4" /> État de Caisse
+          </TabsTrigger>
+          <TabsTrigger value="liste" className="gap-1.5">
+            <Users2 className="h-4 w-4" /> Mes Guichetières
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="liste">
+          <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+            <CardHeader>
+              <div className="relative flex-grow">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Rechercher une guichetière..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-full"
+                  disabled={isLoading}
+                />
+              </div>
+            </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="flex justify-center items-center h-40">
@@ -168,8 +170,8 @@ const MesGuichetieresPage = () => {
               <p className="text-lg">Aucune guichetière trouvée pour votre agence "{nomAgence}" ou correspondant à votre recherche.</p>
             </div>
           )}
-        </CardContent>
-      </Card>
+          </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="salaire">

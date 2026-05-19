@@ -33,6 +33,7 @@ import PointsVenteMobiChefPage from '@/pages/chef_agence/PointsVenteMobiChefPage
 import MonPlanningGuichetierePage from '@/pages/guichetiere/MonPlanningGuichetierePage';
 import MesPointagesPage from '@/pages/guichetiere/MesPointagesPage';
 import MesPointsVenteMobiPage from '@/pages/guichetiere/MesPointsVenteMobiPage';
+import EtatCaissePage from '@/pages/guichetiere/EtatCaissePage';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import EtatPlanningGeneralPage from '@/pages/exploitation/EtatPlanningGeneralPage';
@@ -70,6 +71,7 @@ const App = () => {
               <Route path="mon-planning" element={<MonPlanningGuichetierePage />} />
               <Route path="mes-pointages" element={<MesPointagesPage />} />
               <Route path="mes-points-vente-mobi" element={<MesPointsVenteMobiPage />} />
+              <Route path="etat-caisse" element={<EtatCaissePage />} />
             </Route>
             
             <Route path="/espace-exploitation" element={<EspaceExploitationPage />}>

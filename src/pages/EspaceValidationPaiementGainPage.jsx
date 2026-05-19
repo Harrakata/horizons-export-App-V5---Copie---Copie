@@ -9,6 +9,7 @@ import {
   FileText,
   Loader2,
   LogOut,
+  BarChart2,
   Search,
   ShieldCheck,
   Wrench,
@@ -26,6 +27,7 @@ import { useToast } from '@/components/ui/use-toast';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import RegionalMaintenanceSection from '@/components/directeur_regional/RegionalMaintenanceSection';
 import RegionalPointageSection from '@/components/directeur_regional/RegionalPointageSection';
+import CcopePage from '@/pages/exploitation/CcopePage';
 import { supabase } from '@/lib/supabaseClient';
 import {
   canValidatorHandleRequest,
@@ -359,6 +361,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
   const isRegionalProfile =
     validator?.fonction === VALIDATOR_FUNCTIONS.REGIONAL && Boolean(validator?.regionAssignee);
   const isGeneralProfile = validator?.fonction === VALIDATOR_FUNCTIONS.GENERAL;
+  const regionalFixedRegion = spaceMode === 'regional' ? (validator?.regionAssignee || null) : null;
 
   const handleLogin = (userData) => {
     setValidator(userData);
@@ -662,11 +665,11 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
               {isLoading && demandes.length === 0 ? (
                 <p className="py-8 text-center text-muted-foreground">Chargement des demandes...</p>
               ) : (
-                <Table>
+                <Table className="min-w-max">
                   <TableCaption>
                     {pendingDemandes.length === 0
                       ? 'Aucune demande ne vous est actuellement affectée.'
@@ -800,8 +803,8 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <Table>
+            <CardContent className="overflow-x-auto">
+              <Table className="min-w-max">
                 <TableCaption>
                   {historyDemandes.length === 0
                     ? 'Aucune demande historique trouvée.'
@@ -898,7 +901,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
       );
     }
 
-    if (activeSection === 'pointage') {
+    if (activeSection === "pointage") {
       if (spaceConfig.expectedFunction === VALIDATOR_FUNCTIONS.GENERAL) {
         return <RegionalPointageSection allowAllRegions />;
       }
@@ -907,10 +910,14 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
         <RegionalPointageSection regionName={validator.regionAssignee} />
       ) : (
         renderUnavailableRegionalSection(
-          'Suivi Pointage',
-          'Cette vue est réservée aux directeurs régionaux disposant d’une région assignée.'
+          "Suivi Pointage",
+          "Cette vue est réservée aux directeurs régionaux disposant d’une région assignée."
         )
       );
+    }
+
+    if (activeSection === "chiffres-daffaires") {
+      return <CcopePage fixedRegion={regionalFixedRegion} />;
     }
 
     return renderPaymentSection();
@@ -938,6 +945,12 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
       label: 'Suivi Pointage',
       icon: <ClipboardList className="h-5 w-5" />,
       disabled: spaceConfig.expectedFunction === VALIDATOR_FUNCTIONS.GENERAL ? !isGeneralProfile : !isRegionalProfile,
+    },
+    {
+      key: 'chiffres-daffaires',
+      label: 'Etat comptable',
+      icon: <BarChart2 className="h-5 w-5" />,
+      disabled: false,
     },
   ].filter((item) => isAppSpaceTabEnabled(spaceTabFunctionalities, currentSpaceKey, item.key));
 
@@ -1034,7 +1047,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
         </div>
       </motion.aside>
 
-      <main className="flex-1">
+      <main className="flex-1 min-w-0 overflow-x-hidden">
         <motion.div
           key={activeSection}
           initial={{ opacity: 0, y: 20 }}

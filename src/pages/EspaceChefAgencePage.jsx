@@ -769,7 +769,7 @@ const EspaceChefAgencePage = () => {
           )}
         </div>
       </motion.aside>
-      <main className="flex-1">
+      <main className="flex-1 min-w-0 overflow-x-hidden">
         <motion.div
           key={location.pathname}
           initial={{ opacity: 0, y: 20 }}
