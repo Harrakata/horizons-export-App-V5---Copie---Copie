@@ -114,6 +114,7 @@ const LoginPageChef = ({ onLogin }) => {
       .from('chefs_agence')
       .select('*')
       .eq('matricule', matricule)
+      .eq('is_current', true)
       .single();
 
       if (error && error.code !== 'PGRST116') {

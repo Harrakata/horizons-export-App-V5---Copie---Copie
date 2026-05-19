@@ -321,6 +321,7 @@ export const usePointageLogic = () => {
       .from('guichetieres')
       .select('id, matricule, nom, prenom, photo_url')
       .eq('matricule', matricule)
+      .eq('is_current', true)
       .single();
     
     if (error || !foundGuichetiere) {

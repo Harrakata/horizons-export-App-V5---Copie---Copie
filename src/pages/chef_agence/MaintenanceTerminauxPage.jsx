@@ -83,6 +83,7 @@ const MaintenanceTerminauxPage = () => {
         .from('agences')
         .select('id, nom, codePDV, region')
         .eq('nom', nomAgence)
+        .eq('is_current', true)
         .limit(1);
 
       if (agenceByNameResponse.error) {
@@ -96,6 +97,7 @@ const MaintenanceTerminauxPage = () => {
           .from('agences')
           .select('id, nom, codePDV, region')
           .eq('codePDV', chefDetails.codePDV)
+          .eq('is_current', true)
           .limit(1);
 
         if (agenceByCodeResponse.error) {

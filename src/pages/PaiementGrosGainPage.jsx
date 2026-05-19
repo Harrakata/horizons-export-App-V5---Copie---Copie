@@ -128,7 +128,7 @@ const PaiementGrosGainPage = () => {
       { data: demandesData, error: demandesError },
       { data: eventsData, error: eventsError },
     ] = await Promise.all([
-      supabase.from('agences').select('*').order('nom', { ascending: true }),
+      supabase.from('agences').select('*').eq('is_current', true).order('nom', { ascending: true }),
       fetchRegions(),
       supabase.from('validateurs_paiement_gain').select('*').eq('statut', 'Actif').order('nom', { ascending: true }),
       fetchPaiementGainWorkflowConfigs(),

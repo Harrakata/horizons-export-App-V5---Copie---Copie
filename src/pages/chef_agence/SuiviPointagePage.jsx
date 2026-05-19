@@ -69,7 +69,8 @@ const SuiviPointagePage = () => {
       supabase
         .from('guichetieres')
         .select('id, matricule, nom, prenom')
-        .eq('agenceAssigne', nomAgence),
+        .eq('agenceAssigne', nomAgence)
+        .eq('is_current', true),
     ]);
 
     if (planningError) {

@@ -282,6 +282,7 @@ const MaintenanceTab = ({ technicien }) => {
       const { data: agencesData, error: agencesError } = await supabase
         .from('agences')
         .select('id, nom, nbreTerminaux, codePDV, region')
+        .eq('is_current', true)
         .order('nom', { ascending: true });
 
       if (agencesError) {
@@ -1313,9 +1314,9 @@ const MaintenanceTab = ({ technicien }) => {
       let chefName = 'N/A';
       let chefRef = 'Aucune reference';
       if (agence) {
-        let { data: chef } = await supabase.from('chefs_agence').select('id, matricule, nom, prenom, codePDV').eq('agenceEnCharge', agence.nom).limit(1);
+        let { data: chef } = await supabase.from('chefs_agence').select('id, matricule, nom, prenom, codePDV').eq('agenceEnCharge', agence.nom).eq('is_current', true).limit(1);
         if (!chef?.length && agence.codePDV) {
-          ({ data: chef } = await supabase.from('chefs_agence').select('id, matricule, nom, prenom, codePDV').eq('codePDV', agence.codePDV).limit(1));
+          ({ data: chef } = await supabase.from('chefs_agence').select('id, matricule, nom, prenom, codePDV').eq('codePDV', agence.codePDV).eq('is_current', true).limit(1));
         }
         if (chef?.[0]) {
           chefName = `${chef[0].prenom} ${chef[0].nom}`.trim();

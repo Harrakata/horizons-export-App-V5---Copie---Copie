@@ -16,15 +16,15 @@ export const usePlanningGeneralData = (currentMonth) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: agencesData, error: agencesError } = await supabase.from('agences').select('*');
+      const { data: agencesData, error: agencesError } = await supabase.from('agences').select('*').eq('is_current', true);
       if (agencesError) toast({ title: "Erreur chargement agences", description: agencesError.message, variant: "destructive" });
       else setAgences(agencesData || []);
 
-      const { data: chefsData, error: chefsError } = await supabase.from('chefs_agence').select('*');
+      const { data: chefsData, error: chefsError } = await supabase.from('chefs_agence').select('*').eq('is_current', true);
       if (chefsError) toast({ title: "Erreur chargement chefs", description: chefsError.message, variant: "destructive" });
       else setChefsAgence(chefsData || []);
 
-      const { data: guichetieresData, error: guichetieresError } = await supabase.from('guichetieres').select('*');
+      const { data: guichetieresData, error: guichetieresError } = await supabase.from('guichetieres').select('*').eq('is_current', true);
       if (guichetieresError) toast({ title: "Erreur chargement guichetières", description: guichetieresError.message, variant: "destructive" });
       else setGuichetieres(guichetieresData || []);
       

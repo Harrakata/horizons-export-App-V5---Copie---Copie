@@ -29,6 +29,7 @@ const MesGuichetieresPage = () => {
         .from('guichetieres')
         .select('*')
         .eq('agenceAssigne', nomAgence)
+        .eq('is_current', true)
         .order('nom', { ascending: true });
 
       if (error) {

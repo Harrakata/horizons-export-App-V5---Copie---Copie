@@ -66,7 +66,7 @@ const StockDefectueuxTab = ({ canManage = true, technicienId = null }) => {
 
     const [sRes, aRes, tRes] = await Promise.all([
       stockQuery,
-      supabase.from('agences').select('id, nom, codePDV').order('nom'),
+      supabase.from('agences').select('id, nom, codePDV').eq('is_current', true).order('nom'),
       supabase.from('techniciens').select('id, nom, prenom, matricule').order('nom').limit(200),
     ]);
     if (!sRes.error) setStock(sRes.data || []);

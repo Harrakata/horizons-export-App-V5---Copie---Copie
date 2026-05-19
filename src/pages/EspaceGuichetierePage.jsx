@@ -42,6 +42,7 @@ const LoginPageGuichetiere = ({ onLogin }) => {
       .from('guichetieres')
       .select('*')
       .eq('matricule', matricule.trim())
+      .eq('is_current', true)
       .single();
 
     if (error && error.code !== 'PGRST116') {

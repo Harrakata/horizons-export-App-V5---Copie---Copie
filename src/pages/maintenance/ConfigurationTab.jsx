@@ -154,7 +154,7 @@ const ConfigurationTab = ({
         carrosseriesResponse,
       ] = await Promise.all([
         fetchRegions(),
-        supabase.from('agences').select('id, nom, nbreTerminaux, codePDV, region').order('nom', { ascending: true }),
+        supabase.from('agences').select('id, nom, nbreTerminaux, codePDV, region').eq('is_current', true).order('nom', { ascending: true }),
         supabase
           .from('terminaux')
           .select(

@@ -79,7 +79,8 @@ const MonPlanningPage = () => {
     const { data, error } = await supabase
       .from('guichetieres')
       .select('id, nom, prenom, disponibilite, dateDebutIndisponibilite, dateFinIndisponibilite')
-      .eq('agenceAssigne', nomAgence);
+      .eq('agenceAssigne', nomAgence)
+      .eq('is_current', true);
 
     if (error) {
       toast({ title: 'Erreur de chargement des guichetières', description: error.message, variant: 'destructive' });

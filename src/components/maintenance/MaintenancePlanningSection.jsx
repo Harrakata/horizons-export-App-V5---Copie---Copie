@@ -109,7 +109,7 @@ const MaintenancePlanningSection = ({
       { data: planningData, error: planningError },
     ] = await Promise.all([
       fetchRegions(),
-      supabase.from('agences').select('id, nom, codePDV, region').order('nom', { ascending: true }),
+      supabase.from('agences').select('id, nom, codePDV, region').eq('is_current', true).order('nom', { ascending: true }),
       supabase.from('techniciens').select('id, matricule, nom, prenom, telephone, email, photo_url').order('nom', { ascending: true }),
       supabase.from('terminaux').select('id, agence_id, reference, type_terminal, position').order('reference', { ascending: true }),
       supabase

@@ -70,7 +70,7 @@ const MesPointsVenteMobiPage = () => {
         .eq('guichetiereMatricule', guichetiereInfo.matricule)
         .order('created_at', { ascending: false }),
       fetchRegions(),
-      supabase.from('agences').select('id, nom, codePDV, region').order('nom', { ascending: true }),
+      supabase.from('agences').select('id, nom, codePDV, region').eq('is_current', true).order('nom', { ascending: true }),
       supabase.from('terminaux_mobi').select('id, reference, modele, statut').order('reference', { ascending: true }),
       supabase
         .from('points_vente_mobi_change_requests')

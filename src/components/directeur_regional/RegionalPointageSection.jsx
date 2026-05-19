@@ -53,7 +53,7 @@ const RegionalPointageSection = ({ regionName = '', allowAllRegions = false, hid
 
     const [{ data: regionsData, error: regionsError }, { data: agencesData, error: agencesError }] = await Promise.all([
       fetchRegions(),
-      supabase.from('agences').select('id, nom, codePDV, region').order('nom', { ascending: true }),
+      supabase.from('agences').select('id, nom, codePDV, region').eq('is_current', true).order('nom', { ascending: true }),
     ]);
 
     if (regionsError) {
