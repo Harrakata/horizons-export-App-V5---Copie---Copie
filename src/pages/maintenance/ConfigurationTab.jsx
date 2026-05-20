@@ -196,7 +196,52 @@ const ConfigurationTab = ({
           variant: 'destructive',
         });
       } else {
-        setTerminaux(terminauxResponse.data || []);
+        // Auto-réparation : terminaux orphelins (agence_id pointant vers une agence archivée
+        // suite à un renommage SCD2). On retrouve le successeur via le codePDV identique.
+        let terminauxData = terminauxResponse.data || [];
+        const currentAgences = agencesResponse.data || [];
+        const currentAgenceIds = new Set(currentAgences.map((a) => String(a.id)));
+        const currentByCodePdv = new Map(
+          currentAgences.filter((a) => a.codePDV).map((a) => [a.codePDV, a])
+        );
+        const orphanIds = [
+          ...new Set(
+            terminauxData
+              .filter((t) => t.agence_id && !currentAgenceIds.has(String(t.agence_id)))
+              .map((t) => t.agence_id)
+          ),
+        ];
+        if (orphanIds.length > 0) {
+          const { data: archived } = await supabase
+            .from('agences').select('id, codePDV').in('id', orphanIds);
+          const heals = (archived || [])
+            .map((a) => ({ oldId: a.id, successor: currentByCodePdv.get(a.codePDV) }))
+            .filter((h) => h.successor && String(h.successor.id) !== String(h.oldId));
+
+          if (heals.length > 0) {
+            const results = await Promise.all(
+              heals.map((h) =>
+                supabase.from('terminaux').update({ agence_id: h.successor.id }).eq('agence_id', h.oldId)
+              )
+            );
+            const healErr = results.find((r) => r.error)?.error;
+            if (!healErr) {
+              const fixedCount = terminauxData.filter(
+                (t) => heals.some((h) => String(h.oldId) === String(t.agence_id))
+              ).length;
+              terminauxData = terminauxData.map((t) => {
+                const heal = heals.find((h) => String(h.oldId) === String(t.agence_id));
+                return heal ? { ...t, agence_id: heal.successor.id } : t;
+              });
+              toast({
+                title: 'Terminaux réattribués',
+                description: `${fixedCount} terminal(aux) ré-affecté(s) suite à un renommage d'agence.`,
+                className: 'bg-blue-500 text-white',
+              });
+            }
+          }
+        }
+        setTerminaux(terminauxData);
       }
 
       const equipmentResponses = [

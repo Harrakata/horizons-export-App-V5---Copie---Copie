@@ -197,4 +197,49 @@ export default defineConfig({
 			'@': path.resolve(__dirname, './src'),
 		},
 	},
+	build: {
+		// Minification terser : on supprime console.* et debugger en prod
+		minify: 'terser',
+		terserOptions: {
+			compress: {
+				drop_console: true,
+				drop_debugger: true,
+				pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.trace'],
+			},
+		},
+		// Avertit si un chunk dépasse 600 KB (au lieu du défaut 500)
+		chunkSizeWarningLimit: 600,
+		rollupOptions: {
+			output: {
+				// Regroupement intelligent des dépendances en chunks séparés
+				// pour optimiser le cache navigateur entre déploiements
+				manualChunks: {
+					'vendor-react'    : ['react', 'react-dom', 'react-router-dom'],
+					'vendor-radix'    : [
+						'@radix-ui/react-alert-dialog',
+						'@radix-ui/react-avatar',
+						'@radix-ui/react-checkbox',
+						'@radix-ui/react-dialog',
+						'@radix-ui/react-dropdown-menu',
+						'@radix-ui/react-label',
+						'@radix-ui/react-popover',
+						'@radix-ui/react-radio-group',
+						'@radix-ui/react-select',
+						'@radix-ui/react-separator',
+						'@radix-ui/react-slider',
+						'@radix-ui/react-slot',
+						'@radix-ui/react-tabs',
+						'@radix-ui/react-toast',
+						'@radix-ui/react-tooltip',
+					],
+					'vendor-supabase' : ['@supabase/supabase-js'],
+					'vendor-charts'   : ['recharts'],
+					'vendor-motion'   : ['framer-motion'],
+					'vendor-icons'    : ['lucide-react'],
+					'vendor-date'     : ['date-fns', 'react-day-picker'],
+					'vendor-powerbi'  : ['powerbi-client', '@azure/msal-browser'],
+				},
+			},
+		},
+	},
 });

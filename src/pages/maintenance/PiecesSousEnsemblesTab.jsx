@@ -7,6 +7,7 @@ import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogT
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/Combobox';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
@@ -143,6 +144,24 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
   }, []);
 
   const stockById = useMemo(() => stockPieces.reduce((a, s) => { a[s.piece_id] = s; return a; }, {}), [stockPieces]);
+
+  // Liste fusionnée : TOUTES les pièces du catalogue + leur ligne de stock si elle existe
+  // (sinon quantité = 0, seuil = 0). Trié par nom pour cohérence avec le catalogue.
+  const stockRows = useMemo(() => {
+    return [...pieces]
+      .sort((a, b) => String(a.nom ?? '').localeCompare(String(b.nom ?? ''), 'fr', { sensitivity: 'base' }))
+      .map((p) => {
+        const stock = stockById[p.id];
+        return {
+          id:           stock?.id ?? `no-stock-${p.id}`,
+          piece_id:     p.id,
+          piece:        { nom: p.nom, reference: p.reference },
+          quantite:     stock?.quantite ?? 0,
+          seuil_alerte: stock?.seuil_alerte ?? 0,
+          hasStock:     !!stock,
+        };
+      });
+  }, [pieces, stockById]);
 
   const filteredPieces = useMemo(() =>
     pieces
@@ -915,26 +934,26 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                 <Card className="border-red-200 bg-red-50">
                   <CardContent className="p-4">
                     <p className="text-sm text-red-700 font-medium">Ruptures de stock</p>
-                    <p className="text-2xl font-bold text-red-800">{stockPieces.filter(s => s.quantite === 0).length}</p>
+                    <p className="text-2xl font-bold text-red-800">{stockRows.filter(s => s.quantite === 0).length}</p>
                   </CardContent>
                 </Card>
                 <Card className="border-yellow-200 bg-yellow-50">
                   <CardContent className="p-4">
                     <p className="text-sm text-yellow-700 font-medium">Stock faible</p>
-                    <p className="text-2xl font-bold text-yellow-800">{stockPieces.filter(s => s.quantite > 0 && s.quantite <= s.seuil_alerte).length}</p>
+                    <p className="text-2xl font-bold text-yellow-800">{stockRows.filter(s => s.quantite > 0 && s.quantite <= s.seuil_alerte).length}</p>
                   </CardContent>
                 </Card>
                 <Card className="border-green-200 bg-green-50">
                   <CardContent className="p-4">
                     <p className="text-sm text-green-700 font-medium">Disponibles</p>
-                    <p className="text-2xl font-bold text-green-800">{stockPieces.filter(s => s.quantite > s.seuil_alerte).length}</p>
+                    <p className="text-2xl font-bold text-green-800">{stockRows.filter(s => s.quantite > s.seuil_alerte).length}</p>
                   </CardContent>
                 </Card>
               </div>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
-                <TableCaption>{stockPieces.length === 0 ? 'Aucun stock.' : `${stockPieces.length} pièce(s) suivie(s).`}</TableCaption>
+                <TableCaption>{stockRows.length === 0 ? 'Aucune pièce au catalogue.' : `${stockRows.length} pièce(s) au catalogue.`}</TableCaption>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Pièce</TableHead>
@@ -945,7 +964,7 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stockPieces.map(s => (
+                  {stockRows.map(s => (
                     <TableRow key={s.id}>
                       <TableCell className="font-medium">{s.piece?.nom || '—'}</TableCell>
                       <TableCell className="font-mono text-sm">{s.piece?.reference || '—'}</TableCell>
@@ -1342,13 +1361,18 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
             <div className="border-t px-4 py-3 space-y-2 relative">
               <Label className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">Ajouter une pièce</Label>
               <div className="flex items-center gap-2">
-                <Select value={addToModele.piece_id} onValueChange={v => setAddToModele(a => ({ ...a, piece_id: v }))}>
-                  <SelectTrigger className="flex-1"><SelectValue placeholder="Sélectionner une pièce..." /></SelectTrigger>
-                  <SelectContent>
-                    {pieces.filter(p => !selectedModele || p.sous_ensemble === selectedModele.sous_ensemble || p.type_terminal === 'tous')
-                      .map(p => <SelectItem key={p.id} value={p.id}>{p.nom} ({p.reference})</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <div className="flex-1 min-w-0">
+                  <Combobox
+                    options={pieces
+                      .filter(p => !selectedModele || p.sous_ensemble === selectedModele.sous_ensemble || p.type_terminal === 'tous')
+                      .map(p => ({ value: p.id, label: `${p.nom} (${p.reference})` }))}
+                    value={addToModele.piece_id}
+                    onSelect={(v) => setAddToModele(a => ({ ...a, piece_id: v }))}
+                    placeholder="Sélectionner une pièce..."
+                    searchPlaceholder="Rechercher par nom ou référence..."
+                    emptyText="Aucune pièce trouvée."
+                  />
+                </div>
                 <Input type="number" min={1} className="w-20" value={addToModele.quantite}
                   onChange={e => setAddToModele(a => ({ ...a, quantite: e.target.value }))} />
                 <Button size="sm" onClick={addPieceModele}><Plus className="mr-1 h-4 w-4" /> Ajouter</Button>
@@ -1367,10 +1391,16 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
           <div className="grid gap-3 py-4">
             <div className="grid grid-cols-4 items-center gap-3">
               <Label className="text-right">Pièce</Label>
-              <Select value={stockForm.piece_id} onValueChange={v => setStockForm(f => ({ ...f, piece_id: v }))}>
-                <SelectTrigger className="col-span-3"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                <SelectContent>{pieces.map(p => <SelectItem key={p.id} value={p.id}>{p.nom} ({p.reference})</SelectItem>)}</SelectContent>
-              </Select>
+              <div className="col-span-3">
+                <Combobox
+                  options={pieces.map(p => ({ value: p.id, label: `${p.nom} (${p.reference})` }))}
+                  value={stockForm.piece_id}
+                  onSelect={(v) => setStockForm(f => ({ ...f, piece_id: v }))}
+                  placeholder="Sélectionner..."
+                  searchPlaceholder="Rechercher par nom ou référence..."
+                  emptyText="Aucune pièce trouvée."
+                />
+              </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-3">
               <Label className="text-right">Type</Label>

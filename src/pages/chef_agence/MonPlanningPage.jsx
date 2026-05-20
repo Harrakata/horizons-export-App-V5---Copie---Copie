@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Calendar, CalendarDays, ChevronLeft, ChevronRight, PlusCircle, Copy, Trash2, UserPlus, Repeat } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, isSameMonth, addWeeks, subWeeks, startOfWeek, endOfWeek, parseISO, isWithinInterval } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, isSameMonth, addWeeks, subWeeks, startOfWeek, endOfWeek, parseISO, isWithinInterval, isBefore, startOfDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useOutletContext } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -140,6 +140,14 @@ const MonPlanningPage = () => {
   const handleToday = () => setCurrentMonth(new Date());
 
   const openAddModal = (date) => {
+    if (isBefore(startOfDay(date), startOfDay(new Date()))) {
+      toast({
+        title: 'Date passée',
+        description: 'Impossible de planifier une affectation sur une date antérieure à aujourd\'hui.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setSelectedDate(date);
     setSelectedGuichetiereId('');
     setIsAddModalOpen(true);
@@ -269,15 +277,22 @@ const MonPlanningPage = () => {
       setIsLoading(false); return;
     }
     
+    const today = startOfDay(new Date());
+    let skippedPast = 0;
     const newPlanningEntries = sourcePlanning.map(entry => {
       const sourceDate = parseISO(entry.date);
       const dayOffset = sourceDate.getDate() - sourceStart.getDate();
       const targetDate = new Date(targetStart);
       targetDate.setDate(targetStart.getDate() + dayOffset);
-      
-      if ( (period === 'month' && !isSameMonth(targetDate, currentMonth)) || 
+
+      if ( (period === 'month' && !isSameMonth(targetDate, currentMonth)) ||
            (period === 'week' && (targetDate < startOfWeek(currentMonth, { weekStartsOn: 1 }) || targetDate > endOfWeek(currentMonth, { weekStartsOn: 1 }))) ) {
-        return null; 
+        return null;
+      }
+      // Skip les dates passées : on ne planifie pas dans le passé
+      if (isBefore(startOfDay(targetDate), today)) {
+        skippedPast++;
+        return null;
       }
       return {
         date: format(targetDate, 'yyyy-MM-dd'),
@@ -288,6 +303,14 @@ const MonPlanningPage = () => {
         remplacante_de_id: entry.remplacante_de_id
       };
     }).filter(Boolean);
+
+    if (skippedPast > 0) {
+      toast({
+        title: 'Dates passées ignorées',
+        description: `${skippedPast} affectation(s) sur des dates antérieures à aujourd'hui n'ont pas été copiées.`,
+        className: 'bg-amber-500 text-white',
+      });
+    }
 
     if (newPlanningEntries.length > 0) {
       const { error: insertError } = await supabase.from('planning').insert(newPlanningEntries, { upsert: false }); 
@@ -522,6 +545,7 @@ const MonPlanningPage = () => {
                   const dayRequests = requestsByDate[dateStr] || [];
                   const isCurrentMonthDay = viewMode === 'month' ? isSameMonth(day, currentMonth) : true;
                   const isToday = isSameDay(day, new Date());
+                  const isPast = isBefore(startOfDay(day), startOfDay(new Date()));
                   const isWeekend = [0, 6].includes(getDay(day));
 
                   return (
@@ -529,7 +553,7 @@ const MonPlanningPage = () => {
                       key={day.toString()}
                       className={`group flex min-h-[90px] flex-col
                         ${viewMode === 'month' && dayIdx === 0 ? colStartClasses : ''}
-                        ${!isCurrentMonthDay ? 'bg-muted/10' : isWeekend ? 'bg-slate-50/40' : 'bg-card'}
+                        ${!isCurrentMonthDay ? 'bg-muted/10' : isPast ? 'bg-muted/30' : isWeekend ? 'bg-slate-50/40' : 'bg-card'}
                       `}
                     >
                       {/* Header compact */}
@@ -543,7 +567,7 @@ const MonPlanningPage = () => {
                               {dayRequests.length}
                             </span>
                           )}
-                          {isCurrentMonthDay && (
+                          {isCurrentMonthDay && !isPast && (
                             <button
                               className={`flex h-4 w-4 items-center justify-center rounded opacity-0 transition-all group-hover:opacity-100 ${isToday ? 'text-white/70 hover:bg-white/20' : 'text-muted-foreground/30 hover:bg-primary/10 hover:text-primary'}`}
                               onClick={() => openAddModal(day)}

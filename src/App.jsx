@@ -1,116 +1,136 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
-import PbiViewerPage from '@/pages/PbiViewerPage';
 import HomePage from '@/pages/HomePage';
-import PointagePage from '@/pages/PointagePage';
-import EspaceExploitationPage from '@/pages/EspaceExploitationPage';
-import EspaceValidationPaiementGainPage from '@/pages/EspaceValidationPaiementGainPage';
-import AgencesPage from '@/pages/exploitation/AgencesPage';
-import ChefsAgencePage from '@/pages/exploitation/ChefsAgencePage';
-import GuichetieresPageExploitation from '@/pages/exploitation/GuichetieresPage';
-import TechniciensPage from '@/pages/exploitation/TechniciensPage';
-import TerminauxMobiPage from '@/pages/exploitation/TerminauxMobiPage';
-import PointsVenteMobiPage from '@/pages/exploitation/PointsVenteMobiPage';
-import RegionsPage from '@/pages/exploitation/RegionsPage';
-import MaintenanceTerminauxExploitationPage from '@/pages/exploitation/MaintenanceTerminauxPage';
-import ValidationPaiementGainPage from '@/pages/exploitation/ValidationPaiementGainPage';
-import AutorisationsPaiementGainPage from '@/pages/exploitation/AutorisationsPaiementGainPage';
-import ReferentielParametresPage from '@/pages/exploitation/ReferentielParametresPage';
-import ProfilsExploitationPage from '@/pages/exploitation/ProfilsExploitationPage';
-import ParametresPage from '@/pages/exploitation/ParametresPage';
-import ChiffresDaffairesPage from '@/pages/exploitation/ChiffresDaffairesPage';
-import PaiementGrosGainPage from '@/pages/PaiementGrosGainPage';
-
-import EspaceChefAgencePage from '@/pages/EspaceChefAgencePage';
-import EspaceGuichetierePage from '@/pages/EspaceGuichetierePage';
-import EspaceMaintenancePage from '@/pages/EspaceMaintenancePage';
-import MesGuichetieresPage from '@/pages/chef_agence/MesGuichetieresPage';
-import MonPlanningPage from '@/pages/chef_agence/MonPlanningPage';
-import MaintenanceTerminauxPage from '@/pages/chef_agence/MaintenanceTerminauxPage';
-import SuiviPointageChefPage from '@/pages/chef_agence/SuiviPointagePage';
-import PointsVenteMobiChefPage from '@/pages/chef_agence/PointsVenteMobiChefPage';
-import MonPlanningGuichetierePage from '@/pages/guichetiere/MonPlanningGuichetierePage';
-import MesPointagesPage from '@/pages/guichetiere/MesPointagesPage';
-import MesPointsVenteMobiPage from '@/pages/guichetiere/MesPointsVenteMobiPage';
-import EtatCaissePage from '@/pages/guichetiere/EtatCaissePage';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import EtatPlanningGeneralPage from '@/pages/exploitation/EtatPlanningGeneralPage';
-import SuiviPointageExploitationPage from '@/pages/exploitation/SuiviPointagePage';
 
+// ── Lazy-load des pages : permet de séparer chaque route dans son propre chunk
+//    Premier chargement réduit, le code d'une page n'est téléchargé qu'à sa première visite.
+const PointagePage                          = lazy(() => import('@/pages/PointagePage'));
+const EspaceExploitationPage                = lazy(() => import('@/pages/EspaceExploitationPage'));
+const EspaceValidationPaiementGainPage      = lazy(() => import('@/pages/EspaceValidationPaiementGainPage'));
+const EspaceChefAgencePage                  = lazy(() => import('@/pages/EspaceChefAgencePage'));
+const EspaceGuichetierePage                 = lazy(() => import('@/pages/EspaceGuichetierePage'));
+const EspaceMaintenancePage                 = lazy(() => import('@/pages/EspaceMaintenancePage'));
+const PaiementGrosGainPage                  = lazy(() => import('@/pages/PaiementGrosGainPage'));
+const PbiViewerPage                         = lazy(() => import('@/pages/PbiViewerPage'));
 
-const PlaceholderPage = ({ title }) => (
-  <div className="flex flex-col items-center justify-center h-[calc(100vh-20rem)]">
-    <h1 className="text-4xl font-bold text-primary">{title}</h1>
-    <p className="text-muted-foreground mt-2">Cette page est en cours de construction.</p>
-    <img  alt="Illustration de construction" class="mt-8 w-64 h-auto" src="https://images.unsplash.com/photo-1690868305866-b00e0261ae49" />
+// Exploitation
+const AgencesPage                           = lazy(() => import('@/pages/exploitation/AgencesPage'));
+const ChefsAgencePage                       = lazy(() => import('@/pages/exploitation/ChefsAgencePage'));
+const GuichetieresPageExploitation          = lazy(() => import('@/pages/exploitation/GuichetieresPage'));
+const TechniciensPage                       = lazy(() => import('@/pages/exploitation/TechniciensPage'));
+const TerminauxMobiPage                     = lazy(() => import('@/pages/exploitation/TerminauxMobiPage'));
+const PointsVenteMobiPage                   = lazy(() => import('@/pages/exploitation/PointsVenteMobiPage'));
+const RegionsPage                           = lazy(() => import('@/pages/exploitation/RegionsPage'));
+const MaintenanceTerminauxExploitationPage  = lazy(() => import('@/pages/exploitation/MaintenanceTerminauxPage'));
+const ValidationPaiementGainPage            = lazy(() => import('@/pages/exploitation/ValidationPaiementGainPage'));
+const AutorisationsPaiementGainPage         = lazy(() => import('@/pages/exploitation/AutorisationsPaiementGainPage'));
+const ReferentielParametresPage             = lazy(() => import('@/pages/exploitation/ReferentielParametresPage'));
+const ProfilsExploitationPage               = lazy(() => import('@/pages/exploitation/ProfilsExploitationPage'));
+const ParametresPage                        = lazy(() => import('@/pages/exploitation/ParametresPage'));
+const ChiffresDaffairesPage                 = lazy(() => import('@/pages/exploitation/ChiffresDaffairesPage'));
+const EtatPlanningGeneralPage               = lazy(() => import('@/pages/exploitation/EtatPlanningGeneralPage'));
+const SuiviPointageExploitationPage         = lazy(() => import('@/pages/exploitation/SuiviPointagePage'));
+
+// Chef d'agence
+const MesGuichetieresPage                   = lazy(() => import('@/pages/chef_agence/MesGuichetieresPage'));
+const MonPlanningPage                       = lazy(() => import('@/pages/chef_agence/MonPlanningPage'));
+const MaintenanceTerminauxPage              = lazy(() => import('@/pages/chef_agence/MaintenanceTerminauxPage'));
+const SuiviPointageChefPage                 = lazy(() => import('@/pages/chef_agence/SuiviPointagePage'));
+const PointsVenteMobiChefPage               = lazy(() => import('@/pages/chef_agence/PointsVenteMobiChefPage'));
+
+// Guichetière
+const MonPlanningGuichetierePage            = lazy(() => import('@/pages/guichetiere/MonPlanningGuichetierePage'));
+const MesPointagesPage                      = lazy(() => import('@/pages/guichetiere/MesPointagesPage'));
+const MesPointsVenteMobiPage                = lazy(() => import('@/pages/guichetiere/MesPointsVenteMobiPage'));
+const EtatCaissePage                        = lazy(() => import('@/pages/guichetiere/EtatCaissePage'));
+
+// ── Fallback pendant le chargement d'un chunk de route ──
+const RouteLoader = () => (
+  <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
+    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+      <svg className="h-5 w-5 animate-spin text-primary" viewBox="0 0 24 24" fill="none">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+        <path className="opacity-75" fill="currentColor"
+          d="M4 12a8 8 0 018-8v4l3-3-3-3V4a8 8 0 00-8 8z" />
+      </svg>
+      Chargement…
+    </div>
   </div>
 );
 
-const App = () => {
-  return (
-    <TooltipProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/pbi-viewer" element={<PbiViewerPage />} />
-          <Route element={<Layout />}>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/pointage" element={<PointagePage />} />
-            <Route path="/paiement-gros-gain" element={<PaiementGrosGainPage />} />
-            <Route path="/maintenance-terminaux" element={<Navigate to="/espace-technicien" replace />} />
-            <Route path="/espace-technicien" element={<EspaceMaintenancePage />} />
-            <Route path="/validation-paiement-gain" element={<Navigate to="/espace-validation-paiement-gain" replace />} />
-            <Route path="/espace-validation-paiement-gain" element={<EspaceValidationPaiementGainPage />} />
-            <Route path="/espace-directeur-general" element={<EspaceValidationPaiementGainPage spaceMode="general" />} />
-            <Route path="/espace-paiement-gros-gain" element={<Navigate to="/paiement-gros-gain" replace />} />
-            <Route path="/guichetiere" element={<Navigate to="/espace-guichetiere" replace />} />
-            <Route path="/chef-agence" element={<Navigate to="/espace-chef-agence/mon-planning" replace />} />
-            <Route path="/espace-guichetiere" element={<EspaceGuichetierePage />}>
-              <Route index element={<Navigate to="mon-planning" replace />} />
-              <Route path="mon-planning" element={<MonPlanningGuichetierePage />} />
-              <Route path="mes-pointages" element={<MesPointagesPage />} />
-              <Route path="mes-points-vente-mobi" element={<MesPointsVenteMobiPage />} />
-              <Route path="etat-caisse" element={<EtatCaissePage />} />
-            </Route>
-            
-            <Route path="/espace-exploitation" element={<EspaceExploitationPage />}>
-              <Route index element={<Navigate to="maintenance-terminaux" replace />} />
-              <Route path="agences" element={<AgencesPage />} />
-              <Route path="chefs-agence" element={<ChefsAgencePage />} />
-              <Route path="guichetieres" element={<GuichetieresPageExploitation />} />
-              <Route path="techniciens" element={<TechniciensPage />} />
-              <Route path="maintenance-terminaux" element={<MaintenanceTerminauxExploitationPage />} />
-              <Route path="suivi-pointage" element={<SuiviPointageExploitationPage />} />
-              <Route path="terminaux-mobi" element={<TerminauxMobiPage />} />
-              <Route path="points-vente-mobi" element={<PointsVenteMobiPage />} />
-              <Route path="regions" element={<RegionsPage />} />
-              <Route path="validation-paiement-gain" element={<ValidationPaiementGainPage />} />
-              <Route path="autorisation-paiement-gain" element={<AutorisationsPaiementGainPage />} />
-              <Route path="referentiel-parametres" element={<ReferentielParametresPage />} />
-              <Route path="etat-planning-general" element={<EtatPlanningGeneralPage />} />
-              <Route path="chiffres-daffaires" element={<ChiffresDaffairesPage />} />
-              <Route path="parametres" element={<ParametresPage />} />
-              <Route path="profils-exploitation" element={<ProfilsExploitationPage />} />
-            </Route>
+// Wrap chaque page lazy dans Suspense + ErrorBoundary
+const LazyRoute = ({ children }) => (
+  <ErrorBoundary>
+    <Suspense fallback={<RouteLoader />}>{children}</Suspense>
+  </ErrorBoundary>
+);
 
-            <Route path="/espace-chef-agence" element={<EspaceChefAgencePage />}>
-              <Route index element={<Navigate to="mon-planning" replace />} />
-              <Route path="mes-guichetieres" element={<MesGuichetieresPage />} />
-              <Route path="mon-planning" element={<MonPlanningPage />} />
-              <Route path="maintenance-terminaux" element={<MaintenanceTerminauxPage />} />
-              <Route path="suivi-pointage" element={<SuiviPointageChefPage />} />
-              <Route path="points-vente-mobi" element={<PointsVenteMobiChefPage />} />
-              <Route path="paiement-gros-gain" element={<PaiementGrosGainPage />} />
-            </Route>
-            
-            <Route path="*" element={<Navigate to="/" replace />} />
+const App = () => (
+  <TooltipProvider>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/pbi-viewer" element={<LazyRoute><PbiViewerPage /></LazyRoute>} />
+        <Route element={<Layout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/pointage"                          element={<LazyRoute><PointagePage /></LazyRoute>} />
+          <Route path="/paiement-gros-gain"                element={<LazyRoute><PaiementGrosGainPage /></LazyRoute>} />
+          <Route path="/maintenance-terminaux"             element={<Navigate to="/espace-technicien" replace />} />
+          <Route path="/espace-technicien"                 element={<LazyRoute><EspaceMaintenancePage /></LazyRoute>} />
+          <Route path="/validation-paiement-gain"          element={<Navigate to="/espace-validation-paiement-gain" replace />} />
+          <Route path="/espace-validation-paiement-gain"   element={<LazyRoute><EspaceValidationPaiementGainPage /></LazyRoute>} />
+          <Route path="/espace-directeur-general"          element={<LazyRoute><EspaceValidationPaiementGainPage spaceMode="general" /></LazyRoute>} />
+          <Route path="/espace-paiement-gros-gain"         element={<Navigate to="/paiement-gros-gain" replace />} />
+          <Route path="/guichetiere"                       element={<Navigate to="/espace-guichetiere" replace />} />
+          <Route path="/chef-agence"                       element={<Navigate to="/espace-chef-agence/mon-planning" replace />} />
+
+          <Route path="/espace-guichetiere" element={<LazyRoute><EspaceGuichetierePage /></LazyRoute>}>
+            <Route index                          element={<Navigate to="mon-planning" replace />} />
+            <Route path="mon-planning"            element={<LazyRoute><MonPlanningGuichetierePage /></LazyRoute>} />
+            <Route path="mes-pointages"           element={<LazyRoute><MesPointagesPage /></LazyRoute>} />
+            <Route path="mes-points-vente-mobi"   element={<LazyRoute><MesPointsVenteMobiPage /></LazyRoute>} />
+            <Route path="etat-caisse"             element={<LazyRoute><EtatCaissePage /></LazyRoute>} />
           </Route>
-        </Routes>
-        <Toaster />
-      </BrowserRouter>
-    </TooltipProvider>
-  );
-};
+
+          <Route path="/espace-exploitation" element={<LazyRoute><EspaceExploitationPage /></LazyRoute>}>
+            <Route index                              element={<Navigate to="maintenance-terminaux" replace />} />
+            <Route path="agences"                     element={<LazyRoute><AgencesPage /></LazyRoute>} />
+            <Route path="chefs-agence"                element={<LazyRoute><ChefsAgencePage /></LazyRoute>} />
+            <Route path="guichetieres"                element={<LazyRoute><GuichetieresPageExploitation /></LazyRoute>} />
+            <Route path="techniciens"                 element={<LazyRoute><TechniciensPage /></LazyRoute>} />
+            <Route path="maintenance-terminaux"       element={<LazyRoute><MaintenanceTerminauxExploitationPage /></LazyRoute>} />
+            <Route path="suivi-pointage"              element={<LazyRoute><SuiviPointageExploitationPage /></LazyRoute>} />
+            <Route path="terminaux-mobi"              element={<LazyRoute><TerminauxMobiPage /></LazyRoute>} />
+            <Route path="points-vente-mobi"           element={<LazyRoute><PointsVenteMobiPage /></LazyRoute>} />
+            <Route path="regions"                     element={<LazyRoute><RegionsPage /></LazyRoute>} />
+            <Route path="validation-paiement-gain"    element={<LazyRoute><ValidationPaiementGainPage /></LazyRoute>} />
+            <Route path="autorisation-paiement-gain"  element={<LazyRoute><AutorisationsPaiementGainPage /></LazyRoute>} />
+            <Route path="referentiel-parametres"      element={<LazyRoute><ReferentielParametresPage /></LazyRoute>} />
+            <Route path="etat-planning-general"       element={<LazyRoute><EtatPlanningGeneralPage /></LazyRoute>} />
+            <Route path="chiffres-daffaires"          element={<LazyRoute><ChiffresDaffairesPage /></LazyRoute>} />
+            <Route path="parametres"                  element={<LazyRoute><ParametresPage /></LazyRoute>} />
+            <Route path="profils-exploitation"        element={<LazyRoute><ProfilsExploitationPage /></LazyRoute>} />
+          </Route>
+
+          <Route path="/espace-chef-agence" element={<LazyRoute><EspaceChefAgencePage /></LazyRoute>}>
+            <Route index                          element={<Navigate to="mon-planning" replace />} />
+            <Route path="mes-guichetieres"        element={<LazyRoute><MesGuichetieresPage /></LazyRoute>} />
+            <Route path="mon-planning"            element={<LazyRoute><MonPlanningPage /></LazyRoute>} />
+            <Route path="maintenance-terminaux"   element={<LazyRoute><MaintenanceTerminauxPage /></LazyRoute>} />
+            <Route path="suivi-pointage"          element={<LazyRoute><SuiviPointageChefPage /></LazyRoute>} />
+            <Route path="points-vente-mobi"       element={<LazyRoute><PointsVenteMobiChefPage /></LazyRoute>} />
+            <Route path="paiement-gros-gain"      element={<LazyRoute><PaiementGrosGainPage /></LazyRoute>} />
+          </Route>
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+      <Toaster />
+    </BrowserRouter>
+  </TooltipProvider>
+);
 
 export default App;
