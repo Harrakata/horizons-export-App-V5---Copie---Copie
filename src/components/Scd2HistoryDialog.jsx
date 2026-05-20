@@ -72,7 +72,14 @@ const Scd2HistoryDialog = ({
     }
 
     if (error) { setLoadError(error.message); setRows([]); }
-    else { setRows(data ?? []); }
+    else {
+      const sorted = (data ?? []).slice().sort((a, b) => {
+        const bVal = b.valid_from || b.created_at || '';
+        const aVal = a.valid_from || a.created_at || '';
+        return bVal.localeCompare(aVal);
+      });
+      setRows(sorted);
+    }
     setLoading(false);
   };
 
@@ -260,7 +267,7 @@ const Scd2HistoryDialog = ({
                         </div>
                         {canEdit && (
                           <button onClick={() => startEdit(row)}
-                            className="ml-2 mt-0.5 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover/row:opacity-100"
+                            className="ml-2 mt-0.5 shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100 hover:bg-muted hover:text-foreground"
                             title="Modifier les dates">
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
