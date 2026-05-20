@@ -20,7 +20,6 @@ import ReferentielParametresPage from '@/pages/exploitation/ReferentielParametre
 import ProfilsExploitationPage from '@/pages/exploitation/ProfilsExploitationPage';
 import ParametresPage from '@/pages/exploitation/ParametresPage';
 import ChiffresDaffairesPage from '@/pages/exploitation/ChiffresDaffairesPage';
-import CcopeGlobPage from '@/pages/exploitation/CcopeGlobPage';
 import PaiementGrosGainPage from '@/pages/PaiementGrosGainPage';
 
 import EspaceChefAgencePage from '@/pages/EspaceChefAgencePage';
@@ -91,7 +90,6 @@ const App = () => {
               <Route path="referentiel-parametres" element={<ReferentielParametresPage />} />
               <Route path="etat-planning-general" element={<EtatPlanningGeneralPage />} />
               <Route path="chiffres-daffaires" element={<ChiffresDaffairesPage />} />
-              <Route path="ccopeglob" element={<CcopeGlobPage />} />
               <Route path="parametres" element={<ParametresPage />} />
               <Route path="profils-exploitation" element={<ProfilsExploitationPage />} />
             </Route>

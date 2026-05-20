@@ -1,6 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const TABLE_NAME = Deno.env.get("TABLE_NAME") ?? "cln_fnir_ccopeglob";
+const TABLE_NAME     = Deno.env.get("TABLE_NAME") ?? "cln_fnir_ccopeglob";
+const RETENTION_DAYS = 180;
+const TOPN_ROWS      = 100000; // limite API Power BI
 
 const POWERBI_ACCESS_TOKEN  = Deno.env.get("POWERBI_ACCESS_TOKEN");
 const POWERBI_GROUP_ID      = Deno.env.get("POWERBI_GROUP_ID");
@@ -8,9 +10,6 @@ const POWERBI_DATASET_ID    = Deno.env.get("POWERBI_DATASET_ID");
 const POWERBI_TENANT_ID     = Deno.env.get("POWERBI_TENANT_ID");
 const POWERBI_CLIENT_ID     = Deno.env.get("POWERBI_CLIENT_ID");
 const POWERBI_CLIENT_SECRET = Deno.env.get("POWERBI_CLIENT_SECRET");
-
-// Default: sync last 3 months. Pass { days: N } in request body to override (max 365).
-const DAYS_BACK_DEFAULT = 90;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -20,59 +19,58 @@ const CORS_HEADERS = {
 
 type PBRow = Record<string, any>;
 
-function buildDaxQuery(year: number, month: number, day: number): string {
-  return `
+// TOPN + SUMMARIZECOLUMNS sans FILTER : rapide, pas de scan complet de la table
+// TOPN(100000, ..., DATE_OP, 0) retourne les 100 000 lignes les plus récentes
+const DAX_QUERY = `
 EVALUATE
-SELECTCOLUMNS(
-    FILTER(
-        ALL('CLN_FNIR CCOPEGLOB'),
-        NOT ISBLANK('CLN_FNIR CCOPEGLOB'[DATE_OP])
-            && 'CLN_FNIR CCOPEGLOB'[DATE_OP] >= DATE(${year}, ${month}, ${day})
+TOPN(
+    ${TOPN_ROWS},
+    SUMMARIZECOLUMNS(
+        'CLN_FNIR CCOPEGLOB'[ID_CCOPEGLOB],
+        'CLN_FNIR CCOPEGLOB'[DATE_OP],
+        'CLN_FNIR CCOPEGLOB'[ATTRIB],
+        'CLN_FNIR CCOPEGLOB'[SITE],
+        'CLN_FNIR CCOPEGLOB'[RESEAU],
+        'CLN_FNIR CCOPEGLOB'[PDV],
+        'CLN_FNIR CCOPEGLOB'[PDD],
+        'CLN_FNIR CCOPEGLOB'[POS],
+        'CLN_FNIR CCOPEGLOB'[PREPOSE],
+        'CLN_FNIR CCOPEGLOB'[PARI],
+        'CLN_FNIR CCOPEGLOB'[MT_VALID],
+        'CLN_FNIR CCOPEGLOB'[NB_VALID],
+        'CLN_FNIR CCOPEGLOB'[MT_PAYE],
+        'CLN_FNIR CCOPEGLOB'[NB_PAYE],
+        'CLN_FNIR CCOPEGLOB'[MT_PAYA],
+        'CLN_FNIR CCOPEGLOB'[NB_PAYA],
+        'CLN_FNIR CCOPEGLOB'[MT_TOTAL_ANUL],
+        'CLN_FNIR CCOPEGLOB'[NB_TOTAL_ANUL],
+        'CLN_FNIR CCOPEGLOB'[MT_TOTAL_ENJEUX],
+        'CLN_FNIR CCOPEGLOB'[MT_TOTAL_GAIN],
+        'CLN_FNIR CCOPEGLOB'[NB_TOTAL_TRANS],
+        'CLN_FNIR CCOPEGLOB'[MT_TOTAL_IMPOT],
+        'CLN_FNIR CCOPEGLOB'[MT_TOTAL_REMBOUR],
+        'CLN_FNIR CCOPEGLOB'[MT_ACM],
+        'CLN_FNIR CCOPEGLOB'[NB_ACM],
+        'CLN_FNIR CCOPEGLOB'[REF_CLIENT],
+        'CLN_FNIR CCOPEGLOB'[CLIENT],
+        'CLN_FNIR CCOPEGLOB'[MT_ANCL],
+        'CLN_FNIR CCOPEGLOB'[NB_ANCL],
+        'CLN_FNIR CCOPEGLOB'[MT_ANEX],
+        'CLN_FNIR CCOPEGLOB'[NB_ANEX],
+        'CLN_FNIR CCOPEGLOB'[MT_ANMA],
+        'CLN_FNIR CCOPEGLOB'[NB_ANMA],
+        'CLN_FNIR CCOPEGLOB'[MT_ANSY],
+        'CLN_FNIR CCOPEGLOB'[NB_ANSY],
+        'CLN_FNIR CCOPEGLOB'[DATE_MOIS],
+        'CLN_FNIR CCOPEGLOB'[NB_VALIV_ANUL],
+        'CLN_FNIR CCOPEGLOB'[A VERSER],
+        'CLN_FNIR CCOPEGLOB'[ORG],
+        'CLN_FNIR CCOPEGLOB'[REUNION],
+        'CLN_FNIR CCOPEGLOB'[COURSE]
     ),
-    "ID_CCOPEGLOB",      'CLN_FNIR CCOPEGLOB'[ID_CCOPEGLOB],
-    "DATE_OP",           'CLN_FNIR CCOPEGLOB'[DATE_OP],
-    "PREPOSE",           'CLN_FNIR CCOPEGLOB'[PREPOSE],
-    "PARI",              'CLN_FNIR CCOPEGLOB'[PARI],
-    "PDV",               'CLN_FNIR CCOPEGLOB'[PDV],
-    "PDD",               'CLN_FNIR CCOPEGLOB'[PDD],
-    "POS",               'CLN_FNIR CCOPEGLOB'[POS],
-    "ATTRIB",            'CLN_FNIR CCOPEGLOB'[ATTRIB],
-    "SITE",              'CLN_FNIR CCOPEGLOB'[SITE],
-    "RESEAU",            'CLN_FNIR CCOPEGLOB'[RESEAU],
-    "REF_CLIENT",        'CLN_FNIR CCOPEGLOB'[REF_CLIENT],
-    "CLIENT",            'CLN_FNIR CCOPEGLOB'[CLIENT],
-    "DATE_MOIS",         'CLN_FNIR CCOPEGLOB'[DATE_MOIS],
-    "ORG",               'CLN_FNIR CCOPEGLOB'[ORG],
-    "REUNION",           'CLN_FNIR CCOPEGLOB'[REUNION],
-    "COURSE",            'CLN_FNIR CCOPEGLOB'[COURSE],
-    "MT_VALID",          'CLN_FNIR CCOPEGLOB'[MT_VALID],
-    "NB_VALID",          'CLN_FNIR CCOPEGLOB'[NB_VALID],
-    "MT_PAYE",           'CLN_FNIR CCOPEGLOB'[MT_PAYE],
-    "NB_PAYE",           'CLN_FNIR CCOPEGLOB'[NB_PAYE],
-    "MT_PAYA",           'CLN_FNIR CCOPEGLOB'[MT_PAYA],
-    "NB_PAYA",           'CLN_FNIR CCOPEGLOB'[NB_PAYA],
-    "MT_TOTAL_ANUL",     'CLN_FNIR CCOPEGLOB'[MT_TOTAL_ANUL],
-    "NB_TOTAL_ANUL",     'CLN_FNIR CCOPEGLOB'[NB_TOTAL_ANUL],
-    "MT_TOTAL_ENJEUX",   'CLN_FNIR CCOPEGLOB'[MT_TOTAL_ENJEUX],
-    "MT_TOTAL_GAIN",     'CLN_FNIR CCOPEGLOB'[MT_TOTAL_GAIN],
-    "NB_TOTAL_TRANS",    'CLN_FNIR CCOPEGLOB'[NB_TOTAL_TRANS],
-    "MT_TOTAL_IMPOT",    'CLN_FNIR CCOPEGLOB'[MT_TOTAL_IMPOT],
-    "MT_TOTAL_REMBOUR",  'CLN_FNIR CCOPEGLOB'[MT_TOTAL_REMBOUR],
-    "MT_ACM",            'CLN_FNIR CCOPEGLOB'[MT_ACM],
-    "NB_ACM",            'CLN_FNIR CCOPEGLOB'[NB_ACM],
-    "MT_ANCL",           'CLN_FNIR CCOPEGLOB'[MT_ANCL],
-    "NB_ANCL",           'CLN_FNIR CCOPEGLOB'[NB_ANCL],
-    "MT_ANEX",           'CLN_FNIR CCOPEGLOB'[MT_ANEX],
-    "NB_ANEX",           'CLN_FNIR CCOPEGLOB'[NB_ANEX],
-    "MT_ANMA",           'CLN_FNIR CCOPEGLOB'[MT_ANMA],
-    "NB_ANMA",           'CLN_FNIR CCOPEGLOB'[NB_ANMA],
-    "MT_ANSY",           'CLN_FNIR CCOPEGLOB'[MT_ANSY],
-    "NB_ANSY",           'CLN_FNIR CCOPEGLOB'[NB_ANSY],
-    "NB_VALIV_ANUL",     'CLN_FNIR CCOPEGLOB'[NB_VALIV_ANUL],
-    "A VERSER",          'CLN_FNIR CCOPEGLOB'[A VERSER]
+    'CLN_FNIR CCOPEGLOB'[DATE_OP], 0
 )
 `;
-}
 
 function getValue(r: PBRow, column: string) {
   return r[column]
@@ -106,7 +104,6 @@ function canUseClientCredentials() {
 
 async function fetchClientCredentialsToken() {
   if (!canUseClientCredentials()) return null;
-
   const tokenUrl = `https://login.microsoftonline.com/${POWERBI_TENANT_ID}/oauth2/v2.0/token`;
   const body = new URLSearchParams({
     grant_type: "client_credentials",
@@ -114,69 +111,51 @@ async function fetchClientCredentialsToken() {
     client_secret: POWERBI_CLIENT_SECRET!,
     scope: "https://analysis.windows.net/powerbi/api/.default",
   });
-
   const res = await fetch(tokenUrl, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
   });
-
   const payload = await res.json().catch(() => null);
   if (!res.ok || !payload?.access_token) {
-    throw new Error(
-      `Power BI token refresh error ${res.status}: ${payload?.error_description ?? payload?.error ?? "unknown error"}`
-    );
+    throw new Error(`Power BI token refresh error ${res.status}: ${payload?.error_description ?? payload?.error ?? "unknown"}`);
   }
-
   return payload.access_token as string;
 }
 
 async function getPowerBITokenCandidates() {
   const tokens: Array<{ source: string; token: string }> = [];
 
-  if (POWERBI_ACCESS_TOKEN) {
-    tokens.push({ source: "POWERBI_ACCESS_TOKEN", token: POWERBI_ACCESS_TOKEN });
-  }
-
+  // Priorité 1 : client credentials → token frais à chaque appel, jamais expiré
   if (canUseClientCredentials()) {
-    const clientToken = await fetchClientCredentialsToken();
-    if (clientToken) tokens.push({ source: "client_credentials", token: clientToken });
+    const t = await fetchClientCredentialsToken();
+    if (t) tokens.push({ source: "client_credentials", token: t });
   }
 
-  if (!tokens.length) {
-    throw new Error(
-      "Missing env vars: POWERBI_ACCESS_TOKEN, or POWERBI_TENANT_ID, POWERBI_CLIENT_ID, POWERBI_CLIENT_SECRET"
-    );
-  }
+  // Priorité 2 : token statique (fallback si pas de client credentials)
+  if (POWERBI_ACCESS_TOKEN) tokens.push({ source: "POWERBI_ACCESS_TOKEN", token: POWERBI_ACCESS_TOKEN });
 
+  if (!tokens.length) throw new Error("Missing env vars: POWERBI_ACCESS_TOKEN, or POWERBI_TENANT_ID + POWERBI_CLIENT_ID + POWERBI_CLIENT_SECRET");
   return tokens;
 }
 
 async function readPowerBIError(res: Response) {
   const text = await res.text().catch(() => "");
   if (!text) return "";
-
   try {
-    const payload = JSON.parse(text);
-    const error = payload?.error;
-    if (typeof error === "string") return error;
-    return [error?.code, error?.message, payload?.message].filter(Boolean).join(" - ") || text;
-  } catch {
-    return text;
-  }
+    const p = JSON.parse(text);
+    const e = p?.error;
+    if (typeof e === "string") return e;
+    return [e?.code, e?.message, p?.message].filter(Boolean).join(" - ") || text;
+  } catch { return text; }
 }
 
 function buildPowerBIErrorMessage(status: number, detail: string, source: string) {
-  if (/TokenExpired|Access token has expired/i.test(detail)) {
-    return "Power BI access token has expired. Update POWERBI_ACCESS_TOKEN or configure POWERBI_TENANT_ID, POWERBI_CLIENT_ID, POWERBI_CLIENT_SECRET.";
-  }
-  if (status === 401) {
-    return `Power BI refused the token from ${source} (401). Details: ${detail || "empty response"}`;
-  }
-  if (status === 403) {
-    return `Power BI refused access from ${source} (403). Check POWERBI_GROUP_ID, POWERBI_DATASET_ID and dataset permissions. Details: ${detail || "empty response"}`;
-  }
-  return `Power BI error ${status}: ${detail || "empty response"}`;
+  if (/TokenExpired|Access token has expired/i.test(detail))
+    return "Power BI access token has expired. Update POWERBI_ACCESS_TOKEN or configure client credentials.";
+  if (status === 401) return `Power BI refused the token (401) from ${source}. Details: ${detail || "empty"}`;
+  if (status === 403) return `Power BI refused access (403) from ${source}. Check POWERBI_GROUP_ID, POWERBI_DATASET_ID and permissions. Details: ${detail || "empty"}`;
+  return `Power BI error ${status}: ${detail || "empty"}`;
 }
 
 function mapRow(r: PBRow) {
@@ -225,28 +204,33 @@ function mapRow(r: PBRow) {
   };
 }
 
-async function fetchPowerBIRows(daxQuery: string) {
-  if (!POWERBI_GROUP_ID || !POWERBI_DATASET_ID) {
-    throw new Error("Missing env vars: POWERBI_GROUP_ID, POWERBI_DATASET_ID");
-  }
-
+async function fetchPowerBIRows() {
+  if (!POWERBI_GROUP_ID || !POWERBI_DATASET_ID) throw new Error("Missing env vars: POWERBI_GROUP_ID, POWERBI_DATASET_ID");
   const url = `https://api.powerbi.com/v1.0/myorg/groups/${POWERBI_GROUP_ID}/datasets/${POWERBI_DATASET_ID}/executeQueries`;
   const tokenCandidates = await getPowerBITokenCandidates();
   let lastError = "";
 
-  for (let i = 0; i < tokenCandidates.length; i += 1) {
-    const candidate = tokenCandidates[i];
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${candidate.token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        queries: [{ query: daxQuery }],
-        serializerSettings: { includeNulls: true },
-      }),
-    });
+  for (let i = 0; i < tokenCandidates.length; i++) {
+    const { source, token } = tokenCandidates[i];
+
+    // Timeout 25 s pour éviter un EarlyDrop de Supabase
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 25000);
+
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ queries: [{ query: DAX_QUERY }], serializerSettings: { includeNulls: true } }),
+        signal: controller.signal,
+      });
+    } catch (e: any) {
+      clearTimeout(tid);
+      if (e?.name === "AbortError") throw new Error("Power BI API timeout (>25s). Dataset may be too large or unresponsive.");
+      throw e;
+    }
+    clearTimeout(tid);
 
     if (res.ok) {
       const data = await res.json();
@@ -254,103 +238,73 @@ async function fetchPowerBIRows(daxQuery: string) {
     }
 
     const detail = await readPowerBIError(res);
-    lastError = buildPowerBIErrorMessage(res.status, detail, candidate.source);
-
-    const canTryNextToken =
-      i < tokenCandidates.length - 1
+    lastError = buildPowerBIErrorMessage(res.status, detail, source);
+    const canTryNext = i < tokenCandidates.length - 1
       && (res.status === 401 || res.status === 403 || /TokenExpired|Access token has expired/i.test(detail));
-
-    if (!canTryNextToken) throw new Error(lastError);
+    if (!canTryNext) throw new Error(lastError);
   }
 
   throw new Error(lastError || "Power BI request failed.");
 }
 
-// UPSERT by id_ccopeglob — much faster than DELETE+INSERT per date
-async function saveRows(supabaseClient: any, payload: any[]) {
-  const CHUNK = 500;
+async function purgeOldRows(supabaseClient: any): Promise<number> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - RETENTION_DAYS);
+  const cutoffISO = cutoff.toISOString().substring(0, 10) + "T00:00:00.000Z";
+  const { count, error } = await supabaseClient.from(TABLE_NAME).delete({ count: "exact" }).lt("date_op", cutoffISO);
+  if (error) throw error;
+  return count ?? 0;
+}
 
+async function saveRows(supabaseClient: any, payload: any[]) {
+  const CHUNK = 1000; // chunks plus grands = moins de round-trips
   for (let i = 0; i < payload.length; i += CHUNK) {
-    const chunk = payload.slice(i, i + CHUNK);
     const { error } = await supabaseClient
       .from(TABLE_NAME)
-      .upsert(chunk, { onConflict: "id_ccopeglob", ignoreDuplicates: false });
+      .upsert(payload.slice(i, i + CHUNK), { onConflict: "id_ccopeglob", ignoreDuplicates: false });
     if (error) throw error;
   }
-
-  return payload.length;
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: CORS_HEADERS });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
 
   try {
-    if (req.method !== "POST" && req.method !== "GET") {
+    if (req.method !== "POST" && req.method !== "GET")
       return new Response("Method not allowed", { status: 405, headers: CORS_HEADERS });
-    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-    if (!supabaseUrl || !supabaseServiceRoleKey) {
-      throw new Error("Missing env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY");
-    }
-
-    // Parse optional { days: N } from request body
-    let daysBack = DAYS_BACK_DEFAULT;
-    if (req.method === "POST") {
-      try {
-        const bodyText = await req.text();
-        if (bodyText) {
-          const body = JSON.parse(bodyText);
-          if (body?.days && Number.isFinite(Number(body.days))) {
-            daysBack = Math.min(Math.max(Number(body.days), 1), 365);
-          }
-        }
-      } catch { /* ignore parse errors */ }
-    }
-
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - daysBack);
-    const startYear  = startDate.getFullYear();
-    const startMonth = startDate.getMonth() + 1;
-    const startDay   = startDate.getDate();
-
-    console.log(`Syncing CCOPEGLOB from DATE(${startYear}, ${startMonth}, ${startDay}) [${daysBack} jours]`);
+    if (!supabaseUrl || !supabaseServiceRoleKey) throw new Error("Missing env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY");
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceRoleKey);
-    const daxQuery = buildDaxQuery(startYear, startMonth, startDay);
-    const rows = await fetchPowerBIRows(daxQuery);
 
-    if (!rows.length) {
-      return new Response(
-        JSON.stringify({ ok: true, fetched: 0, upserted: 0 }),
-        { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
-      );
-    }
+    console.log(`Syncing CCOPEGLOB — TOPN(${TOPN_ROWS}) most recent rows, no date filter`);
 
-    console.log("Exemple de clés Power BI:", Object.keys(rows[0]));
+    const [rows, purged] = await Promise.all([
+      fetchPowerBIRows(),
+      purgeOldRows(supabaseClient),
+    ]);
+
+    console.log(`Power BI returned ${rows.length} rows. Exemple de clés:`, rows[0] ? Object.keys(rows[0]) : []);
 
     const payload = rows
       .map((r: PBRow) => mapRow(r))
       .filter((r: any) => r.id_ccopeglob !== null);
     const skipped = rows.length - payload.length;
+    if (skipped > 0) console.warn(`${skipped} ligne(s) ignorée(s) (id_ccopeglob null)`);
 
-    if (skipped > 0) {
-      console.warn(`${skipped} ligne(s) ignorée(s) car id_ccopeglob est null`);
-    }
-
-    const upserted = await saveRows(supabaseClient, payload);
+    await saveRows(supabaseClient, payload);
 
     return new Response(
-      JSON.stringify({ ok: true, fetched: rows.length, upserted, skipped }),
+      JSON.stringify({ ok: true, fetched: rows.length, upserted: payload.length, skipped, purged }),
       { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
+    const message = err?.message ?? String(err);
+    console.error("Sync error:", message);
     return new Response(
-      JSON.stringify({ ok: false, error: err?.message ?? String(err) }),
+      JSON.stringify({ ok: false, error: message }),
       { status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
     );
   }
