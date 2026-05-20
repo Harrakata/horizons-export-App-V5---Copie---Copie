@@ -48,6 +48,14 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
   const [filters, setFilters] = useState({ sous_ensemble: '__all__', type_terminal: '__all__' });
   const [search, setSearch] = useState('');
 
+  // Filtres dédiés au tab Stock Pièces
+  const [stockFilters, setStockFilters] = useState({
+    sous_ensemble: '__all__',
+    type_terminal: '__all__',
+    etat:          '__all__', // __all__ | rupture | faible | dispo
+  });
+  const [stockSearch, setStockSearch] = useState('');
+
   const [isPieceOpen, setIsPieceOpen] = useState(false);
   const [editingPiece, setEditingPiece] = useState(null);
   const [pieceForm, setPieceForm] = useState(DEFAULT_PIECE);
@@ -153,15 +161,47 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
       .map((p) => {
         const stock = stockById[p.id];
         return {
-          id:           stock?.id ?? `no-stock-${p.id}`,
-          piece_id:     p.id,
-          piece:        { nom: p.nom, reference: p.reference },
-          quantite:     stock?.quantite ?? 0,
-          seuil_alerte: stock?.seuil_alerte ?? 0,
-          hasStock:     !!stock,
+          id:             stock?.id ?? `no-stock-${p.id}`,
+          piece_id:       p.id,
+          piece:          { nom: p.nom, reference: p.reference },
+          quantite:       stock?.quantite ?? 0,
+          seuil_alerte:   stock?.seuil_alerte ?? 0,
+          hasStock:       !!stock,
+          // Attributs catalogue conservés pour les filtres
+          sous_ensemble:  p.sous_ensemble,
+          type_terminal:  p.type_terminal,
         };
       });
   }, [pieces, stockById]);
+
+  // Application des filtres du tab Stock
+  const filteredStockRows = useMemo(() => {
+    const term = stockSearch.trim().toLowerCase();
+    return stockRows
+      .filter(s => stockFilters.sous_ensemble === '__all__' || s.sous_ensemble === stockFilters.sous_ensemble)
+      .filter(s => stockFilters.type_terminal === '__all__' || s.type_terminal === 'tous' || s.type_terminal === stockFilters.type_terminal)
+      .filter(s => {
+        if (stockFilters.etat === '__all__') return true;
+        if (stockFilters.etat === 'rupture') return s.quantite === 0;
+        if (stockFilters.etat === 'faible')  return s.quantite > 0 && s.quantite <= s.seuil_alerte;
+        if (stockFilters.etat === 'dispo')   return s.quantite > s.seuil_alerte;
+        return true;
+      })
+      .filter(s => !term
+        || String(s.piece?.nom ?? '').toLowerCase().includes(term)
+        || String(s.piece?.reference ?? '').toLowerCase().includes(term));
+  }, [stockRows, stockFilters, stockSearch]);
+
+  const hasActiveStockFilter =
+    stockFilters.sous_ensemble !== '__all__' ||
+    stockFilters.type_terminal !== '__all__' ||
+    stockFilters.etat !== '__all__' ||
+    stockSearch.trim() !== '';
+
+  const resetStockFilters = () => {
+    setStockFilters({ sous_ensemble: '__all__', type_terminal: '__all__', etat: '__all__' });
+    setStockSearch('');
+  };
 
   const filteredPieces = useMemo(() =>
     pieces
@@ -931,29 +971,100 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                 )}
               </div>
               <div className="grid gap-4 md:grid-cols-3 pt-2">
-                <Card className="border-red-200 bg-red-50">
+                <Card
+                  onClick={() => setStockFilters(f => ({ ...f, etat: f.etat === 'rupture' ? '__all__' : 'rupture' }))}
+                  className={`cursor-pointer border-red-200 bg-red-50 transition-all hover:shadow-md ${stockFilters.etat === 'rupture' ? 'ring-2 ring-red-500' : ''}`}
+                >
                   <CardContent className="p-4">
                     <p className="text-sm text-red-700 font-medium">Ruptures de stock</p>
                     <p className="text-2xl font-bold text-red-800">{stockRows.filter(s => s.quantite === 0).length}</p>
                   </CardContent>
                 </Card>
-                <Card className="border-yellow-200 bg-yellow-50">
+                <Card
+                  onClick={() => setStockFilters(f => ({ ...f, etat: f.etat === 'faible' ? '__all__' : 'faible' }))}
+                  className={`cursor-pointer border-yellow-200 bg-yellow-50 transition-all hover:shadow-md ${stockFilters.etat === 'faible' ? 'ring-2 ring-yellow-500' : ''}`}
+                >
                   <CardContent className="p-4">
                     <p className="text-sm text-yellow-700 font-medium">Stock faible</p>
                     <p className="text-2xl font-bold text-yellow-800">{stockRows.filter(s => s.quantite > 0 && s.quantite <= s.seuil_alerte).length}</p>
                   </CardContent>
                 </Card>
-                <Card className="border-green-200 bg-green-50">
+                <Card
+                  onClick={() => setStockFilters(f => ({ ...f, etat: f.etat === 'dispo' ? '__all__' : 'dispo' }))}
+                  className={`cursor-pointer border-green-200 bg-green-50 transition-all hover:shadow-md ${stockFilters.etat === 'dispo' ? 'ring-2 ring-green-500' : ''}`}
+                >
                   <CardContent className="p-4">
                     <p className="text-sm text-green-700 font-medium">Disponibles</p>
                     <p className="text-2xl font-bold text-green-800">{stockRows.filter(s => s.quantite > s.seuil_alerte).length}</p>
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Filtres */}
+              <div className="flex flex-wrap items-end gap-3 pt-4">
+                <div className="space-y-1">
+                  <Label>Sous-ensemble</Label>
+                  <Select value={stockFilters.sous_ensemble} onValueChange={v => setStockFilters(f => ({ ...f, sous_ensemble: v }))}>
+                    <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">Tous</SelectItem>
+                      {Object.entries(SOUS_ENSEMBLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Type terminal</Label>
+                  <Select value={stockFilters.type_terminal} onValueChange={v => setStockFilters(f => ({ ...f, type_terminal: v }))}>
+                    <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">Tous</SelectItem>
+                      <SelectItem value="2020">2020</SelectItem>
+                      <SelectItem value="2031">2031</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>État</Label>
+                  <Select value={stockFilters.etat} onValueChange={v => setStockFilters(f => ({ ...f, etat: v }))}>
+                    <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">Tous</SelectItem>
+                      <SelectItem value="rupture">Rupture</SelectItem>
+                      <SelectItem value="faible">Stock faible</SelectItem>
+                      <SelectItem value="dispo">Disponible</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1 min-w-[200px] space-y-1">
+                  <Label>Recherche</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input className="pl-10 pr-9" placeholder="Nom, référence..." value={stockSearch} onChange={e => setStockSearch(e.target.value)} />
+                    {stockSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setStockSearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {hasActiveStockFilter && (
+                  <Button variant="ghost" size="sm" onClick={resetStockFilters} className="text-xs">
+                    <X className="mr-1 h-3 w-3" /> Réinitialiser
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
-                <TableCaption>{stockRows.length === 0 ? 'Aucune pièce au catalogue.' : `${stockRows.length} pièce(s) au catalogue.`}</TableCaption>
+                <TableCaption>
+                  {filteredStockRows.length === 0
+                    ? 'Aucune pièce ne correspond aux filtres.'
+                    : `${filteredStockRows.length} pièce(s)${hasActiveStockFilter ? ` sur ${stockRows.length}` : ''}.`}
+                </TableCaption>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Pièce</TableHead>
@@ -964,7 +1075,7 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stockRows.map(s => (
+                  {filteredStockRows.map(s => (
                     <TableRow key={s.id}>
                       <TableCell className="font-medium">{s.piece?.nom || '—'}</TableCell>
                       <TableCell className="font-mono text-sm">{s.piece?.reference || '—'}</TableCell>
