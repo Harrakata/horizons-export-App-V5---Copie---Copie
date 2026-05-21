@@ -21,6 +21,7 @@ import {
   normalizeAppSpaceFunctionalities,
   normalizeAppSpaceTabFunctionalities,
 } from '@/lib/exploitationProfiles';
+import { fetchAuthLinkedProfile } from '@/lib/smartAuth';
 
 const LoginPageChef = ({ onLogin }) => {
   const [matricule, setMatricule] = useState('');
@@ -97,11 +98,12 @@ const LoginPageChef = ({ onLogin }) => {
 
   const verifierMatricule = async (e) => {
     e.preventDefault();
-    if (!matricule.trim()) {
-      toast({ 
-        title: "Matricule requis", 
-        description: "Veuillez entrer votre matricule pour continuer.", 
-        variant: "destructive" 
+    const id = matricule.trim();
+    if (!id) {
+      toast({
+        title: "Identifiant requis",
+        description: "Veuillez entrer votre matricule ou votre email pour continuer.",
+        variant: "destructive",
       });
       return;
     }
@@ -109,22 +111,26 @@ const LoginPageChef = ({ onLogin }) => {
     setIsLoading(true);
 
     try {
-      // Vérifier si le matricule existe
-    const { data: chef, error } = await supabase
-      .from('chefs_agence')
-      .select('*')
-      .eq('matricule', matricule)
-      .eq('is_current', true)
-      .single();
+      // L'utilisateur peut saisir un email OU un matricule
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id);
+      let query = supabase.from('chefs_agence').select('*').eq('is_current', true);
+      query = isEmail
+        ? query.ilike('email', id)
+        : query.ilike('matricule', id);
+      const { data: chef, error } = await query.maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
-      toast({ title: "Erreur de connexion", description: error.message, variant: "destructive" });
+        toast({ title: "Erreur de connexion", description: error.message, variant: "destructive" });
         setIsLoading(false);
         return;
       }
-      
+
       if (!chef) {
-        toast({ title: "Matricule inconnu", description: "Ce matricule n'est associé à aucun chef d'agence.", variant: "destructive" });
+        toast({
+          title: isEmail ? "Email inconnu" : "Matricule inconnu",
+          description: "Cet identifiant n'est associé à aucun chef d'agence actif.",
+          variant: "destructive",
+        });
         setIsLoading(false);
         return;
       }
@@ -194,23 +200,52 @@ const LoginPageChef = ({ onLogin }) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Vérifier si le mot de passe correspond au chef trouvé
-    if (password === chefTrouve.mdp) {
-      // Appel à onLogin qui va gérer l'enregistrement de la connexion
-      onLogin(true, chefTrouve);
-      
-      toast({ 
-        title: "Connexion réussie", 
-        description: `Bienvenue ${chefTrouve.prenom} ${chefTrouve.nom} dans votre Espace Chef d'Agence.`, 
-        className: "bg-green-500 text-white" 
+    // ── Auth Supabase obligatoire : le mot de passe est vérifié contre auth.users (bcrypt) ──
+    if (!chefTrouve?.email) {
+      toast({
+        title: "Email manquant",
+        description: "Ce chef d'agence n'a pas d'email enregistré. Contactez un administrateur.",
+        variant: "destructive",
       });
-    } else {
-      toast({ 
-        title: "Échec de la connexion", 
-        description: "Mot de passe incorrect.", 
-        variant: "destructive" 
-      });
+      setIsLoading(false);
+      return;
     }
+
+    const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+      email: String(chefTrouve.email).trim().toLowerCase(),
+      password,
+    });
+
+    if (authErr || !authData?.user) {
+      toast({
+        title: "Échec de la connexion",
+        description: authErr?.message?.includes('Invalid login credentials')
+          ? "Mot de passe incorrect."
+          : (authErr?.message ?? "Mot de passe incorrect."),
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    // ── Vérifier que le compte auth est bien lié à CE chef d'agence ──
+    if (chefTrouve.auth_user_id && chefTrouve.auth_user_id !== authData.user.id) {
+      await supabase.auth.signOut();
+      toast({
+        title: "Compte non autorisé",
+        description: "Ce mot de passe ne correspond pas au compte de ce matricule.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    onLogin(true, chefTrouve);
+    toast({
+      title: "Connexion réussie",
+      description: `Bienvenue ${chefTrouve.prenom} ${chefTrouve.nom} dans votre Espace Chef d'Agence.`,
+      className: "bg-green-500 text-white",
+    });
     setIsLoading(false);
   };
   
@@ -252,15 +287,16 @@ const LoginPageChef = ({ onLogin }) => {
           {authStep === 'matricule' && (
             <form onSubmit={verifierMatricule} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="matricule-chef">Matricule</Label>
-              <Input 
-                id="matricule-chef" 
-                type="text" 
-                placeholder="Votre matricule" 
-                value={matricule} 
-                onChange={(e) => setMatricule(e.target.value)} 
-                required 
+              <Label htmlFor="matricule-chef">Identifiant</Label>
+              <Input
+                id="matricule-chef"
+                type="text"
+                placeholder="Matricule ou email"
+                value={matricule}
+                onChange={(e) => setMatricule(e.target.value)}
+                required
                 disabled={isLoading}
+                autoComplete="username"
               />
             </div>
               <Button 
@@ -586,19 +622,61 @@ const EspaceChefAgencePage = () => {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (isAuthenticated && chefAgenceInfo?.id) {
       // Enregistrer la déconnexion du chef d'agence
       enregistrerDeconnexionChef(chefAgenceInfo.id);
     }
-    
+
+    // Déconnexion Supabase Auth (no-op si auth par face uniquement)
+    try { await supabase.auth.signOut(); } catch {}
+
     setIsAuthenticated(false);
     setChefAgenceInfo(null);
     setChefDetails(null);
     localStorage.removeItem('pmuChefAuth');
     toast({ title: "Déconnexion", description: "Vous avez été déconnecté.", className: "bg-blue-500 text-white" });
-    navigate('/'); 
+    navigate('/');
   };
+
+  // Restauration automatique : si une session Supabase Auth existe (login par mot de passe),
+  // on re-fetch le chef d'agence lié sans demander de re-login.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (isAuthenticated) return; // déjà connecté via localStorage (face) ou flux normal
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled || !session?.user) return;
+      const { data: chef } = await fetchAuthLinkedProfile({
+        table: 'chefs_agence',
+        authUserId: session.user.id,
+        statusCol: 'is_current',
+        activeValue: true,
+      });
+      if (cancelled) return;
+      if (chef) {
+        const authData = {
+          isAuthenticated: true,
+          chefInfo: {
+            nomAgence: chef.agenceEnCharge,
+            nomChef: `${chef.prenom} ${chef.nom}`,
+            matricule: chef.matricule,
+            id: chef.id,
+            photo_url: chef.photo_url,
+          },
+        };
+        setIsAuthenticated(true);
+        setChefAgenceInfo(authData.chefInfo);
+        setChefDetails(chef);
+        localStorage.setItem('pmuChefAuth', JSON.stringify(authData));
+      } else {
+        // Session orpheline (aucun chef lié) → on déconnecte
+        await supabase.auth.signOut();
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Ajouter ces nouvelles fonctions pour gérer les connexions/déconnexions
   const enregistrerConnexionChef = async (chefId) => {

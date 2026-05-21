@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Wrench, Loader2, LogOut, CalendarDays } from 'lucide-react';
+import { Wrench, Loader2, LogOut, CalendarDays, AtSign } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
@@ -19,34 +19,59 @@ import {
   isAppSpaceTabEnabled,
   normalizeAppSpaceTabFunctionalities,
 } from '@/lib/exploitationProfiles';
+import { smartSignIn, fetchAuthLinkedProfile } from '@/lib/smartAuth';
 
 const LoginPage = ({ onLogin }) => {
   const { toast } = useToast();
-  const [matricule, setMatricule] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!matricule || !password) {
+    if (!identifier.trim() || !password) {
       toast({ title: 'Erreur', description: 'Veuillez remplir tous les champs', variant: 'destructive' });
       return;
     }
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from('techniciens')
-      .select('*')
-      .eq('matricule', matricule)
-      .eq('motDePasse', password)
-      .single();
-    if (error || !data) {
-      toast({ title: 'Connexion échouée', description: 'Matricule ou mot de passe invalide', variant: 'destructive' });
+
+    // 1) Auth Supabase (smart : accepte email ou matricule)
+    const { data: authData, error: authErr } = await smartSignIn({
+      identifier, password, table: 'techniciens',
+    });
+    if (authErr || !authData?.user) {
+      toast({
+        title: 'Connexion échouée',
+        description: authErr?.message?.includes('Invalid login credentials')
+          ? 'Identifiant ou mot de passe incorrect.'
+          : (authErr?.message ?? 'Identifiant ou mot de passe incorrect.'),
+        variant: 'destructive',
+      });
       setIsLoading(false);
       return;
     }
-    onLogin(true, data);
-    localStorage.setItem('pmuTechnicienAuth', JSON.stringify({ isAuthenticated: true, userData: data }));
-    toast({ title: 'Connexion réussie', description: `Bienvenue ${data.prenom} ${data.nom}`, className: 'bg-green-500 text-white' });
+
+    // 2) Récupérer le profil technicien lié à ce compte auth
+    const { data: profile, error: profileErr } = await fetchAuthLinkedProfile({
+      table: 'techniciens', authUserId: authData.user.id,
+    });
+    if (profileErr || !profile) {
+      await supabase.auth.signOut();
+      toast({
+        title: 'Aucun profil technicien associé',
+        description: 'Votre compte n\'est lié à aucune fiche technicien. Contactez un administrateur.',
+        variant: 'destructive',
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    onLogin(true, profile);
+    toast({
+      title: 'Connexion réussie',
+      description: `Bienvenue ${profile.prenom} ${profile.nom}`,
+      className: 'bg-green-500 text-white',
+    });
     setIsLoading(false);
   };
 
@@ -57,17 +82,36 @@ const LoginPage = ({ onLogin }) => {
           <CardTitle className="text-3xl font-bold text-center text-primary">
             <Wrench className="inline-block h-8 w-8 mr-2 text-primary" />Espace Technicien
           </CardTitle>
-          <CardDescription className="text-center">Connectez-vous avec votre matricule.</CardDescription>
+          <CardDescription className="text-center">Connectez-vous avec votre email ou votre matricule.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="matricule">Matricule</Label>
-              <Input id="matricule" value={matricule} onChange={(e) => setMatricule(e.target.value)} disabled={isLoading} required />
+              <Label htmlFor="identifier" className="flex items-center gap-2">
+                <AtSign className="h-4 w-4" />Identifiant
+              </Label>
+              <Input
+                id="identifier"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="Email ou matricule"
+                disabled={isLoading}
+                required
+                autoComplete="username"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Mot de passe</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isLoading} required />
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                disabled={isLoading}
+                required
+                autoComplete="current-password"
+              />
             </div>
             <Button type="submit" className="w-full bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90" disabled={isLoading}>
               {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Connexion...</>) : 'Se connecter'}
@@ -81,10 +125,33 @@ const LoginPage = ({ onLogin }) => {
 
 const EspaceMaintenancePage = () => {
   const navigate = useNavigate();
-  const storedAuth = JSON.parse(localStorage.getItem('pmuTechnicienAuth') || '{}');
-  const [isAuthenticated, setIsAuthenticated] = useState(storedAuth.isAuthenticated || false);
-  const [userData, setUserData] = useState(storedAuth.userData || null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userData, setUserData] = useState(null);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [activeSection, setActiveSection] = useState('maintenance');
+
+  // Restauration de la session : si l'utilisateur a déjà un JWT Supabase valide,
+  // on re-fetch son profil technicien sans demander de re-login.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (session?.user) {
+        const { data: profile } = await fetchAuthLinkedProfile({
+          table: 'techniciens', authUserId: session.user.id,
+        });
+        if (!cancelled && profile) {
+          setUserData(profile);
+          setIsAuthenticated(true);
+        } else if (!cancelled) {
+          await supabase.auth.signOut();
+        }
+      }
+      if (!cancelled) setIsCheckingSession(false);
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
     try {
       return normalizeAppSpaceTabFunctionalities(
@@ -100,10 +167,12 @@ const EspaceMaintenancePage = () => {
     setUserData(data);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    // Nettoyage des anciens vestiges localStorage (migration douce)
+    try { localStorage.removeItem('pmuTechnicienAuth'); } catch {}
     setIsAuthenticated(false);
     setUserData(null);
-    localStorage.removeItem('pmuTechnicienAuth');
     navigate('/');
   };
 
@@ -143,6 +212,14 @@ const EspaceMaintenancePage = () => {
       setActiveSection(fallbackTab);
     }
   }, [activeSection, menuItems, spaceTabFunctionalities]);
+
+  if (isCheckingSession) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return <LoginPage onLogin={handleLogin} />;
