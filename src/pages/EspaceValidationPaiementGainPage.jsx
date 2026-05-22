@@ -102,19 +102,40 @@ const LoginPage = ({ onLogin, spaceConfig }) => {
 
     setIsLoading(true);
 
+    // 1) Auth Supabase (vrai mot de passe hashé)
+    const normalizedEmail = email.trim().toLowerCase();
+    const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
+    });
+    if (authErr || !authData?.user) {
+      toast({
+        title: 'Connexion impossible',
+        description: authErr?.message?.includes('Invalid login credentials')
+          ? 'Email ou mot de passe incorrect.'
+          : (authErr?.message ?? 'Identifiants invalides.'),
+        variant: 'destructive',
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    // 2) Récupérer la fiche validateur liée + vérifier fonction + statut
     const { data, error } = await supabase
       .from('validateurs_paiement_gain')
       .select('*')
-      .eq('email', email)
-      .eq('motDePasse', password)
+      .eq('auth_user_id', authData.user.id)
       .eq('fonction', spaceConfig.expectedFunction)
       .eq('statut', 'Actif')
-      .single();
+      .maybeSingle();
 
     if (error || !data) {
+      await supabase.auth.signOut();
       toast({
-        title: 'Connexion impossible',
-        description: 'Identifiants invalides ou profil inactif.',
+        title: 'Accès refusé',
+        description: error
+          ? error.message
+          : `Votre compte n'est pas lié à un profil "${spaceConfig.expectedFunction}" actif.`,
         variant: 'destructive',
       });
       setIsLoading(false);
@@ -368,7 +389,8 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
     localStorage.setItem(spaceConfig.storageKey, JSON.stringify({ isAuthenticated: true, userData }));
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await supabase.auth.signOut(); } catch {}
     setValidator(null);
     setDemandes([]);
     setEvents([]);
@@ -376,6 +398,32 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
     localStorage.removeItem(spaceConfig.storageKey);
     navigate('/');
   };
+
+  // Restauration auto : session Supabase Auth valide → on re-fetch le validateur
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (validator) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled || !session?.user) return;
+      const { data: v } = await supabase
+        .from('validateurs_paiement_gain')
+        .select('*')
+        .eq('auth_user_id', session.user.id)
+        .eq('fonction', spaceConfig.expectedFunction)
+        .eq('statut', 'Actif')
+        .maybeSingle();
+      if (cancelled) return;
+      if (v) {
+        setValidator(v);
+        try { localStorage.setItem(spaceConfig.storageKey, JSON.stringify({ userData: v })); } catch {}
+      } else {
+        await supabase.auth.signOut();
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDecision = async (decision) => {
     if (!selectedDemande || !validator) return;

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CalendarDays, LogOut, MapPin, FileText, ShieldCheck, Wallet } from 'lucide-react';
+import { CalendarDays, LogOut, MapPin, FileText, ShieldCheck, Wallet, AtSign, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/lib/supabaseClient';
 import { GUICHETIERE_AUTH_KEY, buildGuichetiereDisplayName } from '@/lib/guichetiereSpace';
+import { smartSignIn, fetchAuthLinkedProfile } from '@/lib/smartAuth';
 import {
   APP_SPACE_TAB_SETTINGS_KEY,
   buildDefaultAppSpaceTabFunctionalities,
@@ -20,17 +21,17 @@ import {
 
 const LoginPageGuichetiere = ({ onLogin }) => {
   const { toast } = useToast();
-  const [matricule, setMatricule] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!matricule.trim() || !password.trim()) {
+    if (!identifier.trim() || !password) {
       toast({
         title: 'Champs requis',
-        description: 'Veuillez renseigner votre matricule et votre mot de passe.',
+        description: 'Veuillez renseigner votre identifiant et votre mot de passe.',
         variant: 'destructive',
       });
       return;
@@ -38,37 +39,44 @@ const LoginPageGuichetiere = ({ onLogin }) => {
 
     setIsLoading(true);
 
-    const { data, error } = await supabase
-      .from('guichetieres')
-      .select('*')
-      .eq('matricule', matricule.trim())
-      .eq('is_current', true)
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      toast({
-        title: 'Erreur de connexion',
-        description: error.message,
-        variant: 'destructive',
-      });
-      setIsLoading(false);
-      return;
-    }
-
-    if (!data || String(data.mdpPrepose || '') !== password) {
+    // 1) Auth Supabase (smart : accepte email ou matricule)
+    const { data: authData, error: authErr } = await smartSignIn({
+      identifier, password, table: 'guichetieres',
+    });
+    if (authErr || !authData?.user) {
       toast({
         title: 'Connexion refusée',
-        description: 'Matricule ou mot de passe incorrect.',
+        description: authErr?.message?.includes('Invalid login credentials')
+          ? 'Identifiant ou mot de passe incorrect.'
+          : (authErr?.message ?? 'Identifiant ou mot de passe incorrect.'),
         variant: 'destructive',
       });
       setIsLoading(false);
       return;
     }
 
-    onLogin(data);
+    // 2) Récupérer la fiche guichetière liée à ce compte auth (filtre is_current = true)
+    const { data: profile, error: profileErr } = await fetchAuthLinkedProfile({
+      table: 'guichetieres',
+      authUserId: authData.user.id,
+      statusCol: 'is_current',
+      activeValue: true,
+    });
+    if (profileErr || !profile) {
+      await supabase.auth.signOut();
+      toast({
+        title: 'Aucune fiche guichetière associée',
+        description: 'Votre compte n\'est lié à aucune fiche guichetière active. Contactez un administrateur.',
+        variant: 'destructive',
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    onLogin(profile);
     toast({
       title: 'Connexion réussie',
-      description: `Bienvenue ${buildGuichetiereDisplayName(data)} dans votre espace Guichetière.`,
+      description: `Bienvenue ${buildGuichetiereDisplayName(profile)} dans votre espace Guichetière.`,
       className: 'bg-green-500 text-white',
     });
     setIsLoading(false);
@@ -87,19 +95,22 @@ const LoginPageGuichetiere = ({ onLogin }) => {
             Accès Espace Guichetière
           </CardTitle>
           <CardDescription className="text-center">
-            Connectez-vous avec votre matricule et votre mot de passe.
+            Connectez-vous avec votre email ou votre matricule.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="guichetiere-matricule">Matricule</Label>
+              <Label htmlFor="guichetiere-identifier" className="flex items-center gap-2">
+                <AtSign className="h-4 w-4" /> Identifiant
+              </Label>
               <Input
-                id="guichetiere-matricule"
-                value={matricule}
-                onChange={(event) => setMatricule(event.target.value)}
-                placeholder="Votre matricule"
+                id="guichetiere-identifier"
+                value={identifier}
+                onChange={(event) => setIdentifier(event.target.value)}
+                placeholder="Email ou matricule"
                 disabled={isLoading}
+                autoComplete="username"
               />
             </div>
             <div className="space-y-2">
@@ -109,8 +120,9 @@ const LoginPageGuichetiere = ({ onLogin }) => {
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder="Votre mot de passe"
+                placeholder="••••••••"
                 disabled={isLoading}
+                autoComplete="current-password"
               />
             </div>
             <Button
@@ -198,7 +210,8 @@ const EspaceGuichetierePage = () => {
     navigate('/espace-guichetiere/mon-planning', { replace: true });
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await supabase.auth.signOut(); } catch {}
     setIsAuthenticated(false);
     setGuichetiereInfo(null);
     setGuichetiereDetails(null);
@@ -210,6 +223,30 @@ const EspaceGuichetierePage = () => {
     });
     navigate('/');
   };
+
+  // Restauration auto : session Supabase Auth valide → on re-fetch la fiche
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (isAuthenticated) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled || !session?.user) return;
+      const { data: profile } = await fetchAuthLinkedProfile({
+        table: 'guichetieres',
+        authUserId: session.user.id,
+        statusCol: 'is_current',
+        activeValue: true,
+      });
+      if (cancelled) return;
+      if (profile) {
+        handleLogin(profile);
+      } else {
+        await supabase.auth.signOut();
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const menuItems = [
     { path: 'mon-planning', label: 'Mon Planning', icon: <CalendarDays className="h-5 w-5" /> },
