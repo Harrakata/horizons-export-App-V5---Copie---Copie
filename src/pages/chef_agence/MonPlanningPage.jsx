@@ -43,6 +43,8 @@ const MonPlanningPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [viewMode, setViewMode] = useState('month');
   const [planningRequests, setPlanningRequests] = useState([]);
+  // Capacité de l'agence = nbre de terminaux déclarés (limite le nombre de guichetières assignables/jour)
+  const [nbreTerminaux, setNbreTerminaux] = useState(null);
 
   const fetchPlanning = useCallback(async () => {
     if (!nomAgence) return;
@@ -76,11 +78,41 @@ const MonPlanningPage = () => {
 
   const fetchGuichetieres = useCallback(async () => {
     if (!nomAgence) return;
-    const { data, error } = await supabase
+    // Capacité de l'agence (= nombre de terminaux déclarés au référentiel)
+    const { data: agenceRow } = await supabase
+      .from('agences')
+      .select('nbreTerminaux')
+      .eq('nom', nomAgence)
+      .eq('is_current', true)
+      .maybeSingle();
+    setNbreTerminaux(Number.isFinite(parseInt(agenceRow?.nbreTerminaux, 10)) ? parseInt(agenceRow.nbreTerminaux, 10) : null);
+
+    // SCD Type 2 : source de vérité = guichetiere_agence_history.
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: histRows } = await supabase
+      .from('guichetiere_agence_history')
+      .select('code_prepose, valid_from, valid_to')
+      .eq('agence_assignee', nomAgence)
+      .or(`valid_to.is.null,valid_to.gte.${today}`);
+    const codesMap = {};
+    (histRows || []).forEach((h) => {
+      const prev = codesMap[h.code_prepose];
+      if (!prev) { codesMap[h.code_prepose] = h; return; }
+      const isCurrent = (x) => x.valid_to == null;
+      if (isCurrent(h) && !isCurrent(prev)) codesMap[h.code_prepose] = h;
+      else if (isCurrent(h) === isCurrent(prev) && (h.valid_from || '') > (prev.valid_from || '')) {
+        codesMap[h.code_prepose] = h;
+      }
+    });
+    const currentCodes = Object.keys(codesMap);
+
+    const baseQuery = supabase
       .from('guichetieres')
-      .select('id, nom, prenom, disponibilite, dateDebutIndisponibilite, dateFinIndisponibilite')
-      .eq('agenceAssigne', nomAgence)
+      .select('id, nom, prenom, disponibilite, dateDebutIndisponibilite, dateFinIndisponibilite, codePrepose')
       .eq('is_current', true);
+    const { data, error } = currentCodes.length > 0
+      ? await baseQuery.in('codePrepose', currentCodes)
+      : await baseQuery.eq('agenceAssigne', nomAgence); // fallback si historique vide
 
     if (error) {
       toast({ title: 'Erreur de chargement des guichetières', description: error.message, variant: 'destructive' });
@@ -175,19 +207,29 @@ const MonPlanningPage = () => {
   const getAvailableGuichetieresForDate = (date, excludeGuichetiereId = null) => {
     if (!date) return [];
     const dateStr = format(date, 'yyyy-MM-dd');
-    const plannedGuichetieresForDay = (planning[dateStr] || []).map(p => p.guichetiereId);
+    const dayEntries = planning[dateStr] || [];
+    const plannedGuichetieresForDay = dayEntries.map(p => p.guichetiereId);
+
+    // Capacité atteinte : on bloque l'ajout (mais on autorise les remplacements via excludeGuichetiereId)
+    if (
+      excludeGuichetiereId == null &&
+      Number.isFinite(nbreTerminaux) && nbreTerminaux > 0 &&
+      dayEntries.length >= nbreTerminaux
+    ) {
+      return [];
+    }
 
     return guichetieresAgence
-      .filter(g => 
-        isGuichetiereAvailable(g, date) && 
+      .filter(g =>
+        isGuichetiereAvailable(g, date) &&
         !plannedGuichetieresForDay.includes(g.id) &&
-        g.id !== excludeGuichetiereId 
+        g.id !== excludeGuichetiereId
       )
       .map(g => ({ value: g.id, label: `${g.prenom} ${g.nom}` }));
   };
   
-  const availableGuichetieresForAddModal = useMemo(() => getAvailableGuichetieresForDate(selectedDate), [guichetieresAgence, selectedDate, planning]);
-  const availableGuichetieresForReplaceModal = useMemo(() => editingEvent ? getAvailableGuichetieresForDate(editingEvent.date, editingEvent.guichetiereId) : [], [guichetieresAgence, editingEvent, planning]);
+  const availableGuichetieresForAddModal = useMemo(() => getAvailableGuichetieresForDate(selectedDate), [guichetieresAgence, selectedDate, planning, nbreTerminaux]);
+  const availableGuichetieresForReplaceModal = useMemo(() => editingEvent ? getAvailableGuichetieresForDate(editingEvent.date, editingEvent.guichetiereId) : [], [guichetieresAgence, editingEvent, planning, nbreTerminaux]);
 
 
   const handleAddGuichetiereToPlanning = async () => {
@@ -195,7 +237,17 @@ const MonPlanningPage = () => {
       toast({ title: 'Erreur', description: 'Informations manquantes pour ajouter au planning.', variant: 'destructive' });
       return;
     }
-    // Further checks already handled by Combobox options
+    // Garde-fou serveur : la capacité (nbre terminaux) ne doit pas être dépassée
+    const dateStrCheck = format(selectedDate, 'yyyy-MM-dd');
+    const alreadyPlanned = (planning[dateStrCheck] || []).length;
+    if (Number.isFinite(nbreTerminaux) && nbreTerminaux > 0 && alreadyPlanned >= nbreTerminaux) {
+      toast({
+        title: 'Capacité atteinte',
+        description: `L'agence ${nomAgence} dispose de ${nbreTerminaux} terminal(s). Maximum atteint pour le ${dateStrCheck}.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     setIsLoading(true);
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
     const { error } = await supabase.from('planning').insert({
@@ -707,13 +759,34 @@ const MonPlanningPage = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="py-3 md:py-4 space-y-3 md:space-y-4">
+            {(() => {
+              if (!selectedDate || !Number.isFinite(nbreTerminaux) || nbreTerminaux <= 0) return null;
+              const ds = format(selectedDate, 'yyyy-MM-dd');
+              const used = (planning[ds] || []).length;
+              const remaining = Math.max(0, nbreTerminaux - used);
+              const cls = remaining === 0 ? 'border-red-200 bg-red-50 text-red-700'
+                : remaining === 1 ? 'border-amber-200 bg-amber-50 text-amber-700'
+                : 'border-emerald-200 bg-emerald-50 text-emerald-700';
+              return (
+                <div className={`rounded border ${cls} px-2.5 py-1.5 text-xs flex items-center justify-between`}>
+                  <span><strong>{used}</strong> guichetière(s) déjà planifiée(s) sur <strong>{nbreTerminaux}</strong> terminal(aux)</span>
+                  <span className="font-bold">{remaining === 0 ? 'Complet' : `${remaining} place(s) restante(s)`}</span>
+                </div>
+              );
+            })()}
             <Combobox
               options={availableGuichetieresForAddModal}
               value={selectedGuichetiereId}
               onSelect={(value) => setSelectedGuichetiereId(value)}
               placeholder="Sélectionner une guichetière"
               searchPlaceholder="Rechercher..."
-              emptyText={availableGuichetieresForAddModal.length === 0 && guichetieresAgence.length > 0 ? "Aucune guichetière disponible." : "Aucune guichetière."}
+              emptyText={(() => {
+                if (selectedDate && Number.isFinite(nbreTerminaux) && nbreTerminaux > 0) {
+                  const used = (planning[format(selectedDate, 'yyyy-MM-dd')] || []).length;
+                  if (used >= nbreTerminaux) return `Capacité atteinte (${nbreTerminaux} terminal(aux) déjà occupé(s) ce jour).`;
+                }
+                return availableGuichetieresForAddModal.length === 0 && guichetieresAgence.length > 0 ? "Aucune guichetière disponible." : "Aucune guichetière.";
+              })()}
               disabled={isLoading}
             />
           </div>

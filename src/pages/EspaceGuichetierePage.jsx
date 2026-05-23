@@ -190,22 +190,40 @@ const EspaceGuichetierePage = () => {
     return () => window.removeEventListener('app-space-tabs-updated', handleSpaceTabsUpdated);
   }, []);
 
-  const handleLogin = (guichetiereData) => {
+  const handleLogin = async (guichetiereData) => {
+    // SCD Type 2 : on lit l'affectation courante depuis guichetiere_agence_history
+    // (source de vérité) pour ne pas se retrouver avec une agence stale au login.
+    let resolvedAgence = guichetiereData.agenceAssigne;
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: histRows } = await supabase
+        .from('guichetiere_agence_history')
+        .select('agence_assignee, valid_from, valid_to')
+        .eq('code_prepose', guichetiereData.codePrepose)
+        .or(`valid_to.is.null,valid_to.gte.${today}`)
+        .order('valid_from', { ascending: false });
+      const current = (histRows || []).find((h) => h.valid_to == null) ?? histRows?.[0];
+      if (current?.agence_assignee) resolvedAgence = current.agence_assignee;
+    } catch {
+      // En cas d'échec on retombe sur la valeur dénormalisée — comportement legacy.
+    }
+
+    const enrichedData = { ...guichetiereData, agenceAssigne: resolvedAgence };
     const nextAuthData = {
       isAuthenticated: true,
       guichetiereInfo: {
-        id: guichetiereData.id,
-        matricule: guichetiereData.matricule,
-        nomComplet: buildGuichetiereDisplayName(guichetiereData),
-        nomAgence: guichetiereData.agenceAssigne || 'Agence non renseignée',
-        photo_url: guichetiereData.photo_url || null,
+        id: enrichedData.id,
+        matricule: enrichedData.matricule,
+        nomComplet: buildGuichetiereDisplayName(enrichedData),
+        nomAgence: resolvedAgence || 'Agence non renseignée',
+        photo_url: enrichedData.photo_url || null,
       },
-      guichetiereDetails: guichetiereData,
+      guichetiereDetails: enrichedData,
     };
 
     setIsAuthenticated(true);
     setGuichetiereInfo(nextAuthData.guichetiereInfo);
-    setGuichetiereDetails(guichetiereData);
+    setGuichetiereDetails(enrichedData);
     localStorage.setItem(GUICHETIERE_AUTH_KEY, JSON.stringify(nextAuthData));
     navigate('/espace-guichetiere/mon-planning', { replace: true });
   };

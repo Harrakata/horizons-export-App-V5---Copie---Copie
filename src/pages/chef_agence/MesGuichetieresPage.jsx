@@ -25,18 +25,59 @@ const MesGuichetieresPage = () => {
     const fetchGuichetieresAgence = async () => {
       if (!nomAgence) return;
       setIsLoading(true);
-      const { data, error } = await supabase
+
+      // Source de vérité = guichetiere_agence_history.
+      // 1) On récupère les codes_prepose actuellement affectés à cette agence
+      //    (entrée courante = valid_to IS NULL ou valid_to >= aujourd'hui).
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: histRows, error: histErr } = await supabase
+        .from('guichetiere_agence_history')
+        .select('code_prepose, agence_assignee, valid_from, valid_to')
+        .eq('agence_assignee', nomAgence)
+        .or(`valid_to.is.null,valid_to.gte.${today}`);
+
+      if (histErr) {
+        toast({ title: 'Erreur de chargement', description: histErr.message, variant: 'destructive' });
+        setGuichetieres([]);
+        setIsLoading(false);
+        return;
+      }
+      // Dédupliquer par code_prepose et garder l'entrée courante la plus récente
+      const codesMap = {};
+      (histRows || []).forEach((h) => {
+        const prev = codesMap[h.code_prepose];
+        if (!prev) { codesMap[h.code_prepose] = h; return; }
+        const isCurrent = (x) => x.valid_to == null;
+        if (isCurrent(h) && !isCurrent(prev)) codesMap[h.code_prepose] = h;
+        else if (isCurrent(h) === isCurrent(prev) && (h.valid_from || '') > (prev.valid_from || '')) {
+          codesMap[h.code_prepose] = h;
+        }
+      });
+      const codes = Object.keys(codesMap);
+      if (codes.length === 0) {
+        setGuichetieres([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // 2) Fetch les guichetières correspondantes (encore en vigueur dans le SCD)
+      const { data: guichRows, error: guichErr } = await supabase
         .from('guichetieres')
         .select('*')
-        .eq('agenceAssigne', nomAgence)
+        .in('codePrepose', codes)
         .eq('is_current', true)
         .order('nom', { ascending: true });
 
-      if (error) {
-        toast({ title: 'Erreur de chargement', description: "Impossible de charger les guichetières de l'agence.", variant: 'destructive' });
+      if (guichErr) {
+        toast({ title: 'Erreur de chargement', description: guichErr.message, variant: 'destructive' });
         setGuichetieres([]);
       } else {
-        setGuichetieres(data);
+        // Override agenceAssigne avec la valeur de l'historique (cohérence d'affichage)
+        const enriched = (guichRows || []).map((g) => ({
+          ...g,
+          agenceAssigne: codesMap[g.codePrepose]?.agence_assignee ?? g.agenceAssigne,
+        }));
+        setGuichetieres(enriched);
       }
       setIsLoading(false);
     };

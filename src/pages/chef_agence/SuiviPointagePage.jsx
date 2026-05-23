@@ -45,6 +45,26 @@ const SuiviPointagePage = () => {
     historyStartDate.setMonth(historyStartDate.getMonth() - 11);
     const historyStart = historyStartDate.toISOString().slice(0, 10);
 
+    // SCD Type 2 : source de vérité = guichetiere_agence_history.
+    // 1) On récupère d'abord les codes_prepose actuellement affectés à cette agence.
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: histRows } = await supabase
+      .from('guichetiere_agence_history')
+      .select('code_prepose, valid_from, valid_to')
+      .eq('agence_assignee', nomAgence)
+      .or(`valid_to.is.null,valid_to.gte.${today}`);
+    const codesMap = {};
+    (histRows || []).forEach((h) => {
+      const prev = codesMap[h.code_prepose];
+      if (!prev) { codesMap[h.code_prepose] = h; return; }
+      const isCurrent = (x) => x.valid_to == null;
+      if (isCurrent(h) && !isCurrent(prev)) codesMap[h.code_prepose] = h;
+      else if (isCurrent(h) === isCurrent(prev) && (h.valid_from || '') > (prev.valid_from || '')) {
+        codesMap[h.code_prepose] = h;
+      }
+    });
+    const currentCodes = Object.keys(codesMap);
+
     const [
       { data: planningData, error: planningError },
       { data: pointagesData, error: pointagesError },
@@ -66,11 +86,20 @@ const SuiviPointagePage = () => {
         .order('date', { ascending: false })
         .order('time', { ascending: false }),
       supabase.from('app_settings').select('value').eq('key', 'general').single(),
-      supabase
-        .from('guichetieres')
-        .select('id, matricule, nom, prenom')
-        .eq('agenceAssigne', nomAgence)
-        .eq('is_current', true),
+      // 2) Fetch les guichetières par leur code_prepose (sources de vérité depuis history).
+      //    Si aucune affectation courante n'est trouvée, on retombe sur la requête legacy
+      //    pour garder un comportement en cas de table d'historique vide.
+      currentCodes.length > 0
+        ? supabase
+            .from('guichetieres')
+            .select('id, matricule, nom, prenom, codePrepose')
+            .in('codePrepose', currentCodes)
+            .eq('is_current', true)
+        : supabase
+            .from('guichetieres')
+            .select('id, matricule, nom, prenom, codePrepose')
+            .eq('agenceAssigne', nomAgence)
+            .eq('is_current', true),
     ]);
 
     if (planningError) {
