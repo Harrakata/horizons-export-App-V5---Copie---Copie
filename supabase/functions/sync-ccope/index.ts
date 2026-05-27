@@ -138,8 +138,28 @@ function canUseClientCredentials() {
   return Boolean(POWERBI_TENANT_ID && POWERBI_CLIENT_ID && POWERBI_CLIENT_SECRET);
 }
 
+// Garde-fou : un GUID Azure AD a strictement le format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (36 chars).
+const GUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+function validateAzureSecrets() {
+  const problems: string[] = [];
+  const t = (POWERBI_TENANT_ID ?? '').trim();
+  const c = (POWERBI_CLIENT_ID ?? '').trim();
+  const s = (POWERBI_CLIENT_SECRET ?? '').trim();
+  if (!t) problems.push('POWERBI_TENANT_ID est vide');
+  else if (!GUID_RE.test(t)) problems.push(`POWERBI_TENANT_ID = "${t}" — format GUID Azure AD invalide (attendu : xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)`);
+  if (!c) problems.push('POWERBI_CLIENT_ID est vide');
+  else if (!GUID_RE.test(c)) problems.push(`POWERBI_CLIENT_ID = "${c}" — format GUID Azure AD invalide (attendu : xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Copiez la valeur "Application (client) ID" depuis Azure Portal → Entra ID → App registrations.`);
+  if (!s) problems.push('POWERBI_CLIENT_SECRET est vide');
+  else if (s.length < 20) problems.push(`POWERBI_CLIENT_SECRET semble tronqué (${s.length} caractères)`);
+  if (problems.length > 0) {
+    throw new Error('Configuration Azure AD invalide. ' + problems.join(' · '));
+  }
+}
+
 async function fetchClientCredentialsToken() {
   if (!canUseClientCredentials()) return null;
+  validateAzureSecrets();
   const tokenUrl = `https://login.microsoftonline.com/${POWERBI_TENANT_ID}/oauth2/v2.0/token`;
   const body = new URLSearchParams({
     grant_type:    "client_credentials",

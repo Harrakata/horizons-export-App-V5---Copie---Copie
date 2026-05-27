@@ -7,3 +7,6 @@ node_modules
 *.bz2
 *.wim
 src/lib/supabaseClient.jsx
+.env
+.env.local
+.env.*.local

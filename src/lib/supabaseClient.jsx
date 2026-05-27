@@ -1,7 +1,12 @@
+import { createClient } from '@supabase/supabase-js'
 
-import { createClient } from '@supabase/supabase-js';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-const supabaseUrl = 'https://cbwvckjkdiyeasuxwzna.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNid3Zja2prZGl5ZWFzdXh3em5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MjIwMTIsImV4cCI6MjA5MTk5ODAxMn0.oGFClWXet5eAXYfvXdT5ri-M56P6O3pCp1BBr2uUM4I';
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    "Configuration Supabase manquante : définissez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY dans le fichier .env, puis redémarrez le serveur de dev (Vite ne lit le .env qu'au démarrage)."
+  )
+}
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
