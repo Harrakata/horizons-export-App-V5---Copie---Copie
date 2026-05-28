@@ -274,16 +274,42 @@ const MaintenanceTab = ({ technicien }) => {
   const loadInitialData = async () => {
     setIsLoading(true);
     try {
-      // Charger les régions depuis la table dédiée
-      const regionsResponse = await fetchRegions();
-      if (!regionsResponse.error) setRegions(regionsResponse.data || []);
+      // Les 5 jeux de données sont indépendants : on les charge en parallèle
+      // plutôt qu'en série pour ne payer qu'un seul aller-retour réseau.
+      const [
+        regionsResponse,
+        { data: agencesData, error: agencesError },
+        { data: pannesData, error: pannesError },
+        { data: interventionsData, error: interventionsError },
+        { data: piecesData, error: piecesError },
+      ] = await Promise.all([
+        // Régions depuis la table dédiée
+        fetchRegions(),
+        // Agences
+        supabase
+          .from('agences')
+          .select('id, nom, nbreTerminaux, codePDV, region')
+          .eq('is_current', true)
+          .order('nom', { ascending: true }),
+        // Codes de pannes
+        supabase
+          .from('codes_pannes')
+          .select('*')
+          .order('code', { ascending: true }),
+        // Codes d'interventions
+        supabase
+          .from('codes_interventions')
+          .select('*')
+          .order('code', { ascending: true }),
+        // Pièces de rechange (stock > 0)
+        supabase
+          .from('pieces_rechange')
+          .select('*')
+          .gt('stock_disponible', 0)
+          .order('nom', { ascending: true }),
+      ]);
 
-      // Charger les agences
-      const { data: agencesData, error: agencesError } = await supabase
-        .from('agences')
-        .select('id, nom, nbreTerminaux, codePDV, region')
-        .eq('is_current', true)
-        .order('nom', { ascending: true });
+      if (!regionsResponse.error) setRegions(regionsResponse.data || []);
 
       if (agencesError) {
         toast({ title: 'Erreur', description: 'Impossible de charger les agences', variant: 'destructive' });
@@ -291,37 +317,18 @@ const MaintenanceTab = ({ technicien }) => {
         setAgences(agencesData || []);
       }
 
-      // Charger les codes de pannes
-      const { data: pannesData, error: pannesError } = await supabase
-        .from('codes_pannes')
-        .select('*')
-        .order('code', { ascending: true });
-      
       if (pannesError) {
         toast({ title: 'Erreur', description: 'Impossible de charger les codes de pannes', variant: 'destructive' });
       } else {
         setCodesPannes(pannesData || []);
       }
 
-      // Charger les codes d'interventions
-      const { data: interventionsData, error: interventionsError } = await supabase
-        .from('codes_interventions')
-        .select('*')
-        .order('code', { ascending: true });
-      
       if (interventionsError) {
         toast({ title: 'Erreur', description: "Impossible de charger les codes d\'interventions", variant: 'destructive' });
       } else {
         setCodesInterventions(interventionsData || []);
       }
 
-      // Charger les pièces de rechange
-      const { data: piecesData, error: piecesError } = await supabase
-        .from('pieces_rechange')
-        .select('*')
-        .gt('stock_disponible', 0) // Stock > 0
-        .order('nom', { ascending: true });
-      
       if (piecesError) {
         toast({ title: 'Erreur', description: 'Impossible de charger les pièces de rechange', variant: 'destructive' });
       } else {

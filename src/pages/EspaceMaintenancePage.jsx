@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,9 +9,6 @@ import { Wrench, Loader2, LogOut, CalendarDays, AtSign } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
-import MaintenanceTab from '@/pages/maintenance/MaintenanceTab';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import MonPlanningMaintenancePage from '@/pages/technicien/MonPlanningMaintenancePage';
 import {
   APP_SPACE_TAB_SETTINGS_KEY,
   buildDefaultAppSpaceTabFunctionalities,
@@ -20,6 +17,18 @@ import {
   normalizeAppSpaceTabFunctionalities,
 } from '@/lib/exploitationProfiles';
 import { smartSignIn, fetchAuthLinkedProfile } from '@/lib/smartAuth';
+
+// Code-split : ces composants lourds (formulaire de maintenance + signature,
+// onglets de réparation, date-fns…) ne sont téléchargés qu'une fois le
+// technicien authentifié, et non au premier rendu de l'écran de connexion.
+const MaintenanceTab = lazy(() => import('@/pages/maintenance/MaintenanceTab'));
+const MonPlanningMaintenancePage = lazy(() => import('@/pages/technicien/MonPlanningMaintenancePage'));
+
+const SectionLoader = () => (
+  <div className="flex items-center justify-center py-24">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
 
 const LoginPage = ({ onLogin }) => {
   const { toast } = useToast();
@@ -299,6 +308,7 @@ const EspaceMaintenancePage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
+          <Suspense fallback={<SectionLoader />}>
           {!menuItems.length ? (
             <Card className="shadow-xl glassmorphism">
               <CardContent className="p-6 text-center text-muted-foreground">
@@ -337,6 +347,7 @@ const EspaceMaintenancePage = () => {
               </Tabs>
             </div>
           )}
+          </Suspense>
         </motion.div>
       </main>
     </div>

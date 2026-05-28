@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const TABLE_NAME     = Deno.env.get("TABLE_NAME") ?? "cln_fnir_ccope";
+const TABLE_NAME     = Deno.env.get("TABLE_NAME") ?? "vue_cln_fnir_ccope";
 const RETENTION_DAYS = 180; // 6 mois de stockage dans Supabase
 const REFRESH_DAYS   = 30;  // fenêtre incrémentielle par défaut (1 mois)
 const CHUNK_DAYS     = 6;   // taille de chaque tranche de requête Power BI
