@@ -45,9 +45,11 @@ const LoginPage = ({ onLogin }) => {
     setIsLoading(true);
 
     // 1) Auth Supabase (smart : accepte email ou matricule)
+    const tAuth = performance.now();
     const { data: authData, error: authErr } = await smartSignIn({
       identifier, password, table: 'techniciens',
     });
+    console.info(`[perf] signInWithPassword: ${Math.round(performance.now() - tAuth)} ms`);
     if (authErr || !authData?.user) {
       toast({
         title: 'Connexion échouée',
@@ -61,9 +63,11 @@ const LoginPage = ({ onLogin }) => {
     }
 
     // 2) Récupérer le profil technicien lié à ce compte auth
+    const tProfile = performance.now();
     const { data: profile, error: profileErr } = await fetchAuthLinkedProfile({
       table: 'techniciens', authUserId: authData.user.id,
     });
+    console.info(`[perf] fetchAuthLinkedProfile: ${Math.round(performance.now() - tProfile)} ms`);
     if (profileErr || !profile) {
       await supabase.auth.signOut();
       toast({
