@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { addMonths, addWeeks, endOfMonth, endOfWeek, eachDayOfInterval, format, getDay, isSameDay, isSameMonth, parseISO, startOfMonth, startOfWeek, subMonths, subWeeks } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Copy, Pencil, PlusCircle, Search, ShieldAlert, TimerReset, Wrench } from 'lucide-react';
+import { CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Copy, FileText, Pencil, PlusCircle, Search, ShieldAlert, TimerReset, Wrench } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,10 +31,27 @@ import {
   formatMaintenancePlanningDate,
   getMaintenancePlanningShiftLabel,
   getMaintenancePlanningStats,
+  getMaintenanceShiftFromDateTime,
   MAINTENANCE_SHIFT_OPTIONS,
 } from '@/lib/maintenancePlanning';
 
 const ALL_FILTER_VALUE = '__all__';
+
+// Couleur de la pastille du calendrier selon l'état de réalisation du créneau,
+// pour distinguer d'un coup d'œil les maintenances planifiées des effectuées.
+const EXECUTION_PIN_STYLES = {
+  planifiee: 'bg-blue-500',
+  effectuee: 'bg-emerald-500',
+  non_effectuee: 'bg-red-500',
+  annulee: 'bg-slate-400',
+};
+
+const CALENDAR_LEGEND = [
+  { status: 'planifiee', label: 'Planifiée', dot: 'bg-blue-500' },
+  { status: 'effectuee', label: 'Effectuée', dot: 'bg-emerald-500' },
+  { status: 'non_effectuee', label: 'Non effectuée', dot: 'bg-red-500' },
+  { status: 'annulee', label: 'Annulée', dot: 'bg-slate-400' },
+];
 
 const buildDefaultFormData = ({
   lockedAgency = null,
@@ -81,6 +98,34 @@ const MaintenancePlanningSection = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('month');
+  const [realizedDetail, setRealizedDetail] = useState(null);
+  const [ficheDialog, setFicheDialog] = useState({ open: false, html: '', loading: false });
+
+  const openFiche = async (url) => {
+    setFicheDialog({ open: true, html: '', loading: true });
+    try {
+      const res = await fetch(url);
+      const html = await res.text();
+      setFicheDialog({ open: true, html, loading: false });
+    } catch {
+      setFicheDialog({ open: false, html: '', loading: false });
+      window.open(url, '_blank', 'noreferrer');
+    }
+  };
+
+  // Catégories de la légende actuellement affichées sur le calendrier.
+  const [activeLegendStatuses, setActiveLegendStatuses] = useState(
+    () => new Set(CALENDAR_LEGEND.map((item) => item.status))
+  );
+
+  const toggleLegendStatus = (status) => {
+    setActiveLegendStatuses((previous) => {
+      const next = new Set(previous);
+      if (next.has(status)) next.delete(status);
+      else next.add(status);
+      return next;
+    });
+  };
   const [formData, setFormData] = useState(
     buildDefaultFormData({
       lockedAgency: null,
@@ -114,7 +159,7 @@ const MaintenancePlanningSection = ({
       supabase.from('terminaux').select('id, agence_id, reference, type_terminal, position').order('reference', { ascending: true }),
       supabase
         .from('interventions_maintenance')
-        .select('id, terminal_id, technicien_id, type_intervention, sous_ensemble, statut, commentaire, date_intervention, date_fin')
+        .select('id, terminal_id, technicien_id, type_intervention, sous_ensemble, statut, commentaire, date_intervention, date_fin, fiche_url')
         .order('date_intervention', { ascending: false }),
       supabase
         .from('planning_maintenance')
@@ -337,6 +382,99 @@ const MaintenancePlanningSection = ({
       }, {}),
     [filteredRows]
   );
+
+  // Interventions déjà rattachées à un créneau planifié : on les exclut de la
+  // couche « réalisées » pour ne pas les afficher deux fois sur le calendrier.
+  const matchedInterventionIds = useMemo(() => {
+    const ids = new Set();
+    filteredRows.forEach((row) => {
+      (row.matchedInterventions || []).forEach((intervention) => ids.add(String(intervention.id)));
+    });
+    return ids;
+  }, [filteredRows]);
+
+  // Interventions réellement réalisées (hors annulées et hors créneaux déjà
+  // couverts), regroupées par jour + agence + créneau, en respectant les filtres.
+  const realizedByDate = useMemo(() => {
+    // Le filtre « Suivi » sur planifiée / non effectuée / annulée masque la couche réalisée.
+    if (filters.statut !== ALL_FILTER_VALUE && filters.statut !== 'effectuee') return {};
+
+    const lockedRegionValue = lockedRegion || resolvedLockedAgency?.region || '';
+    const groups = {};
+
+    (interventions || []).forEach((intervention) => {
+      if (intervention.statut === 'Annulée') return;
+      if (matchedInterventionIds.has(String(intervention.id))) return;
+
+      const terminal = terminauxById[String(intervention.terminal_id)] || null;
+      const agence = terminal ? agencesById[String(terminal.agence_id)] || null : null;
+      const agenceId = agence ? String(agence.id) : '';
+      const agenceNom = agence?.nom || 'Agence non renseignée';
+      const regionNom = agence?.region || '';
+      const dateKey = extractMaintenancePlanningDateKey(intervention.date_intervention);
+      if (!dateKey) return;
+      const creneau = getMaintenanceShiftFromDateTime(intervention.date_intervention);
+
+      // Filtres
+      if (resolvedLockedAgency) {
+        if (agenceId !== String(resolvedLockedAgency.id)) return;
+      } else if (filters.agenceId !== ALL_FILTER_VALUE && agenceId !== String(filters.agenceId)) {
+        return;
+      }
+      if (lockedRegionValue) {
+        if (normalizeMaintenanceText(regionNom) !== normalizeMaintenanceText(lockedRegionValue)) return;
+      } else if (
+        filters.region !== ALL_FILTER_VALUE &&
+        normalizeMaintenanceText(regionNom) !== normalizeMaintenanceText(filters.region)
+      ) {
+        return;
+      }
+      if (lockedTechnicienId) {
+        if (String(intervention.technicien_id) !== String(lockedTechnicienId)) return;
+      } else if (
+        filters.technicienId !== ALL_FILTER_VALUE &&
+        String(intervention.technicien_id) !== String(filters.technicienId)
+      ) {
+        return;
+      }
+      if (filters.creneau !== ALL_FILTER_VALUE && creneau !== filters.creneau) return;
+
+      // Regroupement par agence (toutes les interventions d'une agence sur la
+      // journée sont réunies, quel que soit le créneau).
+      const groupKey = `${dateKey}__${agenceId}`;
+      if (!groups[dateKey]) groups[dateKey] = {};
+      if (!groups[dateKey][groupKey]) {
+        groups[dateKey][groupKey] = {
+          key: groupKey,
+          dateKey,
+          agenceId,
+          agenceNom,
+          interventions: [],
+        };
+      }
+      groups[dateKey][groupKey].interventions.push(intervention);
+    });
+
+    return Object.fromEntries(
+      Object.entries(groups).map(([dateKey, byGroup]) => [
+        dateKey,
+        Object.values(byGroup).sort((a, b) => a.agenceNom.localeCompare(b.agenceNom, 'fr')),
+      ])
+    );
+  }, [
+    agencesById,
+    filters.agenceId,
+    filters.creneau,
+    filters.region,
+    filters.statut,
+    filters.technicienId,
+    interventions,
+    lockedRegion,
+    lockedTechnicienId,
+    matchedInterventionIds,
+    resolvedLockedAgency,
+    terminauxById,
+  ]);
 
   const technicienOptions = useMemo(
     () => [
@@ -863,13 +1001,16 @@ const MaintenancePlanningSection = ({
                       </div>
                       {/* Corps compact */}
                       <div className="flex-1 px-1.5 py-1 space-y-0.5">
-                        {dayRows.map((row) => (
+                        {dayRows
+                          .filter((row) => activeLegendStatuses.has(row.executionStatus))
+                          .map((row) => (
                           <motion.div
                             key={row.id}
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             role="button"
                             tabIndex={0}
+                            title={`${row.agenceNom} • ${row.creneauLabel} • ${row.technicienNom} • ${row.executionMeta.label}`}
                             onClick={() => setSelectedPlanningId(row.id)}
                             onKeyDown={(event) => {
                               if (event.key === 'Enter' || event.key === ' ') {
@@ -880,18 +1021,19 @@ const MaintenancePlanningSection = ({
                             className="flex cursor-pointer items-center gap-1 transition-opacity hover:opacity-70"
                           >
                             <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[0.5rem] font-bold text-white
-                              ${String(selectedPlanningId) === String(row.id)
-                                ? 'bg-primary ring-2 ring-primary/30'
-                                : isToday ? 'bg-white/90 !text-primary' : 'bg-emerald-500'}
+                              ${EXECUTION_PIN_STYLES[row.executionStatus] || 'bg-emerald-500'}
+                              ${String(selectedPlanningId) === String(row.id) ? 'ring-2 ring-offset-1 ring-primary/50' : ''}
                             `}>
-                              <Wrench className="h-2.5 w-2.5" />
+                              {row.executionStatus === 'effectuee'
+                                ? <CheckCircle2 className="h-2.5 w-2.5" />
+                                : <Wrench className="h-2.5 w-2.5" />}
                             </span>
                             <div className="min-w-0 flex-1">
                               <p className={`truncate text-[0.6rem] font-medium leading-tight ${!isCurrentMonthDay ? 'text-muted-foreground/40' : 'text-foreground'}`}>
                                 {showAgenceColumn ? row.agenceNom : row.technicienNom}
                               </p>
                               <p className="truncate text-[0.55rem] leading-tight text-muted-foreground/70">
-                                {row.creneauLabel}
+                                {row.creneauLabel} • {row.executionMeta.label}
                               </p>
                             </div>
                             {canManage && (
@@ -909,6 +1051,41 @@ const MaintenancePlanningSection = ({
                             )}
                           </motion.div>
                         ))}
+
+                        {activeLegendStatuses.has('effectuee') && (realizedByDate[dateKey] || []).map((item) => {
+                          const curatives = item.interventions.filter((i) => i.type_intervention === 'curative').length;
+                          const preventives = item.interventions.length - curatives;
+                          return (
+                            <motion.div
+                              key={item.key}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              role="button"
+                              tabIndex={0}
+                              title={`${item.agenceNom} • ${item.interventions.length} réalisée(s)${curatives ? ` • ${curatives} curative(s)` : ''}${preventives ? ` • ${preventives} préventive(s)` : ''}`}
+                              onClick={() => setRealizedDetail(item)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                  event.preventDefault();
+                                  setRealizedDetail(item);
+                                }
+                              }}
+                              className="flex cursor-pointer items-center gap-1 transition-opacity hover:opacity-70"
+                            >
+                              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-[0.5rem] font-bold text-white">
+                                <CheckCircle2 className="h-2.5 w-2.5" />
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className={`truncate text-[0.6rem] font-medium leading-tight ${!isCurrentMonthDay ? 'text-muted-foreground/40' : 'text-foreground'}`}>
+                                  {showAgenceColumn ? item.agenceNom : 'Réalisée'}
+                                </p>
+                                <p className="truncate text-[0.55rem] leading-tight text-emerald-700/80">
+                                  {item.interventions.length} réalisée(s)
+                                </p>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -916,6 +1093,30 @@ const MaintenancePlanningSection = ({
               </div>
             </div>
           )}
+
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-[0.7rem] text-muted-foreground">
+            <span className="font-semibold uppercase tracking-wide">Légende / filtre</span>
+            {CALENDAR_LEGEND.map((item) => {
+              const active = activeLegendStatuses.has(item.status);
+              return (
+                <button
+                  key={item.status}
+                  type="button"
+                  onClick={() => toggleLegendStatus(item.status)}
+                  aria-pressed={active}
+                  title={active ? `Masquer « ${item.label} »` : `Afficher « ${item.label} »`}
+                  className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 transition-colors ${
+                    active
+                      ? 'border-slate-300 bg-white text-foreground'
+                      : 'border-transparent bg-transparent text-muted-foreground/40 line-through'
+                  }`}
+                >
+                  <span className={`h-2.5 w-2.5 rounded-full ${item.dot} ${active ? '' : 'opacity-30'}`} />
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
 
           {!isLoading && filteredRows.length === 0 && (
             <p className="pt-4 text-center text-sm text-muted-foreground">{emptyTitle}</p>
@@ -1083,6 +1284,116 @@ const MaintenancePlanningSection = ({
               </Button>
             </div>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(realizedDetail)} onOpenChange={(open) => !open && setRealizedDetail(null)}>
+        <DialogContent className="sm:max-w-2xl glassmorphism">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-2xl text-primary">
+              <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+              Interventions réalisées
+            </DialogTitle>
+            <DialogDescription>
+              {realizedDetail
+                ? `${realizedDetail.agenceNom} • ${formatMaintenancePlanningDate(realizedDetail.dateKey)} • ${realizedDetail.interventions.length} intervention(s)`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-[60vh] space-y-3 overflow-y-auto py-2">
+            {(realizedDetail?.interventions || []).map((intervention) => {
+              const terminal = terminauxById[String(intervention.terminal_id)] || null;
+              const technicien = techniciensById[String(intervention.technicien_id)] || null;
+              const isCurative = intervention.type_intervention === 'curative';
+              const creneauLabel = getMaintenancePlanningShiftLabel(
+                getMaintenanceShiftFromDateTime(intervention.date_intervention)
+              );
+              return (
+                <div
+                  key={intervention.id}
+                  className={`space-y-2 rounded-xl border p-4 shadow-sm ${isCurative ? 'border-red-100 bg-red-50/40' : 'border-blue-100 bg-blue-50/40'}`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-semibold text-slate-800">
+                      {terminal?.reference || `Terminal #${intervention.terminal_id}`}
+                    </p>
+                    <span className="text-sm text-muted-foreground">
+                      {formatMaintenanceDateTime(intervention.date_intervention)}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className={isCurative ? 'border-red-200 bg-red-50 text-red-700' : 'border-blue-200 bg-blue-50 text-blue-700'}>
+                      {getMaintenanceInterventionTypeLabel(intervention.type_intervention)}
+                    </Badge>
+                    <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                      {creneauLabel}
+                    </Badge>
+                    <Badge variant="outline" className="border-slate-200 bg-slate-100 text-slate-700">
+                      {intervention.statut}
+                    </Badge>
+                    {intervention.sous_ensemble && (
+                      <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">
+                        {intervention.sous_ensemble}
+                      </Badge>
+                    )}
+                  </div>
+                  {technicien && (
+                    <p className="text-sm text-muted-foreground">
+                      Technicien : {technicien.prenom} {technicien.nom}
+                      {technicien.matricule ? ` • ${technicien.matricule}` : ''}
+                    </p>
+                  )}
+                  {intervention.commentaire && (
+                    <p className="border-t pt-2 text-sm italic text-slate-700">{intervention.commentaire}</p>
+                  )}
+                  {intervention.fiche_url && (
+                    <div className="border-t pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openFiche(intervention.fiche_url)}
+                        className="gap-2"
+                      >
+                        <FileText className="h-4 w-4" />
+                        Voir la fiche d&apos;intervention
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Fermer</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={ficheDialog.open} onOpenChange={(open) => !open && setFicheDialog({ open: false, html: '', loading: false })}>
+        <DialogContent className="flex h-[90vh] w-full max-w-4xl flex-col p-0">
+          <DialogHeader className="shrink-0 border-b px-5 pb-3 pt-4">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-4 w-4 text-primary" />
+              Fiche d&apos;intervention
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden">
+            {ficheDialog.loading ? (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Chargement de la fiche...</div>
+            ) : (
+              <iframe
+                srcDoc={ficheDialog.html}
+                className="h-full w-full border-0"
+                title="Fiche d'intervention"
+                sandbox="allow-same-origin"
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
