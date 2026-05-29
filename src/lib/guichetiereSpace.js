@@ -79,3 +79,18 @@ export const isMissingSupabaseTableError = (error, tableName) => {
       serializedError.includes('could not find the table'))
   );
 };
+
+// Détecte une erreur d'authentification Supabase (clé JWT invalide / non correspondante)
+export const isSupabaseAuthError = (error) => {
+  if (!error) return false;
+  const msg = (error.message || JSON.stringify(error)).toLowerCase();
+  return (
+    msg.includes('no suitable key') ||
+    msg.includes('wrong key type') ||
+    msg.includes('jwt') ||
+    msg.includes('invalid api key') ||
+    msg.includes('apikey') ||
+    error.status === 401 ||
+    error.code === 'PGRST301'
+  );
+};

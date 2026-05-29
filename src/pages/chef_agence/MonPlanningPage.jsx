@@ -106,16 +106,38 @@ const MonPlanningPage = () => {
     });
     const currentCodes = Object.keys(codesMap);
 
-    const baseQuery = supabase
-      .from('guichetieres')
-      .select('id, nom, prenom, disponibilite, dateDebutIndisponibilite, dateFinIndisponibilite, codePrepose')
-      .eq('is_current', true);
-    const { data, error } = currentCodes.length > 0
-      ? await baseQuery.in('codePrepose', currentCodes)
-      : await baseQuery.eq('agenceAssigne', nomAgence); // fallback si historique vide
+    const SELECT_FIELDS = 'id, nom, prenom, disponibilite, dateDebutIndisponibilite, dateFinIndisponibilite, codePrepose';
+
+    // Tentative 1 : avec filtre is_current (colonne présente sur les instances à jour)
+    const buildQuery = (withIsCurrent) => {
+      const base = supabase.from('guichetieres').select(SELECT_FIELDS);
+      const filtered = withIsCurrent ? base.eq('is_current', true) : base;
+      return currentCodes.length > 0
+        ? filtered.in('codePrepose', currentCodes)
+        : filtered.eq('agenceAssigne', nomAgence);
+    };
+
+    let { data, error } = await buildQuery(true);
+
+    // Fallback si la colonne is_current n'existe pas ou erreur d'auth
+    if (error) {
+      const msg = (error.message || '').toLowerCase();
+      const isColumnOrAuth = msg.includes('is_current') || msg.includes('no suitable key')
+        || msg.includes('wrong key type') || msg.includes('jwt') || error.status === 401;
+      if (isColumnOrAuth) {
+        const fallback = await buildQuery(false);
+        data = fallback.data;
+        error = fallback.error;
+      }
+    }
 
     if (error) {
-      toast({ title: 'Erreur de chargement des guichetières', description: error.message, variant: 'destructive' });
+      const msg = (error.message || '').toLowerCase();
+      const isSilent = msg.includes('no suitable key') || msg.includes('wrong key type')
+        || msg.includes('jwt') || error.status === 401;
+      if (!isSilent) {
+        toast({ title: 'Erreur de chargement des guichetières', description: error.message, variant: 'destructive' });
+      }
     } else {
       setGuichetieresAgence(data || []);
     }

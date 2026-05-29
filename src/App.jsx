@@ -1,10 +1,20 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import HomePage from '@/pages/HomePage';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { loadAndApplyTheme, applyThemeFromCache } from '@/lib/theme';
+
+// Application synchrone immédiate depuis le cache (évite le flash au rechargement)
+applyThemeFromCache();
+
+// Synchronisation asynchrone depuis Supabase après montage
+const ThemeLoader = () => {
+  useEffect(() => { loadAndApplyTheme(); }, []);
+  return null;
+};
 
 // ── Lazy-load des pages : permet de séparer chaque route dans son propre chunk
 //    Premier chargement réduit, le code d'une page n'est téléchargé qu'à sa première visite.
@@ -72,6 +82,7 @@ const LazyRoute = ({ children }) => (
 const App = () => (
   <TooltipProvider>
     <BrowserRouter>
+      <ThemeLoader />
       <Routes>
         <Route path="/pbi-viewer" element={<LazyRoute><PbiViewerPage /></LazyRoute>} />
         <Route element={<Layout />}>

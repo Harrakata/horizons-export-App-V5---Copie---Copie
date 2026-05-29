@@ -26,7 +26,14 @@ const Layout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const [isDarkMode, setIsDarkMode] = React.useState(false);
+  const [isDarkMode, setIsDarkMode] = React.useState(() => {
+    // Lire le mode sombre depuis le cache thème pour éviter un flash au rechargement
+    try {
+      const cached = localStorage.getItem('app_theme_cache');
+      if (cached) return Boolean(JSON.parse(cached).darkMode);
+    } catch { /* ignore */ }
+    return document.documentElement.classList.contains('dark');
+  });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [spaceFunctionalities, setSpaceFunctionalities] = React.useState(() => {
     try {
@@ -142,7 +149,7 @@ const Layout = () => {
       <header className="sticky top-0 z-40 w-full relative overflow-hidden border-b border-primary/20 bg-background/95 shadow-[0_4px_24px_-6px_rgba(15,23,42,0.14)] backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/8 via-primary/4 to-transparent" />
-        <div className="container relative flex h-16 items-center justify-between">
+        <div className="relative flex h-16 w-full items-center justify-between px-4 sm:px-6 lg:px-10">
           <Link to="/" className="flex items-center group">
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>
               <img
