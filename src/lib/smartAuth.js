@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabaseClient';
+import { publicSupabase, supabase } from '@/lib/supabaseClient';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -35,7 +35,7 @@ export async function smartSignIn({
     emailToUse = id.toLowerCase();
   } else {
     // Lookup par matricule → on récupère l'email lié
-    const { data: row, error: lookupErr } = await supabase
+    const { data: row, error: lookupErr } = await publicSupabase
       .from(table)
       .select(emailCol)
       .ilike(matriculeCol, id)
