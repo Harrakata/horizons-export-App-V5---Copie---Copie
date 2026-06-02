@@ -51,6 +51,7 @@ import {
   isAppSpaceTabEnabled,
   normalizeAppSpaceTabFunctionalities,
 } from '@/lib/exploitationProfiles';
+import { isSupabaseAuthError } from '@/lib/guichetiereSpace';
 
 const SPACE_CONFIGS = {
   regional: {
@@ -277,6 +278,11 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
     }
 
     if (eventsError) {
+      setEvents([]);
+      if (isSupabaseAuthError(eventsError)) {
+        setIsLoading(false);
+        return;
+      }
       toast({
         title: 'Erreur chargement historique',
         description: eventsError.message,

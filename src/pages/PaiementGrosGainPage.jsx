@@ -57,6 +57,7 @@ import {
   recordPaiementGainEvent,
   uploadPaiementGainIdentityPhoto,
 } from '@/lib/paiementGainService';
+import { isSupabaseAuthError } from '@/lib/guichetiereSpace';
 
 const DEFAULT_FORM_DATA = {
   montantGain: '',
@@ -170,6 +171,11 @@ const PaiementGrosGainPage = () => {
     }
 
     if (eventsError) {
+      setEvents([]);
+      if (isSupabaseAuthError(eventsError)) {
+        setIsLoading(false);
+        return;
+      }
       toast({ title: 'Erreur chargement historique', description: eventsError.message, variant: 'destructive' });
     } else {
       setEvents(eventsData || []);
