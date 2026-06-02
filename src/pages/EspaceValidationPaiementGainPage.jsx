@@ -977,11 +977,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
     return renderPaymentSection();
   };
 
-  if (!validator) {
-    return <LoginPage onLogin={handleLogin} spaceConfig={spaceConfig} />;
-  }
-
-  const menuItems = [
+  const menuItems = useMemo(() => [
     {
       key: 'paiement',
       label: 'Paiement de Gain',
@@ -1006,7 +1002,13 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
       icon: <BarChart2 className="h-5 w-5" />,
       disabled: false,
     },
-  ].filter((item) => isAppSpaceTabEnabled(spaceTabFunctionalities, currentSpaceKey, item.key));
+  ].filter((item) => isAppSpaceTabEnabled(spaceTabFunctionalities, currentSpaceKey, item.key)), [
+    currentSpaceKey,
+    isGeneralProfile,
+    isRegionalProfile,
+    spaceConfig.expectedFunction,
+    spaceTabFunctionalities,
+  ]);
 
   useEffect(() => {
     const fallbackTab = getFirstEnabledAppSpaceTab(spaceTabFunctionalities, currentSpaceKey)?.key || null;
@@ -1020,6 +1022,10 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
       setActiveSection(fallbackTab);
     }
   }, [activeSection, currentSpaceKey, menuItems, spaceTabFunctionalities]);
+
+  if (!validator) {
+    return <LoginPage onLogin={handleLogin} spaceConfig={spaceConfig} />;
+  }
 
   return (
     <div className="flex flex-col gap-8 md:flex-row">
