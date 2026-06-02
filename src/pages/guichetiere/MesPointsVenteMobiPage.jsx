@@ -27,6 +27,7 @@ import {
   formatDisplayDateTime,
   getRequestStatusBadgeClass,
   isMissingSupabaseTableError,
+  isSupabaseAuthError,
   normalizeText,
 } from '@/lib/guichetiereSpace';
 import { buildRegionOptions, fetchRegions } from '@/lib/regions';
@@ -108,7 +109,10 @@ const MesPointsVenteMobiPage = () => {
     }
 
     if (requestsError) {
-      if (!isMissingSupabaseTableError(requestsError, 'points_vente_mobi_change_requests')) {
+      if (
+        !isMissingSupabaseTableError(requestsError, 'points_vente_mobi_change_requests') &&
+        !isSupabaseAuthError(requestsError)
+      ) {
         toast({
           title: 'Erreur chargement demandes',
           description: requestsError.message,

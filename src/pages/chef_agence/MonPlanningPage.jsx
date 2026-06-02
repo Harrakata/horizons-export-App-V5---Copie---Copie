@@ -23,6 +23,7 @@ import {
   getPlanningRequestTypeLabel,
   getRequestStatusBadgeClass,
   isMissingSupabaseTableError,
+  isSupabaseAuthError,
 } from '@/lib/guichetiereSpace';
 
 const MonPlanningPage = () => {
@@ -155,7 +156,10 @@ const MonPlanningPage = () => {
       .order('created_at', { ascending: false });
 
     if (error) {
-      if (!isMissingSupabaseTableError(error, 'planning_modification_requests')) {
+      if (
+        !isMissingSupabaseTableError(error, 'planning_modification_requests') &&
+        !isSupabaseAuthError(error)
+      ) {
         toast({
           title: 'Erreur chargement demandes planning',
           description: error.message,

@@ -268,11 +268,14 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
     ]);
 
     if (demandesError) {
-      toast({
-        title: 'Erreur chargement demandes',
-        description: demandesError.message,
-        variant: 'destructive',
-      });
+      setDemandes([]);
+      if (!isSupabaseAuthError(demandesError)) {
+        toast({
+          title: 'Erreur chargement demandes',
+          description: demandesError.message,
+          variant: 'destructive',
+        });
+      }
     } else {
       setDemandes(demandesData || []);
     }

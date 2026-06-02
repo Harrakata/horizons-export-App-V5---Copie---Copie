@@ -53,6 +53,7 @@ import {
   getPlanningRequestTypeLabel,
   getRequestStatusBadgeClass,
   isMissingSupabaseTableError,
+  isSupabaseAuthError,
   normalizeText,
 } from '@/lib/guichetiereSpace';
 
@@ -132,7 +133,10 @@ const MonPlanningGuichetierePage = () => {
     }
 
     if (requestsError) {
-      if (!isMissingSupabaseTableError(requestsError, 'planning_modification_requests')) {
+      if (
+        !isMissingSupabaseTableError(requestsError, 'planning_modification_requests') &&
+        !isSupabaseAuthError(requestsError)
+      ) {
         toast({
           title: 'Erreur de chargement des demandes',
           description: requestsError.message,

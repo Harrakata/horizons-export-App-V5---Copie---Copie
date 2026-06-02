@@ -17,7 +17,7 @@ import KpiStatCard from '@/components/analytics/KpiStatCard';
 import ConfigurationTab from '@/pages/maintenance/ConfigurationTab';
 import MaintenanceAnalyticsSection from '@/components/maintenance/MaintenanceAnalyticsSection';
 import MaintenancePlanningSection from '@/components/maintenance/MaintenancePlanningSection';
-import { formatDisplayDate, formatDisplayDateTime } from '@/lib/guichetiereSpace';
+import { formatDisplayDate, formatDisplayDateTime, isSupabaseAuthError } from '@/lib/guichetiereSpace';
 import {
   isMissingMaintenancePlanningRequestTableError,
   MAINTENANCE_REQUEST_STATUSES,
@@ -141,7 +141,10 @@ const MaintenanceTerminauxPage = () => {
         .order('created_at', { ascending: false });
 
       if (planningRequestsResponse.error) {
-        if (!isMissingMaintenancePlanningRequestTableError(planningRequestsResponse.error)) {
+        if (
+          !isMissingMaintenancePlanningRequestTableError(planningRequestsResponse.error) &&
+          !isSupabaseAuthError(planningRequestsResponse.error)
+        ) {
           throw planningRequestsResponse.error;
         }
         setIsPlanningRequestTableMissing(true);

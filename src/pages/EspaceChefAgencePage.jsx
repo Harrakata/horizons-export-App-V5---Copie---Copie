@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/supabaseClient';
+import { publicSupabase, supabase } from '@/lib/supabaseClient';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar.jsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
@@ -113,11 +113,15 @@ const LoginPageChef = ({ onLogin }) => {
     try {
       // L'utilisateur peut saisir un email OU un matricule
       const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id);
-      let query = supabase.from('chefs_agence').select('*').eq('is_current', true);
-      query = isEmail
-        ? query.ilike('email', id)
-        : query.ilike('matricule', id);
-      const { data: chef, error } = await query.maybeSingle();
+      const findChef = async () => {
+        let query = publicSupabase.from('chefs_agence').select('*').eq('is_current', true);
+        query = isEmail
+          ? query.ilike('email', id)
+          : query.ilike('matricule', id);
+        return query.maybeSingle();
+      };
+
+      const { data: chef, error } = await findChef();
 
       if (error && error.code !== 'PGRST116') {
         toast({ title: "Erreur de connexion", description: error.message, variant: "destructive" });
