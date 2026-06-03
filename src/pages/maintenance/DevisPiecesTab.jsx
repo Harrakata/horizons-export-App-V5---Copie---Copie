@@ -19,6 +19,7 @@ import {
   Printer,
   Receipt,
   RefreshCw,
+  Search,
   Trash2,
 } from 'lucide-react';
 
@@ -28,16 +29,27 @@ const PERIOD_OPTIONS = [
   { value: '6', label: '6 mois' },
 ];
 
+const SOUS_ENSEMBLE_LABELS = {
+  imprimante: 'Imprimante',
+  lecteur: 'Lecteur',
+  ecran: 'Écran',
+  afficheur: 'Afficheur client',
+  buc: 'BUC',
+  carrosserie: 'Carrosserie',
+};
+
 const moneyFormatter = new Intl.NumberFormat('fr-FR', {
   style: 'currency',
-  currency: 'XOF',
-  maximumFractionDigits: 0,
+  currency: 'EUR',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 const dateFormatter = new Intl.DateTimeFormat('fr-FR');
 
 const formatMoney = (value) => moneyFormatter.format(Number(value) || 0);
 const formatDate = (value) => (value ? dateFormatter.format(new Date(value)) : '-');
+const formatTerminalType = (value) => (value === 'tous' ? 'Tous' : value || '-');
 
 const escapeHtml = (value = '') => String(value).replace(/[&<>"']/g, (char) => ({
   '&': '&amp;',
@@ -60,6 +72,8 @@ const DevisPiecesTab = () => {
   const { toast } = useToast();
   const [periodMonths, setPeriodMonths] = useState('1');
   const [movements, setMovements] = useState([]);
+  const [catalogPieces, setCatalogPieces] = useState([]);
+  const [catalogSearch, setCatalogSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [quoteNumber] = useState(() => `DP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`);
   const [quoteMeta, setQuoteMeta] = useState({
@@ -86,20 +100,33 @@ const DevisPiecesTab = () => {
 
   const loadMovements = useCallback(async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from('stock_pieces_mouvements')
-      .select('id, piece_id, type, quantite, motif, created_at, piece:pieces_sous_ensembles(id, nom, reference, prix_unitaire_ht)')
-      .eq('type', 'sortie')
-      .gt('quantite', 0)
-      .gte('created_at', periodBounds.start.toISOString())
-      .lte('created_at', periodBounds.end.toISOString())
-      .order('created_at', { ascending: false });
+    const [movementsRes, catalogRes] = await Promise.all([
+      supabase
+        .from('stock_pieces_mouvements')
+        .select('id, piece_id, type, quantite, motif, created_at, piece:pieces_sous_ensembles(id, nom, reference, prix_unitaire_ht)')
+        .eq('type', 'sortie')
+        .gt('quantite', 0)
+        .gte('created_at', periodBounds.start.toISOString())
+        .lte('created_at', periodBounds.end.toISOString())
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('pieces_sous_ensembles')
+        .select('id, nom, reference, prix_unitaire_ht, sous_ensemble, type_terminal, commentaire')
+        .order('nom', { ascending: true }),
+    ]);
 
-    if (error) {
-      showErr(error.message);
+    if (movementsRes.error) {
+      showErr(movementsRes.error.message);
       setMovements([]);
     } else {
-      setMovements(data || []);
+      setMovements(movementsRes.data || []);
+    }
+
+    if (catalogRes.error) {
+      showErr(catalogRes.error.message);
+      setCatalogPieces([]);
+    } else {
+      setCatalogPieces(catalogRes.data || []);
     }
     setIsLoading(false);
   }, [periodBounds.end, periodBounds.start, showErr]);
@@ -133,6 +160,18 @@ const DevisPiecesTab = () => {
       .map((line) => ({ ...line, montant_ht: line.quantite * line.prix_unitaire_ht }))
       .sort((first, second) => first.nom.localeCompare(second.nom, 'fr'));
   }, [movements]);
+
+  const filteredCatalogPieces = useMemo(() => {
+    const term = catalogSearch.trim().toLowerCase();
+    if (!term) return catalogPieces;
+    return catalogPieces.filter((piece) => [
+      piece.nom,
+      piece.reference,
+      SOUS_ENSEMBLE_LABELS[piece.sous_ensemble] || piece.sous_ensemble,
+      formatTerminalType(piece.type_terminal),
+      piece.commentaire,
+    ].some((value) => String(value || '').toLowerCase().includes(term)));
+  }, [catalogPieces, catalogSearch]);
 
   const extraLines = useMemo(() => extraFields
     .map((field) => ({
@@ -235,7 +274,7 @@ const DevisPiecesTab = () => {
         <th>Référence</th>
         <th>Désignation</th>
         <th class="right">Qté</th>
-        <th class="right">Prix unitaire HT</th>
+        <th class="right">Prix unitaire HT (€)</th>
         <th class="right">Montant HT</th>
       </tr>
     </thead>
@@ -247,7 +286,7 @@ const DevisPiecesTab = () => {
 
   <table class="totals">
     <tr><td>Total pièces HT</td><td class="right">${escapeHtml(formatMoney(totalPiecesHt))}</td></tr>
-    <tr><td>Champs complémentaires HT</td><td class="right">${escapeHtml(formatMoney(totalExtrasHt))}</td></tr>
+    <tr><td>Champs complémentaires HT (€)</td><td class="right">${escapeHtml(formatMoney(totalExtrasHt))}</td></tr>
     <tr class="grand-total"><td>Total HT</td><td class="right">${escapeHtml(formatMoney(totalHt))}</td></tr>
   </table>
 
@@ -376,7 +415,7 @@ const DevisPiecesTab = () => {
       {hasMissingPrices && (
         <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          Certaines pièces ont un prix HT à 0. Renseignez le prix dans le catalogue pour fiabiliser le devis.
+          Certaines pièces ont un prix HT à 0. Renseignez le prix en euros dans le catalogue pour fiabiliser le devis.
         </div>
       )}
 
@@ -417,7 +456,7 @@ const DevisPiecesTab = () => {
 
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between gap-2">
-                <Label>Champs complémentaires HT</Label>
+                <Label>Champs complémentaires HT (€)</Label>
                 <Button variant="outline" size="sm" onClick={addExtraField}>
                   <Plus className="mr-2 h-4 w-4" /> Ajouter
                 </Button>
@@ -425,7 +464,7 @@ const DevisPiecesTab = () => {
               {extraFields.map((field) => (
                 <div key={field.id} className="grid grid-cols-[1fr_120px_32px] items-center gap-2">
                   <Input value={field.libelle} onChange={(e) => updateExtraField(field.id, 'libelle', e.target.value)} placeholder="Frais de transport" />
-                  <Input type="number" min={0} step="0.01" value={field.montant_ht} onChange={(e) => updateExtraField(field.id, 'montant_ht', e.target.value)} placeholder="0" />
+                  <Input type="number" min={0} step="0.01" value={field.montant_ht} onChange={(e) => updateExtraField(field.id, 'montant_ht', e.target.value)} placeholder="0,00" />
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => removeExtraField(field.id)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -453,7 +492,7 @@ const DevisPiecesTab = () => {
                   <TableHead>Pièce</TableHead>
                   <TableHead>Référence</TableHead>
                   <TableHead className="text-right">Qté</TableHead>
-                  <TableHead className="text-right">Prix HT</TableHead>
+                  <TableHead className="text-right">Prix HT (€)</TableHead>
                   <TableHead className="text-right">Montant HT</TableHead>
                 </TableRow>
               </TableHeader>
@@ -491,6 +530,65 @@ const DevisPiecesTab = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <CardTitle className="text-lg text-primary">Catalogue des pièces</CardTitle>
+              <CardDescription>Catalogue complet utilisé pour les prix unitaires HT du devis.</CardDescription>
+            </div>
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="pl-10"
+                placeholder="Rechercher une pièce..."
+                value={catalogSearch}
+                onChange={(event) => setCatalogSearch(event.target.value)}
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="max-h-[360px] overflow-auto">
+            <Table className="min-w-[900px]">
+              <TableCaption>
+                {isLoading ? 'Chargement...' : `${filteredCatalogPieces.length} pièce(s) affichée(s) sur ${catalogPieces.length}.`}
+              </TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="sticky top-0 z-10 bg-background">Pièce</TableHead>
+                  <TableHead className="sticky top-0 z-10 bg-background">Référence</TableHead>
+                  <TableHead className="sticky top-0 z-10 bg-background text-right">Prix unitaire HT (€)</TableHead>
+                  <TableHead className="sticky top-0 z-10 bg-background">Sous-ensemble</TableHead>
+                  <TableHead className="sticky top-0 z-10 bg-background">Type terminal</TableHead>
+                  <TableHead className="sticky top-0 z-10 bg-background">Commentaire</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredCatalogPieces.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                      Aucune pièce dans le catalogue.
+                    </TableCell>
+                  </TableRow>
+                ) : filteredCatalogPieces.map((piece) => (
+                  <TableRow key={piece.id}>
+                    <TableCell className="font-medium">{piece.nom || '-'}</TableCell>
+                    <TableCell className="font-mono text-sm">{piece.reference || '-'}</TableCell>
+                    <TableCell className="text-right font-semibold">{formatMoney(piece.prix_unitaire_ht)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{SOUS_ENSEMBLE_LABELS[piece.sous_ensemble] || piece.sous_ensemble || '-'}</Badge>
+                    </TableCell>
+                    <TableCell>{formatTerminalType(piece.type_terminal)}</TableCell>
+                    <TableCell className="max-w-[260px] truncate text-sm text-muted-foreground">{piece.commentaire || '-'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

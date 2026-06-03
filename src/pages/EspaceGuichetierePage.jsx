@@ -13,11 +13,27 @@ import { GUICHETIERE_AUTH_KEY, buildGuichetiereDisplayName } from '@/lib/guichet
 import { smartSignIn, fetchAuthLinkedProfile } from '@/lib/smartAuth';
 import {
   APP_SPACE_TAB_SETTINGS_KEY,
+  APP_SPACE_USER_PROFILES_SETTINGS_KEY,
   buildDefaultAppSpaceTabFunctionalities,
+  buildDefaultAppSpaceUserProfiles,
+  canAccessAppSpaceUserTab,
   getFirstEnabledAppSpaceTab,
+  getEffectiveAppSpaceUserProfile,
   isAppSpaceTabEnabled,
   normalizeAppSpaceTabFunctionalities,
+  normalizeAppSpaceUserProfiles,
 } from '@/lib/exploitationProfiles';
+
+const loadSpaceUserProfilesSettings = async () => {
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', APP_SPACE_USER_PROFILES_SETTINGS_KEY)
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return normalizeAppSpaceUserProfiles(data?.value);
+};
 
 const LoginPageGuichetiere = ({ onLogin }) => {
   const { toast } = useToast();
@@ -73,7 +89,20 @@ const LoginPageGuichetiere = ({ onLogin }) => {
       return;
     }
 
-    onLogin(profile);
+    const profileSettings = await loadSpaceUserProfilesSettings().catch(() => buildDefaultAppSpaceUserProfiles());
+    const effectiveProfile = getEffectiveAppSpaceUserProfile(profileSettings, 'espace-guichetiere', profile.id);
+    if (effectiveProfile.statut !== 'Actif') {
+      await supabase.auth.signOut();
+      toast({
+        title: 'Compte désactivé',
+        description: 'Votre profil Guichetière est désactivé. Contactez un administrateur.',
+        variant: 'destructive',
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    onLogin({ ...profile, appSpaceProfile: effectiveProfile });
     toast({
       title: 'Connexion réussie',
       description: `Bienvenue ${buildGuichetiereDisplayName(profile)} dans votre espace Guichetière.`,
@@ -161,6 +190,15 @@ const EspaceGuichetierePage = () => {
       return buildDefaultAppSpaceTabFunctionalities();
     }
   });
+  const [spaceUserProfiles, setSpaceUserProfiles] = useState(() => {
+    try {
+      return normalizeAppSpaceUserProfiles(
+        JSON.parse(localStorage.getItem(APP_SPACE_USER_PROFILES_SETTINGS_KEY) || '{}')
+      );
+    } catch (error) {
+      return buildDefaultAppSpaceUserProfiles();
+    }
+  });
 
   useEffect(() => {
     const authData = JSON.parse(localStorage.getItem(GUICHETIERE_AUTH_KEY) || 'null');
@@ -188,6 +226,26 @@ const EspaceGuichetierePage = () => {
 
     window.addEventListener('app-space-tabs-updated', handleSpaceTabsUpdated);
     return () => window.removeEventListener('app-space-tabs-updated', handleSpaceTabsUpdated);
+  }, []);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      const normalizedSettings = await loadSpaceUserProfilesSettings().catch(() => buildDefaultAppSpaceUserProfiles());
+      setSpaceUserProfiles(normalizedSettings);
+      localStorage.setItem(APP_SPACE_USER_PROFILES_SETTINGS_KEY, JSON.stringify(normalizedSettings));
+    };
+    loadSettings();
+  }, []);
+
+  useEffect(() => {
+    const handleSpaceUserProfilesUpdated = (event) => {
+      const normalizedSettings = normalizeAppSpaceUserProfiles(event.detail);
+      setSpaceUserProfiles(normalizedSettings);
+      localStorage.setItem(APP_SPACE_USER_PROFILES_SETTINGS_KEY, JSON.stringify(normalizedSettings));
+    };
+
+    window.addEventListener('app-space-user-profiles-updated', handleSpaceUserProfilesUpdated);
+    return () => window.removeEventListener('app-space-user-profiles-updated', handleSpaceUserProfilesUpdated);
   }, []);
 
   const handleLogin = async (guichetiereData) => {
@@ -257,7 +315,15 @@ const EspaceGuichetierePage = () => {
       });
       if (cancelled) return;
       if (profile) {
-        handleLogin(profile);
+        const profileSettings = await loadSpaceUserProfilesSettings().catch(() => buildDefaultAppSpaceUserProfiles());
+        const effectiveProfile = getEffectiveAppSpaceUserProfile(profileSettings, 'espace-guichetiere', profile.id);
+        if (effectiveProfile.statut !== 'Actif') {
+          await supabase.auth.signOut();
+        } else {
+          setSpaceUserProfiles(profileSettings);
+          localStorage.setItem(APP_SPACE_USER_PROFILES_SETTINGS_KEY, JSON.stringify(profileSettings));
+          handleLogin({ ...profile, appSpaceProfile: effectiveProfile });
+        }
       } else {
         await supabase.auth.signOut();
       }
@@ -271,7 +337,10 @@ const EspaceGuichetierePage = () => {
     { path: 'mes-pointages', label: 'Mes Pointages', icon: <FileText className="h-5 w-5" /> },
     { path: 'mes-points-vente-mobi', label: 'Mes Points de Vente Mobi', icon: <MapPin className="h-5 w-5" /> },
     { path: 'etat-caisse', label: 'État de Caisse', icon: <Wallet className="h-5 w-5" /> },
-  ].filter((item) => isAppSpaceTabEnabled(spaceTabFunctionalities, 'espace-guichetiere', item.path));
+  ].filter((item) =>
+    isAppSpaceTabEnabled(spaceTabFunctionalities, 'espace-guichetiere', item.path)
+    && canAccessAppSpaceUserTab(spaceUserProfiles, 'espace-guichetiere', guichetiereDetails?.id, item.path)
+  );
 
   const normalizedPathname = location.pathname.replace(/\/+$/, '');
   const isMenuItemActive = (itemPath) => normalizedPathname === `/espace-guichetiere/${itemPath}`;
@@ -279,8 +348,9 @@ const EspaceGuichetierePage = () => {
   useEffect(() => {
     if (!isAuthenticated) return;
     if (!normalizedPathname.startsWith('/espace-guichetiere')) return;
+    if (!menuItems.length) return;
 
-    const fallbackPath = getFirstEnabledAppSpaceTab(spaceTabFunctionalities, 'espace-guichetiere')?.key || null;
+    const fallbackPath = menuItems[0]?.path || getFirstEnabledAppSpaceTab(spaceTabFunctionalities, 'espace-guichetiere')?.key || null;
     if (!fallbackPath) return;
 
     if (
@@ -375,13 +445,21 @@ const EspaceGuichetierePage = () => {
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.3 }}
         >
-          <Outlet
-            context={{
-              guichetiereInfo,
-              guichetiereDetails,
-              nomAgence: guichetiereInfo?.nomAgence,
-            }}
-          />
+          {!menuItems.length ? (
+            <Card className="shadow-xl glassmorphism">
+              <CardContent className="p-6 text-center text-muted-foreground">
+                Aucun onglet n’est actuellement autorisé pour votre profil Guichetière.
+              </CardContent>
+            </Card>
+          ) : (
+            <Outlet
+              context={{
+                guichetiereInfo,
+                guichetiereDetails,
+                nomAgence: guichetiereInfo?.nomAgence,
+              }}
+            />
+          )}
         </motion.div>
       </main>
     </div>

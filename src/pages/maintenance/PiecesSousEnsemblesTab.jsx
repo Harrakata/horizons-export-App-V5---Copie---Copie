@@ -35,7 +35,9 @@ const statusBadge = (qty, seuil) => {
 };
 
 const formatPrice = (value) => Number(value || 0).toLocaleString('fr-FR', {
-  minimumFractionDigits: 0,
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
 
@@ -400,7 +402,7 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
 
   // --- EXPORT CSV ---
   const exportCSV = () => {
-    const headers = ['Nom', 'Référence', 'Prix unitaire HT', 'Sous-ensemble', 'Type terminal', 'Commentaire'];
+    const headers = ['Nom', 'Référence', 'Prix unitaire HT (€)', 'Sous-ensemble', 'Type terminal', 'Commentaire'];
     const rows = filteredPieces.map(p => [
       p.nom,
       p.reference,
@@ -418,8 +420,8 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
   };
 
   const downloadTemplate = () => {
-    const csv = 'Nom,Référence,Prix unitaire HT,Sous-ensemble,Type terminal,Commentaire\n' +
-      '"Exemple capteur","CAP-001","12500","imprimante","tous","Optionnel"';
+    const csv = 'Nom,Référence,Prix unitaire HT (€),Sous-ensemble,Type terminal,Commentaire\n' +
+      '"Exemple capteur","CAP-001","125.00","imprimante","tous","Optionnel"';
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -455,7 +457,7 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
         if (!nom) rowErrors.push('Nom requis');
         if (!reference) rowErrors.push('Référence requise');
         const parsedPrice = Number(String(prixRaw || '0').replace(/\s/g, '').replace(',', '.'));
-        if (!Number.isFinite(parsedPrice) || parsedPrice < 0) rowErrors.push(`Prix HT invalide : "${prixRaw}"`);
+        if (!Number.isFinite(parsedPrice) || parsedPrice < 0) rowErrors.push(`Prix HT (€) invalide : "${prixRaw}"`);
         const seKey = SE_REVERSE[seRaw?.toLowerCase()] || (VALID_SE.includes(seRaw?.toLowerCase()) ? seRaw?.toLowerCase() : null);
         if (!seKey) rowErrors.push(`Sous-ensemble invalide : "${seRaw}"`);
         const typeVal = typeRaw === 'Tous' || typeRaw === 'tous' ? 'tous' : ['2020', '2031'].includes(typeRaw) ? typeRaw : 'tous';
@@ -594,7 +596,6 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                   <TableRow>
                     <TableHead>Nom</TableHead>
                     <TableHead>Référence</TableHead>
-                    <TableHead className="text-right">Prix unitaire HT</TableHead>
                     <TableHead>Sous-ensemble</TableHead>
                     <TableHead>Type terminal</TableHead>
                     <TableHead>Stock</TableHead>
@@ -609,7 +610,6 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                       <TableRow key={p.id}>
                         <TableCell className="font-medium">{p.nom}</TableCell>
                         <TableCell className="font-mono text-sm">{p.reference}</TableCell>
-                        <TableCell className="text-right font-medium">{formatPrice(p.prix_unitaire_ht)} FCFA</TableCell>
                         <TableCell><Badge variant="outline">{SOUS_ENSEMBLE_LABELS[p.sous_ensemble] || p.sous_ensemble}</Badge></TableCell>
                         <TableCell>{p.type_terminal === 'tous' ? 'Tous' : p.type_terminal}</TableCell>
                         <TableCell>
@@ -1129,7 +1129,7 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
             ))}
 
             <div className="grid grid-cols-4 items-center gap-3">
-              <Label className="text-right">Prix HT</Label>
+              <Label className="text-right">Prix HT (€)</Label>
               <div className="col-span-3 flex items-center gap-2">
                 <Input
                   type="number"
@@ -1139,7 +1139,7 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                   onChange={e => setPieceForm(f => ({ ...f, prix_unitaire_ht: e.target.value }))}
                   placeholder="0"
                 />
-                <span className="shrink-0 text-sm text-muted-foreground">FCFA</span>
+                <span className="shrink-0 text-sm text-muted-foreground">€</span>
               </div>
             </div>
 
@@ -1589,7 +1589,7 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
             {/* Instructions */}
             <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 space-y-1">
               <p className="font-semibold">Format attendu (colonnes CSV) :</p>
-              <p className="font-mono text-xs">Nom, Référence, Prix unitaire HT, Sous-ensemble, Type terminal, Commentaire</p>
+              <p className="font-mono text-xs">Nom, Référence, Prix unitaire HT (€), Sous-ensemble, Type terminal, Commentaire</p>
               <p className="text-xs mt-1">Valeurs Sous-ensemble : <span className="font-mono">imprimante | lecteur | ecran | afficheur | buc | carrosserie</span> (ou leur libellé français)</p>
               <p className="text-xs">Valeurs Type terminal : <span className="font-mono">tous | 2020 | 2031</span></p>
               <p className="text-xs">Les anciens fichiers sans colonne prix restent acceptés, avec un prix HT à 0.</p>
@@ -1640,7 +1640,7 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                         <TableHead>État</TableHead>
                         <TableHead>Nom</TableHead>
                         <TableHead>Référence</TableHead>
-                        <TableHead>Prix HT</TableHead>
+                        <TableHead>Prix HT (€)</TableHead>
                         <TableHead>Sous-ensemble</TableHead>
                         <TableHead>Type</TableHead>
                       </TableRow>
@@ -1655,7 +1655,7 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                           </TableCell>
                           <TableCell className="text-sm">{r.nom || '—'}</TableCell>
                           <TableCell className="font-mono text-xs">{r.reference || '—'}</TableCell>
-                          <TableCell className="text-xs">{formatPrice(r.prix_unitaire_ht)} FCFA</TableCell>
+                          <TableCell className="text-xs">{formatPrice(r.prix_unitaire_ht)}</TableCell>
                           <TableCell><Badge variant="outline" className="text-xs">{SOUS_ENSEMBLE_LABELS[r.sous_ensemble] || r.sous_ensemble}</Badge></TableCell>
                           <TableCell className="text-xs">{r.type_terminal === 'tous' ? 'Tous' : r.type_terminal}</TableCell>
                         </TableRow>

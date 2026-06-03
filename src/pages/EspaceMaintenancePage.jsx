@@ -11,10 +11,15 @@ import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
 import {
   APP_SPACE_TAB_SETTINGS_KEY,
+  APP_SPACE_USER_PROFILES_SETTINGS_KEY,
   buildDefaultAppSpaceTabFunctionalities,
+  buildDefaultAppSpaceUserProfiles,
+  canAccessAppSpaceUserTab,
   getFirstEnabledAppSpaceTab,
+  getEffectiveAppSpaceUserProfile,
   isAppSpaceTabEnabled,
   normalizeAppSpaceTabFunctionalities,
+  normalizeAppSpaceUserProfiles,
 } from '@/lib/exploitationProfiles';
 import { smartSignIn, fetchAuthLinkedProfile } from '@/lib/smartAuth';
 
@@ -29,6 +34,17 @@ const SectionLoader = () => (
     <Loader2 className="h-8 w-8 animate-spin text-primary" />
   </div>
 );
+
+const loadSpaceUserProfilesSettings = async () => {
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', APP_SPACE_USER_PROFILES_SETTINGS_KEY)
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return normalizeAppSpaceUserProfiles(data?.value);
+};
 
 const LoginPage = ({ onLogin }) => {
   const { toast } = useToast();
@@ -79,7 +95,20 @@ const LoginPage = ({ onLogin }) => {
       return;
     }
 
-    onLogin(true, profile);
+    const profileSettings = await loadSpaceUserProfilesSettings().catch(() => buildDefaultAppSpaceUserProfiles());
+    const effectiveProfile = getEffectiveAppSpaceUserProfile(profileSettings, 'espace-technicien', profile.id);
+    if (effectiveProfile.statut !== 'Actif') {
+      await supabase.auth.signOut();
+      toast({
+        title: 'Compte désactivé',
+        description: 'Votre profil Technicien est désactivé. Contactez un administrateur.',
+        variant: 'destructive',
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    onLogin(true, { ...profile, appSpaceProfile: effectiveProfile });
     toast({
       title: 'Connexion réussie',
       description: `Bienvenue ${profile.prenom} ${profile.nom}`,
@@ -142,6 +171,24 @@ const EspaceMaintenancePage = () => {
   const [userData, setUserData] = useState(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [activeSection, setActiveSection] = useState('maintenance');
+  const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
+    try {
+      return normalizeAppSpaceTabFunctionalities(
+        JSON.parse(localStorage.getItem(APP_SPACE_TAB_SETTINGS_KEY) || '{}')
+      );
+    } catch (error) {
+      return buildDefaultAppSpaceTabFunctionalities();
+    }
+  });
+  const [spaceUserProfiles, setSpaceUserProfiles] = useState(() => {
+    try {
+      return normalizeAppSpaceUserProfiles(
+        JSON.parse(localStorage.getItem(APP_SPACE_USER_PROFILES_SETTINGS_KEY) || '{}')
+      );
+    } catch (error) {
+      return buildDefaultAppSpaceUserProfiles();
+    }
+  });
 
   // Restauration de la session : si l'utilisateur a déjà un JWT Supabase valide,
   // on re-fetch son profil technicien sans demander de re-login.
@@ -155,8 +202,16 @@ const EspaceMaintenancePage = () => {
           table: 'techniciens', authUserId: session.user.id,
         });
         if (!cancelled && profile) {
-          setUserData(profile);
-          setIsAuthenticated(true);
+          const profileSettings = await loadSpaceUserProfilesSettings().catch(() => buildDefaultAppSpaceUserProfiles());
+          const effectiveProfile = getEffectiveAppSpaceUserProfile(profileSettings, 'espace-technicien', profile.id);
+          if (effectiveProfile.statut !== 'Actif') {
+            await supabase.auth.signOut();
+          } else if (!cancelled) {
+            setSpaceUserProfiles(profileSettings);
+            localStorage.setItem(APP_SPACE_USER_PROFILES_SETTINGS_KEY, JSON.stringify(profileSettings));
+            setUserData({ ...profile, appSpaceProfile: effectiveProfile });
+            setIsAuthenticated(true);
+          }
         } else if (!cancelled) {
           await supabase.auth.signOut();
         }
@@ -165,15 +220,6 @@ const EspaceMaintenancePage = () => {
     })();
     return () => { cancelled = true; };
   }, []);
-  const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
-    try {
-      return normalizeAppSpaceTabFunctionalities(
-        JSON.parse(localStorage.getItem(APP_SPACE_TAB_SETTINGS_KEY) || '{}')
-      );
-    } catch (error) {
-      return buildDefaultAppSpaceTabFunctionalities();
-    }
-  });
 
   const handleLogin = (status, data) => {
     setIsAuthenticated(status);
@@ -200,6 +246,26 @@ const EspaceMaintenancePage = () => {
     return () => window.removeEventListener('app-space-tabs-updated', handleSpaceTabsUpdated);
   }, []);
 
+  useEffect(() => {
+    const loadSettings = async () => {
+      const normalizedSettings = await loadSpaceUserProfilesSettings().catch(() => buildDefaultAppSpaceUserProfiles());
+      setSpaceUserProfiles(normalizedSettings);
+      localStorage.setItem(APP_SPACE_USER_PROFILES_SETTINGS_KEY, JSON.stringify(normalizedSettings));
+    };
+    loadSettings();
+  }, []);
+
+  useEffect(() => {
+    const handleSpaceUserProfilesUpdated = (event) => {
+      const normalizedSettings = normalizeAppSpaceUserProfiles(event.detail);
+      setSpaceUserProfiles(normalizedSettings);
+      localStorage.setItem(APP_SPACE_USER_PROFILES_SETTINGS_KEY, JSON.stringify(normalizedSettings));
+    };
+
+    window.addEventListener('app-space-user-profiles-updated', handleSpaceUserProfilesUpdated);
+    return () => window.removeEventListener('app-space-user-profiles-updated', handleSpaceUserProfilesUpdated);
+  }, []);
+
   const baseMenuItems = [
     { key: 'maintenance', label: 'Maintenance', icon: <CalendarDays className="h-5 w-5" /> },
     { key: 'planning', label: 'Réparation', icon: <Wrench className="h-5 w-5" /> },
@@ -209,12 +275,13 @@ const EspaceMaintenancePage = () => {
     () =>
       baseMenuItems.filter((item) =>
         isAppSpaceTabEnabled(spaceTabFunctionalities, 'espace-technicien', item.key)
+        && canAccessAppSpaceUserTab(spaceUserProfiles, 'espace-technicien', userData?.id, item.key)
       ),
-    [spaceTabFunctionalities]
+    [spaceTabFunctionalities, spaceUserProfiles, userData?.id]
   );
 
   useEffect(() => {
-    const fallbackTab = getFirstEnabledAppSpaceTab(spaceTabFunctionalities, 'espace-technicien')?.key || null;
+    const fallbackTab = menuItems[0]?.key || getFirstEnabledAppSpaceTab(spaceTabFunctionalities, 'espace-technicien')?.key || null;
 
     if (!menuItems.length) {
       setActiveSection('');

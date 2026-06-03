@@ -14,14 +14,30 @@ import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 import {
   APP_SPACE_SETTINGS_KEY,
   APP_SPACE_TAB_SETTINGS_KEY,
+  APP_SPACE_USER_PROFILES_SETTINGS_KEY,
   buildDefaultAppSpaceFunctionalities,
   buildDefaultAppSpaceTabFunctionalities,
+  buildDefaultAppSpaceUserProfiles,
+  canAccessAppSpaceUserTab,
   getFirstEnabledAppSpaceTab,
+  getEffectiveAppSpaceUserProfile,
   isAppSpaceTabEnabled,
   normalizeAppSpaceFunctionalities,
   normalizeAppSpaceTabFunctionalities,
+  normalizeAppSpaceUserProfiles,
 } from '@/lib/exploitationProfiles';
 import { fetchAuthLinkedProfile } from '@/lib/smartAuth';
+
+const loadSpaceUserProfilesSettings = async () => {
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', APP_SPACE_USER_PROFILES_SETTINGS_KEY)
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return normalizeAppSpaceUserProfiles(data?.value);
+};
 
 const LoginPageChef = ({ onLogin }) => {
   const [matricule, setMatricule] = useState('');
@@ -35,6 +51,20 @@ const LoginPageChef = ({ onLogin }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const { toast } = useToast();
+
+  const ensureChefProfileActive = async (chef) => {
+    const profileSettings = await loadSpaceUserProfilesSettings().catch(() => buildDefaultAppSpaceUserProfiles());
+    const effectiveProfile = getEffectiveAppSpaceUserProfile(profileSettings, 'espace-chef-agence', chef.id);
+    if (effectiveProfile.statut !== 'Actif') {
+      toast({
+        title: 'Compte désactivé',
+        description: "Votre profil Chef d'agence est désactivé. Contactez un administrateur.",
+        variant: 'destructive',
+      });
+      return null;
+    }
+    return effectiveProfile;
+  };
 
   // Activer/désactiver la caméra lorsque nécessaire
   useEffect(() => {
@@ -171,13 +201,19 @@ const LoginPageChef = ({ onLogin }) => {
     setFacialAuthInProgress(true);
     
     try {
+      const effectiveProfile = await ensureChefProfileActive(chefTrouve);
+      if (!effectiveProfile) {
+        setFacialAuthInProgress(false);
+        return;
+      }
+
       // Dans une vraie implémentation, nous comparerions l'image capturée avec celle du chef d'agence trouvé
       // Comme c'est une simulation, nous allons simplement simuler une authentification réussie après un délai
       
       // Simulation d'une API de reconnaissance faciale
       setTimeout(() => {
         // Appel à onLogin qui va gérer l'enregistrement de la connexion
-        onLogin(true, chefTrouve);
+        onLogin(true, { ...chefTrouve, appSpaceProfile: effectiveProfile });
         
         toast({ 
           title: "Reconnaissance faciale réussie", 
@@ -244,7 +280,14 @@ const LoginPageChef = ({ onLogin }) => {
       return;
     }
 
-    onLogin(true, chefTrouve);
+    const effectiveProfile = await ensureChefProfileActive(chefTrouve);
+    if (!effectiveProfile) {
+      await supabase.auth.signOut();
+      setIsLoading(false);
+      return;
+    }
+
+    onLogin(true, { ...chefTrouve, appSpaceProfile: effectiveProfile });
     toast({
       title: "Connexion réussie",
       description: `Bienvenue ${chefTrouve.prenom} ${chefTrouve.nom} dans votre Espace Chef d'Agence.`,
@@ -528,6 +571,15 @@ const EspaceChefAgencePage = () => {
       return buildDefaultAppSpaceTabFunctionalities();
     }
   });
+  const [spaceUserProfiles, setSpaceUserProfiles] = useState(() => {
+    try {
+      return normalizeAppSpaceUserProfiles(
+        JSON.parse(localStorage.getItem(APP_SPACE_USER_PROFILES_SETTINGS_KEY) || '{}')
+      );
+    } catch (error) {
+      return buildDefaultAppSpaceUserProfiles();
+    }
+  });
   
   // Charger les paramètres de session
   useEffect(() => {
@@ -590,6 +642,26 @@ const EspaceChefAgencePage = () => {
 
     window.addEventListener('app-space-tabs-updated', handleSpaceTabsUpdated);
     return () => window.removeEventListener('app-space-tabs-updated', handleSpaceTabsUpdated);
+  }, []);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      const normalizedSettings = await loadSpaceUserProfilesSettings().catch(() => buildDefaultAppSpaceUserProfiles());
+      setSpaceUserProfiles(normalizedSettings);
+      localStorage.setItem(APP_SPACE_USER_PROFILES_SETTINGS_KEY, JSON.stringify(normalizedSettings));
+    };
+    loadSettings();
+  }, []);
+
+  useEffect(() => {
+    const handleSpaceUserProfilesUpdated = (event) => {
+      const normalizedSettings = normalizeAppSpaceUserProfiles(event.detail);
+      setSpaceUserProfiles(normalizedSettings);
+      localStorage.setItem(APP_SPACE_USER_PROFILES_SETTINGS_KEY, JSON.stringify(normalizedSettings));
+    };
+
+    window.addEventListener('app-space-user-profiles-updated', handleSpaceUserProfilesUpdated);
+    return () => window.removeEventListener('app-space-user-profiles-updated', handleSpaceUserProfilesUpdated);
   }, []);
 
   useEffect(() => {
@@ -659,6 +731,12 @@ const EspaceChefAgencePage = () => {
       });
       if (cancelled) return;
       if (chef) {
+        const profileSettings = await loadSpaceUserProfilesSettings().catch(() => buildDefaultAppSpaceUserProfiles());
+        const effectiveProfile = getEffectiveAppSpaceUserProfile(profileSettings, 'espace-chef-agence', chef.id);
+        if (effectiveProfile.statut !== 'Actif') {
+          await supabase.auth.signOut();
+          return;
+        }
         const authData = {
           isAuthenticated: true,
           chefInfo: {
@@ -669,9 +747,11 @@ const EspaceChefAgencePage = () => {
             photo_url: chef.photo_url,
           },
         };
+        setSpaceUserProfiles(profileSettings);
+        localStorage.setItem(APP_SPACE_USER_PROFILES_SETTINGS_KEY, JSON.stringify(profileSettings));
         setIsAuthenticated(true);
         setChefAgenceInfo(authData.chefInfo);
-        setChefDetails(chef);
+        setChefDetails({ ...chef, appSpaceProfile: effectiveProfile });
         localStorage.setItem('pmuChefAuth', JSON.stringify(authData));
       } else {
         // Session orpheline (aucun chef lié) → on déconnecte
@@ -748,7 +828,8 @@ const EspaceChefAgencePage = () => {
   ].filter(
     (item) =>
       (!item.featureKey || spaceFunctionalities[item.featureKey] !== false) &&
-      isAppSpaceTabEnabled(spaceTabFunctionalities, 'espace-chef-agence', item.path)
+      isAppSpaceTabEnabled(spaceTabFunctionalities, 'espace-chef-agence', item.path) &&
+      canAccessAppSpaceUserTab(spaceUserProfiles, 'espace-chef-agence', chefDetails?.id || chefAgenceInfo?.id, item.path)
   );
 
   const normalizedPathname = location.pathname.replace(/\/+$/, '');
@@ -757,8 +838,9 @@ const EspaceChefAgencePage = () => {
   useEffect(() => {
     if (!isAuthenticated) return;
     if (!normalizedPathname.startsWith('/espace-chef-agence')) return;
+    if (!menuItems.length) return;
 
-    const fallbackPath = getFirstEnabledAppSpaceTab(spaceTabFunctionalities, 'espace-chef-agence')?.key || null;
+    const fallbackPath = menuItems[0]?.path || getFirstEnabledAppSpaceTab(spaceTabFunctionalities, 'espace-chef-agence')?.key || null;
     if (!fallbackPath) return;
 
     const validPaths = menuItems.map((item) => `/espace-chef-agence/${item.path}`);
@@ -860,7 +942,15 @@ const EspaceChefAgencePage = () => {
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.3 }}
         >
-          <Outlet context={{ nomAgence: chefAgenceInfo?.nomAgence, chefInfo: chefAgenceInfo, chefDetails }} />
+          {!menuItems.length ? (
+            <Card className="shadow-xl glassmorphism">
+              <CardContent className="p-6 text-center text-muted-foreground">
+                Aucun onglet n’est actuellement autorisé pour votre profil Chef d'agence.
+              </CardContent>
+            </Card>
+          ) : (
+            <Outlet context={{ nomAgence: chefAgenceInfo?.nomAgence, chefInfo: chefAgenceInfo, chefDetails }} />
+          )}
         </motion.div>
       </main>
     </div>
