@@ -218,6 +218,27 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
     [pieces, filters, search]
   );
 
+  const helpPieceOptions = useMemo(() =>
+    pieces.map((p) => {
+      const sousEnsembleLabel = SOUS_ENSEMBLE_LABELS[p.sous_ensemble] || p.sous_ensemble;
+      const label = `${p.nom} — ${sousEnsembleLabel}`;
+      return {
+        value: String(p.id),
+        label,
+        searchValue: `${p.nom ?? ''} ${p.reference ?? ''} ${sousEnsembleLabel ?? ''} ${p.id ?? ''}`,
+      };
+    }),
+    [pieces]
+  );
+
+  const selectHelpPiece = useCallback(async (pieceId) => {
+    if (!pieceId) return;
+    const found = pieces.find((p) => String(p.id) === String(pieceId));
+    if (!found) return;
+    setHelpPiece(found);
+    await loadHelp(found.id);
+  }, [pieces, loadHelp]);
+
   const showOk = (msg) => toast({ title: msg, className: 'bg-green-500 text-white' });
   const showErr = (msg) => toast({ title: 'Erreur', description: msg, variant: 'destructive' });
 
@@ -657,12 +678,15 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                 <div className="space-y-3">
                   <div className="space-y-1">
                     <Label>Sélectionner une pièce</Label>
-                    <Select value={helpPiece?.id || ''} onValueChange={async (v) => { const found = pieces.find(p => p.id === v); if (found) { setHelpPiece(found); await loadHelp(found.id); } }}>
-                      <SelectTrigger><SelectValue placeholder="Choisir une pièce..." /></SelectTrigger>
-                      <SelectContent>
-                        {pieces.map(p => <SelectItem key={p.id} value={p.id}>{p.nom} — {SOUS_ENSEMBLE_LABELS[p.sous_ensemble]}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={helpPieceOptions}
+                      value={helpPiece?.id ? String(helpPiece.id) : ''}
+                      onSelect={selectHelpPiece}
+                      placeholder="Choisir une pièce..."
+                      searchPlaceholder="Rechercher par nom, référence ou sous-ensemble..."
+                      emptyText="Aucune pièce trouvée."
+                      disabled={isLoading}
+                    />
                   </div>
                   {helpPiece && (
                     <Card className="text-sm">

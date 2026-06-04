@@ -19,6 +19,9 @@ import {
 } from "@/components/ui/popover"
 
 const normalizeValue = (value) => String(value ?? "").trim().toLowerCase();
+const getSearchableValue = (option) => String(
+  option.searchValue ?? `${option.label ?? ""} ${option.value ?? ""}`
+);
 
 // Combobox single OU multi-select.
 // Mode multi : passer `multi={true}` + `value` = array de valeurs + `onSelect(newArray)`.
@@ -84,7 +87,7 @@ const Combobox = ({ options, value, onSelect, placeholder, searchPlaceholder, em
                   return (
                     <CommandItem
                       key={option.value}
-                      value={option.value}
+                      value={getSearchableValue(option)}
                       onSelect={() => toggle(option.value)}
                     >
                       <Check
@@ -120,7 +123,7 @@ const Combobox = ({ options, value, onSelect, placeholder, searchPlaceholder, em
           className="w-full justify-between"
           disabled={disabled}
         >
-          {selectedOption ? selectedOption.label : placeholder}
+          <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -139,7 +142,7 @@ const Combobox = ({ options, value, onSelect, placeholder, searchPlaceholder, em
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.value}
+                  value={getSearchableValue(option)}
                   onSelect={() => {
                     onSelect(normalizeValue(option.value) === normalizeValue(value) ? "" : option.value)
                     setOpen(false)
