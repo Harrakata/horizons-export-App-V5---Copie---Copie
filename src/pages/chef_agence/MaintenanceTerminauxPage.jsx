@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { usePageState } from '@/hooks/usePageState';
 import { motion } from 'framer-motion';
-import { Activity, CalendarClock, ChevronDown, ChevronUp, Search, Wrench } from 'lucide-react';
+import { Activity, CalendarClock, ChevronDown, ChevronUp, List, MapPinned, Search, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,7 @@ import KpiStatCard from '@/components/analytics/KpiStatCard';
 import ConfigurationTab from '@/pages/maintenance/ConfigurationTab';
 import MaintenanceAnalyticsSection from '@/components/maintenance/MaintenanceAnalyticsSection';
 import MaintenancePlanningSection from '@/components/maintenance/MaintenancePlanningSection';
+import MaintenanceAgenciesMap from '@/components/maintenance/MaintenanceAgenciesMap';
 import { formatDisplayDate, formatDisplayDateTime, isSupabaseAuthError } from '@/lib/guichetiereSpace';
 import {
   isMissingMaintenancePlanningRequestTableError,
@@ -48,6 +49,7 @@ const MaintenanceTerminauxPage = () => {
   const [seHistoryLimit, setSeHistoryLimit] = useState({});
   const [ficheDialog, setFicheDialog] = useState({ open: false, html: '', loading: false });
   const [selectedInterventionId, setSelectedInterventionId] = useState(null);
+  const [showMaintenanceMap, setShowMaintenanceMap] = usePageState('chef-maintenance', 'showMaintenanceMap', false);
   const [maintenanceFollowUpFilter, setMaintenanceFollowUpFilter] = usePageState('chef-maintenance', 'maintenanceFollowUpFilter', ALL_FILTER_VALUE);
   const [planningRequests, setPlanningRequests] = useState([]);
   const [isPlanningRequestTableMissing, setIsPlanningRequestTableMissing] = useState(false);
@@ -81,7 +83,7 @@ const MaintenanceTerminauxPage = () => {
 
       const agenceByNameResponse = await supabase
         .from('agences')
-        .select('id, nom, codePDV, region')
+        .select('id, nom, codePDV, region, adresse')
         .eq('nom', nomAgence)
         .eq('is_current', true)
         .limit(1);
@@ -95,7 +97,7 @@ const MaintenanceTerminauxPage = () => {
       if (!agence && chefDetails?.codePDV) {
         const agenceByCodeResponse = await supabase
           .from('agences')
-          .select('id, nom, codePDV, region')
+          .select('id, nom, codePDV, region, adresse')
           .eq('codePDV', chefDetails.codePDV)
           .eq('is_current', true)
           .limit(1);
@@ -528,6 +530,19 @@ const MaintenanceTerminauxPage = () => {
                     Une maintenance preventive ou curative datant de moins d&apos;un mois place le terminal a jour sur le sous-ensemble concerné.
                   </CardDescription>
                 </div>
+                <Button
+                  type="button"
+                  variant={showMaintenanceMap ? 'default' : 'outline'}
+                  onClick={() => setShowMaintenanceMap((previousValue) => !previousValue)}
+                  className={showMaintenanceMap ? 'bg-gradient-to-r from-primary to-emerald-600 text-white' : ''}
+                >
+                  {showMaintenanceMap ? (
+                    <List className="mr-2 h-4 w-4" />
+                  ) : (
+                    <MapPinned className="mr-2 h-4 w-4" />
+                  )}
+                  {showMaintenanceMap ? 'Masquer la carte' : 'Visualiser sur carte'}
+                </Button>
               </div>
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <div className="space-y-2">
@@ -580,6 +595,15 @@ const MaintenanceTerminauxPage = () => {
               </div>
             </CardHeader>
             <CardContent>
+              {showMaintenanceMap && (
+                <div className="mb-6">
+                  <MaintenanceAgenciesMap
+                    agencies={agenceRecord ? [agenceRecord] : []}
+                    groups={filteredTerminalMonitoringGroups}
+                  />
+                </div>
+              )}
+
               <Table>
                 <TableCaption>
                   {filteredTerminalMonitoringGroups.length === 0

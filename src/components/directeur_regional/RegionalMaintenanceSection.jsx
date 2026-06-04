@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CalendarClock, ChevronDown, ChevronUp, Search, Wrench } from 'lucide-react';
+import { CalendarClock, ChevronDown, ChevronUp, List, MapPinned, Search, Wrench } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useToast } from '@/components/ui/use-toast';
 import MaintenancePlanningSection from '@/components/maintenance/MaintenancePlanningSection';
 import MaintenanceAnalyticsSection from '@/components/maintenance/MaintenanceAnalyticsSection';
+import MaintenanceAgenciesMap from '@/components/maintenance/MaintenanceAgenciesMap';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { supabase } from '@/lib/supabaseClient';
 import {
@@ -39,6 +40,7 @@ const RegionalMaintenanceSection = ({ regionName = '', allowAllRegions = false, 
   const [seHistoryOpen, setSeHistoryOpen] = useState({});
   const [seHistoryLimit, setSeHistoryLimit] = useState({});
   const [ficheDialog, setFicheDialog] = useState({ open: false, html: '', loading: false });
+  const [showMaintenanceMap, setShowMaintenanceMap] = useState(false);
   const [filters, setFilters] = useState({
     agenceId: ALL_FILTER_VALUE,
     terminalId: ALL_FILTER_VALUE,
@@ -57,7 +59,7 @@ const RegionalMaintenanceSection = ({ regionName = '', allowAllRegions = false, 
       { data: techniciensData, error: techniciensError },
     ] = await Promise.all([
       fetchRegions(),
-      supabase.from('agences').select('id, nom, codePDV, region').eq('is_current', true).order('nom', { ascending: true }),
+      supabase.from('agences').select('id, nom, codePDV, region, adresse').eq('is_current', true).order('nom', { ascending: true }),
       supabase
         .from('terminaux')
         .select('id, agence_id, reference, type_terminal, position, statut, adresse_ip, imprimante_reference, lecteur_reference, ecran_reference')
@@ -122,6 +124,16 @@ const RegionalMaintenanceSection = ({ regionName = '', allowAllRegions = false, 
   const regionalAgencyIds = useMemo(
     () => regionalAgences.map((agence) => String(agence.id)),
     [regionalAgences]
+  );
+
+  const maintenanceMapAgences = useMemo(
+    () =>
+      regionalAgences.filter((agence) =>
+        filters.agenceId === ALL_FILTER_VALUE
+          ? true
+          : String(agence.id) === String(filters.agenceId)
+      ),
+    [filters.agenceId, regionalAgences]
   );
 
   const regionalTerminaux = useMemo(
@@ -320,6 +332,28 @@ const RegionalMaintenanceSection = ({ regionName = '', allowAllRegions = false, 
 
           <Card className="shadow-xl glassmorphism">
             <CardHeader className="space-y-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <CardTitle className="text-2xl text-primary">Suivi des terminaux</CardTitle>
+                  <CardDescription>
+                    Filtrez les terminaux, puis visualisez les agences et leur état sur la carte.
+                  </CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant={showMaintenanceMap ? 'default' : 'outline'}
+                  onClick={() => setShowMaintenanceMap((previousValue) => !previousValue)}
+                  className={showMaintenanceMap ? 'bg-gradient-to-r from-primary to-emerald-600 text-white' : ''}
+                >
+                  {showMaintenanceMap ? (
+                    <List className="mr-2 h-4 w-4" />
+                  ) : (
+                    <MapPinned className="mr-2 h-4 w-4" />
+                  )}
+                  {showMaintenanceMap ? 'Masquer la carte' : 'Visualiser sur carte'}
+                </Button>
+              </div>
+
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Agence</p>
@@ -402,6 +436,15 @@ const RegionalMaintenanceSection = ({ regionName = '', allowAllRegions = false, 
               </div>
             </CardHeader>
             <CardContent>
+              {showMaintenanceMap && (
+                <div className="mb-6">
+                  <MaintenanceAgenciesMap
+                    agencies={maintenanceMapAgences}
+                    groups={filteredMaintenanceGroups}
+                  />
+                </div>
+              )}
+
               <Table>
                 <TableCaption>
                   {filteredMaintenanceGroups.length === 0
