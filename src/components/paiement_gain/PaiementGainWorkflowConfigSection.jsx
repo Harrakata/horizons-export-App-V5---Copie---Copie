@@ -30,6 +30,7 @@ import {
   WORKFLOW_CONFIG_STATUSES,
   WORKFLOW_CONFIG_TABLE,
 } from '@/lib/paiementGainWorkflowConfig';
+import { isSupabaseAuthError } from '@/lib/guichetiereSpace';
 
 const BOOLEAN_OPTIONS = [
   { value: 'true', label: 'Oui' },
@@ -98,10 +99,10 @@ const PaiementGainWorkflowConfigSection = ({
     setIsFallback(Boolean(fallback));
     setIsMissingTable(Boolean(missingTable));
 
-    if (error && !missingTable) {
+    if (error && !missingTable && !isSupabaseAuthError(error)) {
       toast({
-        title: 'Erreur chargement workflows',
-        description: error.message,
+        title: 'Configuration workflows indisponible',
+        description: 'Les règles standards de paiement gros gain sont utilisées temporairement. Veuillez réessayer plus tard.',
         variant: 'destructive',
       });
     }

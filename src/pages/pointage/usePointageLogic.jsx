@@ -3,6 +3,26 @@ import { useToast } from '@/components/ui/use-toast';
 import { format, parseISO, isWithinInterval, isValid } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '@/lib/supabaseClient';
+import { isSupabaseAuthError } from '@/lib/guichetiereSpace';
+
+const logPointageLoadError = (message, error) => {
+  if (isSupabaseAuthError(error)) {
+    console.info(message, error);
+    return;
+  }
+
+  console.error(message, error);
+};
+
+const notifyPointageLoadError = (toast, error, title, description) => {
+  if (isSupabaseAuthError(error)) return;
+
+  toast({
+    title,
+    description,
+    variant: 'destructive',
+  });
+};
 
 export const usePointageLogic = () => {
   const { toast } = useToast();
@@ -196,17 +216,48 @@ export const usePointageLogic = () => {
     }
     setIsLoading(true);
     
-    const { data: planifieesData, error: planifieesError } = await supabase
+    const { data: planningData, error: planifieesError } = await supabase
       .from('planning')
-      .select('guichetieres (id, matricule, nom, prenom, photo_url)')
+      .select('guichetiereId')
       .eq('agenceNom', agenceNom)
       .eq('date', todayDateStr);
 
     if (planifieesError) {
-      toast({ title: 'Erreur chargement planning', description: planifieesError.message, variant: 'destructive' });
+      logPointageLoadError('Erreur chargement planning:', planifieesError);
+      notifyPointageLoadError(
+        toast,
+        planifieesError,
+        'Planning indisponible',
+        `Impossible de charger le planning de l'agence "${agenceNom}". Veuillez réessayer ou contacter l'administration.`
+      );
       setGuichetieresPlanifieesAujourdhui([]);
     } else {
-      const planifiees = planifieesData.map(p => p.guichetieres).filter(Boolean);
+      const guichetiereIds = [
+        ...new Set((planningData || []).map((row) => row.guichetiereId).filter((id) => id !== null && id !== undefined)),
+      ];
+
+      let planifiees = [];
+
+      if (guichetiereIds.length > 0) {
+        const { data: guichetieresData, error: guichetieresError } = await supabase
+          .from('guichetieres')
+          .select('id, matricule, nom, prenom, photo_url')
+          .in('id', guichetiereIds);
+
+        if (guichetieresError) {
+          logPointageLoadError('Erreur chargement guichetières planifiées:', guichetieresError);
+          notifyPointageLoadError(
+            toast,
+            guichetieresError,
+            'Guichetières planifiées indisponibles',
+            `Impossible de charger les guichetières planifiées pour l'agence "${agenceNom}".`
+          );
+        } else {
+          const guichetieresById = new Map((guichetieresData || []).map((guichetiere) => [String(guichetiere.id), guichetiere]));
+          planifiees = guichetiereIds.map((id) => guichetieresById.get(String(id))).filter(Boolean);
+        }
+      }
+
       setGuichetieresPlanifieesAujourdhui(planifiees);
 
       if (planifiees.length > 0) {
@@ -219,7 +270,13 @@ export const usePointageLogic = () => {
           .in('guichetiereMatricule', matricules);
         
         if (pointagesError) {
-          toast({ title: 'Erreur chargement pointages', description: pointagesError.message, variant: 'destructive' });
+          logPointageLoadError('Erreur chargement pointages:', pointagesError);
+          notifyPointageLoadError(
+            toast,
+            pointagesError,
+            'Pointages indisponibles',
+            `Impossible de charger les pointages du jour pour l'agence "${agenceNom}".`
+          );
           setPointagesJournaliersAgence({});
         } else {
           const pointagesMap = {};

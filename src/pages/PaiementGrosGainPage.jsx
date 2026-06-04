@@ -83,6 +83,16 @@ const sortDemandesByUpdatedAt = (firstDemande, secondDemande) =>
   new Date(secondDemande?.updated_at || secondDemande?.created_at || 0) -
   new Date(firstDemande?.updated_at || firstDemande?.created_at || 0);
 
+const notifyPaiementGainLoadError = (toast, error, title, description) => {
+  if (isSupabaseAuthError(error)) return;
+
+  toast({
+    title,
+    description,
+    variant: 'destructive',
+  });
+};
+
 const PaiementGrosGainPage = () => {
   const location = useLocation();
   const { toast } = useToast();
@@ -138,27 +148,42 @@ const PaiementGrosGainPage = () => {
     ]);
 
     if (agencesError) {
-      toast({ title: 'Erreur chargement agences', description: agencesError.message, variant: 'destructive' });
+      notifyPaiementGainLoadError(
+        toast,
+        agencesError,
+        'Agences indisponibles',
+        'Impossible de charger la liste des agences. Veuillez réessayer plus tard.'
+      );
     } else {
       setAgences(agencesData || []);
     }
 
     if (regionsError) {
-      toast({ title: 'Erreur chargement régions', description: regionsError.message, variant: 'destructive' });
+      notifyPaiementGainLoadError(
+        toast,
+        regionsError,
+        'Régions indisponibles',
+        'Impossible de charger la liste des régions. Veuillez réessayer plus tard.'
+      );
     } else {
       setRegions(regionsData || []);
     }
 
     if (validateursError) {
-      toast({ title: 'Erreur chargement validateurs', description: validateursError.message, variant: 'destructive' });
+      notifyPaiementGainLoadError(
+        toast,
+        validateursError,
+        'Validateurs indisponibles',
+        'Impossible de charger les validateurs de paiement. Veuillez réessayer plus tard.'
+      );
     } else {
       setValidateurs(validateursData || []);
     }
 
-    if (workflowConfigError && !workflowConfigMissingTable) {
+    if (workflowConfigError && !workflowConfigMissingTable && !isSupabaseAuthError(workflowConfigError)) {
       toast({
-        title: 'Erreur chargement workflows',
-        description: workflowConfigError.message,
+        title: 'Configuration workflows indisponible',
+        description: 'Les règles standards de paiement gros gain sont utilisées temporairement. Veuillez réessayer plus tard.',
         variant: 'destructive',
       });
     }
@@ -166,9 +191,12 @@ const PaiementGrosGainPage = () => {
 
     if (demandesError) {
       setDemandes([]);
-      if (!isSupabaseAuthError(demandesError)) {
-        toast({ title: 'Erreur chargement demandes', description: demandesError.message, variant: 'destructive' });
-      }
+      notifyPaiementGainLoadError(
+        toast,
+        demandesError,
+        'Demandes indisponibles',
+        'Impossible de charger les demandes de paiement. Veuillez réessayer plus tard.'
+      );
     } else {
       setDemandes(demandesData || []);
     }
@@ -179,7 +207,12 @@ const PaiementGrosGainPage = () => {
         setIsLoading(false);
         return;
       }
-      toast({ title: 'Erreur chargement historique', description: eventsError.message, variant: 'destructive' });
+      notifyPaiementGainLoadError(
+        toast,
+        eventsError,
+        'Historique indisponible',
+        'Impossible de charger l’historique des validations. Veuillez réessayer plus tard.'
+      );
     } else {
       setEvents(eventsData || []);
     }
