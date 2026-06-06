@@ -12,7 +12,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { motion } from 'framer-motion';
 import SignatureCanvas from 'react-signature-canvas';
-import { Building2, CalendarClock, Globe, Wrench, ClipboardList } from 'lucide-react';
+import { Building2, CalendarClock, Globe, Wrench, ClipboardList, PlusCircle, Trash2 } from 'lucide-react';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { ajouterAuStockDefectueux } from '@/lib/stockDefectueux';
 import { fetchRegions, buildRegionOptions, normalizeRegionText } from '@/lib/regions';
@@ -211,6 +211,7 @@ const MaintenanceTab = ({ technicien }) => {
     remplace: 'non',
     remplacement: '',
   });
+  const [interventionItems, setInterventionItems] = useState([]);
   const [recap, setRecap] = useState(null);
 
   // États pour stocker les données chargées depuis Supabase
@@ -226,6 +227,7 @@ const MaintenanceTab = ({ technicien }) => {
   const [technicienSignature, setTechnicienSignature] = useState(null);
   const [chefAgenceSignature, setChefAgenceSignature] = useState(null);
   const [savedInterventionId, setSavedInterventionId] = useState(null);
+  const [savedInterventionIds, setSavedInterventionIds] = useState([]);
   const [savedValidationFile, setSavedValidationFile] = useState(null);
   const technicienSignatureRef = useRef(null);
   const chefAgenceSignatureRef = useRef(null);
@@ -619,6 +621,7 @@ const MaintenanceTab = ({ technicien }) => {
     setTechnicienSignature(null);
     setChefAgenceSignature(null);
     setSavedInterventionId(null);
+    setSavedInterventionIds([]);
     setSavedValidationFile(null);
     technicienSignatureRef.current?.clear();
     chefAgenceSignatureRef.current?.clear();
@@ -635,13 +638,16 @@ const MaintenanceTab = ({ technicien }) => {
         updated.agence = '';
         updated.terminal = '';
         updated.sousEnsemble = '';
+        setInterventionItems([]);
       }
       if (field === 'agence') {
         updated.terminal = '';
         updated.sousEnsemble = '';
+        setInterventionItems([]);
       }
       if (field === 'terminal') {
         updated.sousEnsemble = '';
+        setInterventionItems([]);
       }
       return updated;
     });
@@ -720,9 +726,6 @@ const MaintenanceTab = ({ technicien }) => {
   const selectedAgence = agences.find(a => String(a.id) === form.agence);
   const selectedTerminal = terminaux.find(t => String(t.id) === form.terminal);
   const chefAgenceNomComplet = chefAgence ? `${chefAgence.prenom} ${chefAgence.nom}` : '';
-  const currentDetailLabel = form.typeIntervention === 'curative' ? 'Description panne' : 'Pièce utilisée';
-  const currentDetailValue = form.typeIntervention === 'curative' ? (form.panne || 'N/A') : (form.piece || 'Aucune');
-  const remplacementValue = form.remplace === 'oui' ? (form.remplacement || 'N/A') : 'Aucun remplacement';
   const validationReadyCount = [technicienSignature, chefAgenceSignature].filter(Boolean).length;
   const availableRegionsCount = regionsOptions.length;
   const availableAgencesCount = filteredAgences.length;
@@ -738,18 +741,144 @@ const MaintenanceTab = ({ technicien }) => {
       timeStyle: 'short',
     }).format(new Date(dateValue));
 
-  const getCurrentInterventionCodeLabel = () => {
-    if (form.typeIntervention === 'curative') {
+  const getInterventionCodeLabelFromData = (interventionData = form) => {
+    if (interventionData.typeIntervention === 'curative') {
       const codePanne = codesPannes.find(
-        (item) => String(item.code).toLowerCase() === String(form.code).trim().toLowerCase()
+        (item) => String(item.code).toLowerCase() === String(interventionData.code).trim().toLowerCase()
       );
-      return codePanne ? `${codePanne.code} - ${codePanne.libelle}` : form.code || 'N/A';
+      return codePanne ? `${codePanne.code} - ${codePanne.libelle}` : interventionData.code || 'N/A';
     }
 
     const codeIntervention = codesInterventions.find(
-      (item) => String(item.code).toLowerCase() === String(form.code).trim().toLowerCase()
+      (item) => String(item.code).toLowerCase() === String(interventionData.code).trim().toLowerCase()
     );
-    return codeIntervention ? `${codeIntervention.code} - ${codeIntervention.libelle}` : form.code || 'N/A';
+    return codeIntervention ? `${codeIntervention.code} - ${codeIntervention.libelle}` : interventionData.code || 'N/A';
+  };
+
+  const getCurrentInterventionCodeLabel = () => getInterventionCodeLabelFromData(form);
+
+  const getInterventionDetailFromData = (interventionData = form) => {
+    const isCurative = interventionData.typeIntervention === 'curative';
+    return {
+      detailLabel: isCurative ? 'Description panne' : 'Pièce utilisée',
+      detailValue: isCurative ? (interventionData.panne || 'N/A') : (interventionData.piece || 'Aucune'),
+      remplacementValue: interventionData.remplace === 'oui' ? (interventionData.remplacement || 'N/A') : 'Aucun remplacement',
+    };
+  };
+
+  const buildInterventionItem = (interventionData = form, { showToast = false } = {}) => {
+    if (!interventionData.terminal || !interventionData.sousEnsemble) {
+      if (showToast) {
+        toast({ title: 'Sous-ensemble requis', description: 'Choisissez le sous-ensemble à traiter.', variant: 'destructive' });
+      }
+      return null;
+    }
+
+    if (!interventionData.code) {
+      if (showToast) {
+        toast({ title: 'Code requis', description: "Choisissez un code d'intervention ou un code panne.", variant: 'destructive' });
+      }
+      return null;
+    }
+
+    if (interventionData.typeIntervention === 'curative' && !String(interventionData.panne || '').trim()) {
+      if (showToast) {
+        toast({ title: 'Description requise', description: 'Décrivez la panne constatée pour ce sous-ensemble.', variant: 'destructive' });
+      }
+      return null;
+    }
+
+    if (interventionData.remplace === 'oui' && !interventionData.remplacement) {
+      if (showToast) {
+        toast({ title: 'Remplacement requis', description: 'Choisissez la référence de remplacement.', variant: 'destructive' });
+      }
+      return null;
+    }
+
+    const detail = getInterventionDetailFromData(interventionData);
+    const sousEnsembleLabel = sousEnsemblesOptions.find((option) => option.value === interventionData.sousEnsemble)?.label || interventionData.sousEnsemble;
+
+    return {
+      localId: `${interventionData.sousEnsemble}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      region: interventionData.region,
+      agence: interventionData.agence,
+      terminal: interventionData.terminal,
+      sousEnsemble: interventionData.sousEnsemble,
+      sousEnsembleLabel,
+      typeIntervention: interventionData.typeIntervention,
+      typeLabel: getInterventionTypeLabel(interventionData.typeIntervention),
+      code: interventionData.code,
+      codeLabel: getInterventionCodeLabelFromData(interventionData),
+      panne: interventionData.panne,
+      piece: interventionData.piece,
+      commentaire: interventionData.commentaire,
+      remplace: interventionData.remplace,
+      remplacement: interventionData.remplacement,
+      ...detail,
+    };
+  };
+
+  const getValidationInterventionItems = () => {
+    if (interventionItems.length > 0) {
+      return interventionItems;
+    }
+
+    const currentItem = buildInterventionItem(form);
+    return currentItem ? [currentItem] : [];
+  };
+
+  const handleAddInterventionItem = () => {
+    const item = buildInterventionItem(form, { showToast: true });
+    if (!item) return;
+
+    setInterventionItems((previousItems) => [
+      ...previousItems.filter((previousItem) => previousItem.sousEnsemble !== item.sousEnsemble),
+      item,
+    ]);
+
+    clearValidationDraft();
+    setForm((previous) => ({
+      ...previous,
+      sousEnsemble: '',
+      code: '',
+      panne: '',
+      piece: '',
+      commentaire: '',
+      remplace: 'non',
+      remplacement: '',
+    }));
+
+    toast({
+      title: 'Intervention ajoutée',
+      description: `${item.sousEnsemble} est prêt pour la validation finale.`,
+      className: 'bg-blue-500 text-white',
+    });
+  };
+
+  const handleRemoveInterventionItem = (localId) => {
+    clearValidationDraft();
+    setInterventionItems((previousItems) => previousItems.filter((item) => item.localId !== localId));
+  };
+
+  const handleGoToValidation = () => {
+    if (interventionItems.length > 0) {
+      const hasDraft = Boolean(form.sousEnsemble || form.code || form.panne || form.piece || form.commentaire || form.remplacement);
+      if (!hasDraft) {
+        setStep(3);
+        return;
+      }
+    }
+
+    const item = buildInterventionItem(form, { showToast: true });
+    if (!item) {
+      return;
+    }
+
+    setInterventionItems((previousItems) => [
+      ...previousItems.filter((previousItem) => previousItem.sousEnsemble !== item.sousEnsemble),
+      item,
+    ]);
+    setStep(3);
   };
 
   const getValidationFileBaseName = () => {
@@ -760,13 +889,23 @@ const MaintenanceTab = ({ technicien }) => {
   };
 
   const buildValidationHtml = (interventionId, p = null) => {
-    const typeLabel       = p ? p.typeLabel       : getInterventionTypeLabel(form.typeIntervention);
-    const codeLabel       = p ? p.codeLabel       : getCurrentInterventionCodeLabel();
+    const validationItems = p?.interventions || (p ? [{
+      localId: 'historique',
+      sousEnsemble: p.sousEnsemble,
+      typeLabel: p.typeLabel,
+      codeLabel: p.codeLabel,
+      detailValue: p.detailValue,
+      remplacementValue: p.remplacementValue,
+      commentaire: p.commentValue,
+    }] : getValidationInterventionItems());
+    const firstItem       = validationItems[0] || buildInterventionItem(form) || {};
+    const typeLabel       = p ? p.typeLabel       : (validationItems.length > 1 ? `${validationItems.length} interventions` : (firstItem.typeLabel || getInterventionTypeLabel(form.typeIntervention)));
+    const codeLabel       = p ? p.codeLabel       : (validationItems.length > 1 ? `${validationItems.length} codes` : (firstItem.codeLabel || getCurrentInterventionCodeLabel()));
     const validationDate  = p ? p.validationDate  : formatValidationDate();
-    const detailLabel     = p ? p.detailLabel     : (form.typeIntervention === 'curative' ? 'Description panne' : 'Pièce utilisée');
-    const detailValue     = p ? p.detailValue     : (form.typeIntervention === 'curative' ? (form.panne || 'N/A') : (form.piece || 'Aucune'));
-    const remplacementValue = p ? p.remplacementValue : (form.remplace === 'oui' ? (form.remplacement || 'N/A') : 'Aucun remplacement');
-    const commentValue    = p ? p.commentValue    : (form.commentaire || 'Aucun commentaire');
+    const detailLabel     = p ? p.detailLabel     : (firstItem.detailLabel || (form.typeIntervention === 'curative' ? 'Description panne' : 'Pièce utilisée'));
+    const detailValue     = p ? p.detailValue     : (firstItem.detailValue || (form.typeIntervention === 'curative' ? (form.panne || 'N/A') : (form.piece || 'Aucune')));
+    const remplacementValue = p ? p.remplacementValue : (validationItems.length > 1 ? `${validationItems.filter((item) => item.remplace === 'oui').length} remplacement(s)` : (firstItem.remplacementValue || 'Aucun remplacement'));
+    const commentValue    = p ? p.commentValue    : (firstItem.commentaire || form.commentaire || 'Aucun commentaire');
     const validationState = p ? p.validationState : (validationReadyCount === 2 ? 'Validation complete' : 'Validation en cours');
     const technicienName  = p ? p.technicienName  : (`${technicien?.prenom || ''} ${technicien?.nom || ''}`.trim() || 'N/A');
     const techMatricule   = p ? p.techMatricule   : (technicien?.matricule || 'Sans matricule');
@@ -774,9 +913,20 @@ const MaintenanceTab = ({ technicien }) => {
     const chefRef         = p ? p.chefRef         : (chefAgence?.matricule || chefAgence?.codePDV || 'Aucune reference');
     const agenceNom       = p ? p.agenceNom       : (selectedAgence?.nom || 'N/A');
     const terminalRef     = p ? p.terminalRef     : (selectedTerminal?.reference || 'N/A');
-    const sousEnsemble    = p ? p.sousEnsemble    : (form.sousEnsemble || 'N/A');
+    const sousEnsemble    = p ? p.sousEnsemble    : (validationItems.length > 1 ? `${validationItems.length} sous-ensembles` : (firstItem.sousEnsemble || form.sousEnsemble || 'N/A'));
     const techSig         = p ? p.techSig         : technicienSignature;
     const chefSig         = p ? p.chefSig         : chefAgenceSignature;
+    const interventionRows = validationItems.map((item, index) => `
+              <tr>
+                <td>${index + 1}</td>
+                <td>${escapeHtml(item.sousEnsemble || 'N/A')}</td>
+                <td>${escapeHtml(item.typeLabel || getInterventionTypeLabel(item.typeIntervention))}</td>
+                <td>${escapeHtml(item.codeLabel || item.code || 'N/A')}</td>
+                <td>${escapeHtml(item.detailValue || 'N/A')}</td>
+                <td>${escapeHtml(item.remplacementValue || 'Aucun remplacement')}</td>
+                <td>${escapeHtml(item.commentaire || 'Aucun commentaire')}</td>
+              </tr>
+            `).join('');
 
     return `<!doctype html>
 <html lang="fr">
@@ -1135,6 +1285,36 @@ const MaintenanceTab = ({ technicien }) => {
         color: #64748b;
       }
 
+      .intervention-table {
+        width: 100%;
+        border-collapse: collapse;
+        overflow: hidden;
+        border-radius: 12px;
+        border: 1px solid #dbe5ef;
+        font-size: 11px;
+      }
+
+      .intervention-table th,
+      .intervention-table td {
+        border-bottom: 1px solid #e2e8f0;
+        padding: 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .intervention-table th {
+        background: #f1f5f9;
+        color: #475569;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .intervention-table tr:last-child td {
+        border-bottom: 0;
+      }
+
       @media print {
         body {
           padding: 0;
@@ -1252,6 +1432,27 @@ const MaintenanceTab = ({ technicien }) => {
         </div>
 
         <div class="panel detail-panel">
+          <h2 class="panel-title">Interventions realisees</h2>
+          <p class="panel-subtitle">Une ligne est archivee par sous-ensemble traite sur le terminal.</p>
+          <table class="intervention-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Sous-ensemble</th>
+                <th>Type</th>
+                <th>Code</th>
+                <th>Detail</th>
+                <th>Remplacement</th>
+                <th>Commentaire</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${interventionRows || '<tr><td colspan="7">Aucune intervention detaillee.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="panel detail-panel">
           <h2 class="panel-title">Validation et signatures</h2>
           <p class="panel-subtitle">Les deux parties ci-dessous confirment la conformite des informations portees sur cette fiche.</p>
 
@@ -1365,8 +1566,8 @@ const MaintenanceTab = ({ technicien }) => {
     }
   };
 
-  const saveIntervention = async (interventionData) => {
-    setIsLoading(true);
+  const saveIntervention = async (interventionData, { manageLoading = true, silent = false } = {}) => {
+    if (manageLoading) setIsLoading(true);
     try {
       // Préparer les données pour l'insertion
       const terminalId = interventionData.terminal;
@@ -1452,11 +1653,13 @@ const MaintenanceTab = ({ technicien }) => {
         return null;
       }
 
-      toast({
-        title: 'Succès',
-        description: 'Intervention enregistrée avec succès',
-        className: "bg-green-500 text-white"
-      });
+      if (!silent) {
+        toast({
+          title: 'Succès',
+          description: 'Intervention enregistrée avec succès',
+          className: "bg-green-500 text-white"
+        });
+      }
 
       // Traitement du remplacement à la validation finale
       if (interventionData.remplace === 'oui' && interventionData.remplacement && interventionData.sousEnsemble) {
@@ -1498,6 +1701,36 @@ const MaintenanceTab = ({ technicien }) => {
       toast({ title: 'Erreur', description: "Erreur lors de l\'enregistrement", variant: 'destructive' });
       console.error('Erreur:', error);
       return null;
+    } finally {
+      if (manageLoading) setIsLoading(false);
+    }
+  };
+
+  const saveInterventions = async (itemsToSave) => {
+    setIsLoading(true);
+    try {
+      const savedInterventions = [];
+
+      for (const item of itemsToSave) {
+        const savedIntervention = await saveIntervention(
+          { ...form, ...item, technicien },
+          { manageLoading: false, silent: true }
+        );
+
+        if (!savedIntervention?.id) {
+          return [];
+        }
+
+        savedInterventions.push(savedIntervention);
+      }
+
+      toast({
+        title: 'Succès',
+        description: `${savedInterventions.length} intervention(s) enregistrée(s) avec succès.`,
+        className: 'bg-green-500 text-white',
+      });
+
+      return savedInterventions;
     } finally {
       setIsLoading(false);
     }
@@ -1546,10 +1779,12 @@ const MaintenanceTab = ({ technicien }) => {
     }
 
     try {
-      printHtmlContent(buildValidationHtml(savedInterventionId));
+      const interventionIdLabel = savedInterventionIds.length > 1 ? savedInterventionIds.join(', ') : savedInterventionId;
+      printHtmlContent(buildValidationHtml(interventionIdLabel));
     } catch (error) {
       console.error('Erreur export PDF:', error);
-      downloadTextFile(`${getValidationFileBaseName()}.html`, buildValidationHtml(savedInterventionId), 'text/html;charset=utf-8;');
+      const interventionIdLabel = savedInterventionIds.length > 1 ? savedInterventionIds.join(', ') : savedInterventionId;
+      downloadTextFile(`${getValidationFileBaseName()}.html`, buildValidationHtml(interventionIdLabel), 'text/html;charset=utf-8;');
       toast({
         title: 'Export alternatif généré',
         description: "L'impression PDF n'a pas pu démarrer. La fiche a été téléchargée en HTML.",
@@ -1558,11 +1793,13 @@ const MaintenanceTab = ({ technicien }) => {
     }
   };
 
-  const saveValidationFile = async (interventionId) => {
+  const saveValidationFile = async (interventionIds) => {
+    const ids = Array.isArray(interventionIds) ? interventionIds : [interventionIds].filter(Boolean);
+    const interventionIdLabel = ids.length > 1 ? ids.join(', ') : ids[0];
     const baseName = getValidationFileBaseName();
     const fileName = `${baseName}.html`;
     const filePath = `validations_maintenance/${fileName}`;
-    const fileContent = buildValidationHtml(interventionId);
+    const fileContent = buildValidationHtml(interventionIdLabel);
 
     try {
       const { data, error } = await supabase.storage
@@ -1580,10 +1817,15 @@ const MaintenanceTab = ({ technicien }) => {
         .from('pmu-mali-storage')
         .getPublicUrl(data.path);
 
-      await supabase
+      const updateQuery = supabase
         .from('interventions_maintenance')
-        .update({ fiche_url: publicUrlData.publicUrl })
-        .eq('id', interventionId);
+        .update({ fiche_url: publicUrlData.publicUrl });
+
+      if (ids.length > 1) {
+        await updateQuery.in('id', ids);
+      } else if (ids.length === 1) {
+        await updateQuery.eq('id', ids[0]);
+      }
 
       return {
         fileName,
@@ -1621,29 +1863,43 @@ const MaintenanceTab = ({ technicien }) => {
       return;
     }
 
-    let interventionId = savedInterventionId;
+    const finalInterventions = getValidationInterventionItems();
 
-    if (!interventionId) {
-      const savedIntervention = await saveIntervention({ ...form, technicien });
+    if (finalInterventions.length === 0) {
+      toast({
+        title: 'Intervention requise',
+        description: 'Ajoutez au moins une intervention sur un sous-ensemble avant la validation.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
-      if (!savedIntervention?.id) {
+    let interventionIds = savedInterventionIds.length > 0 ? savedInterventionIds : (savedInterventionId ? [savedInterventionId] : []);
+
+    if (interventionIds.length === 0) {
+      const savedInterventions = await saveInterventions(finalInterventions);
+
+      if (savedInterventions.length !== finalInterventions.length) {
         return;
       }
 
-      interventionId = savedIntervention.id;
-      setSavedInterventionId(savedIntervention.id);
+      interventionIds = savedInterventions.map((item) => item.id);
+      setSavedInterventionId(interventionIds[0]);
+      setSavedInterventionIds(interventionIds);
     }
 
     setIsLoading(true);
 
     try {
-      const validationFile = await saveValidationFile(interventionId);
+      const validationFile = await saveValidationFile(interventionIds);
       setSavedValidationFile(validationFile);
       setRecap({
         ...form,
+        interventions: finalInterventions,
         technicien,
         chefAgence,
-        interventionId,
+        interventionId: interventionIds.join(', '),
+        interventionIds,
         technicienSignature,
         chefAgenceSignature,
         validationFile,
@@ -1676,14 +1932,18 @@ const MaintenanceTab = ({ technicien }) => {
       remplace: 'non',
       remplacement: '',
     });
+    setInterventionItems([]);
     setChefAgence(null);
     setRecap(null);
     setStep(1);
   };
 
+  const validationInterventionItems = getValidationInterventionItems();
+
   if (recap) {
     const recapAgence = agences.find(a => String(a.id) === recap.agence);
     const recapTerminal = terminaux.find(t => String(t.id) === recap.terminal);
+    const recapInterventions = recap.interventions?.length ? recap.interventions : [recap];
     
     return (
       <motion.div
@@ -1700,30 +1960,34 @@ const MaintenanceTab = ({ technicien }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div><strong>Agence :</strong> {recapAgence?.nom}</div>
               <div><strong>Terminal :</strong> {recapTerminal?.reference}</div>
-              <div><strong>Sous-ensemble :</strong> {recap.sousEnsemble}</div>
-              <div><strong>Type :</strong> {recap.typeIntervention === 'curative' ? 'Curative' : 'Préventive'}</div>
+              <div><strong>Interventions :</strong> {recapInterventions.length}</div>
               <div><strong>N° Intervention :</strong> {recap.interventionId}</div>
               <div><strong>Chef d'agence :</strong> {recap.chefAgence?.prenom} {recap.chefAgence?.nom}</div>
-              
-          {recap.typeIntervention === 'curative' ? (
-            <>
-                  <div><strong>Code panne :</strong> {recap.code}</div>
-                  <div><strong>Panne :</strong> {recap.panne}</div>
-            </>
-          ) : (
-            <>
-                  <div><strong>Code intervention :</strong> {recap.code}</div>
-                  <div><strong>Pièce :</strong> {recap.piece}</div>
-            </>
-          )}
-              
-              {recap.commentaire && (
-                <div className="md:col-span-2"><strong>Commentaire :</strong> {recap.commentaire}</div>
-              )}
-              
-              {recap.remplace === 'oui' && (
-                <div className="md:col-span-2"><strong>Remplacé par :</strong> {recap.remplacement}</div>
-              )}
+
+              <div className="md:col-span-2 overflow-hidden rounded-lg border bg-white">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Sous-ensemble</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Traitement</TableHead>
+                      <TableHead>Remplacement</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {recapInterventions.map((item, index) => (
+                      <TableRow key={item.localId || `${item.sousEnsemble}-${index}`}>
+                        <TableCell className="font-medium">{item.sousEnsemble}</TableCell>
+                        <TableCell>{item.typeLabel || (item.typeIntervention === 'curative' ? 'Curative' : 'Préventive')}</TableCell>
+                        <TableCell>{item.codeLabel || item.code}</TableCell>
+                        <TableCell>{item.detailValue || item.panne || item.piece || 'N/A'}</TableCell>
+                        <TableCell>{item.remplacementValue || (item.remplace === 'oui' ? item.remplacement : 'Aucun remplacement')}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
               
               <div className="md:col-span-2 mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <strong>Technicien :</strong> {technicien?.prenom} {technicien?.nom} - {technicien?.matricule}
@@ -1994,6 +2258,22 @@ const MaintenanceTab = ({ technicien }) => {
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-primary">Détails de l'Intervention</h3>
               <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="sousEnsembleDetails">Sous-ensemble concerné *</Label>
+                  <Combobox
+                    options={sousEnsemblesOptions}
+                    value={form.sousEnsemble}
+                    onSelect={handleChange('sousEnsemble')}
+                    placeholder="Choisir un sous-ensemble du terminal"
+                    searchPlaceholder="Rechercher un équipement..."
+                    emptyText="Aucun équipement associé à ce terminal."
+                    disabled={!form.terminal || isLoading}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Ajoutez une ligne par sous-ensemble traité avant de passer à la signature.
+                  </p>
+                </div>
+
                 <div className="space-y-3">
                   <Label>Type d'intervention *</Label>
                   <RadioGroup
@@ -2116,6 +2396,68 @@ const MaintenanceTab = ({ technicien }) => {
                     </div>
                   )}
                 </div>
+
+                <div className="flex flex-col gap-3 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium text-primary">Intervenir sur un autre sous-ensemble</p>
+                    <p className="text-sm text-muted-foreground">
+                      Enregistre la ligne courante dans la fiche puis permet de saisir un autre sous-ensemble du même terminal.
+                    </p>
+                  </div>
+                  <Button type="button" variant="outline" onClick={handleAddInterventionItem} disabled={isLoading}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Ajouter ce sous-ensemble
+                  </Button>
+                </div>
+
+                {interventionItems.length > 0 && (
+                  <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
+                    <div className="border-b bg-slate-50 px-4 py-3">
+                      <p className="font-medium text-primary">Sous-ensembles préparés</p>
+                      <p className="text-sm text-muted-foreground">
+                        {interventionItems.length} intervention(s) seront insérées dans la validation finale.
+                      </p>
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Sous-ensemble</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Code</TableHead>
+                          <TableHead>Traitement</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {interventionItems.map((item) => (
+                          <TableRow key={item.localId}>
+                            <TableCell className="font-medium">{item.sousEnsemble}</TableCell>
+                            <TableCell>{item.typeLabel}</TableCell>
+                            <TableCell>{item.codeLabel}</TableCell>
+                            <TableCell>
+                              <div className="space-y-1 text-sm">
+                                <p>{item.detailValue}</p>
+                                <p className="text-muted-foreground">{item.remplacementValue}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveInterventionItem(item.localId)}
+                                disabled={isLoading}
+                                title="Retirer cette intervention"
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </div>
           </div>
         )}
@@ -2156,7 +2498,7 @@ const MaintenanceTab = ({ technicien }) => {
                     </div>
                     <div className="rounded-2xl border bg-slate-50 px-4 py-3 text-sm text-muted-foreground">
                       <p><strong>Terminal :</strong> {selectedTerminal?.reference || 'N/A'}</p>
-                      <p><strong>Sous-ensemble :</strong> {form.sousEnsemble || 'N/A'}</p>
+                      <p><strong>Interventions :</strong> {validationInterventionItems.length}</p>
                     </div>
                   </div>
 
@@ -2169,18 +2511,39 @@ const MaintenanceTab = ({ technicien }) => {
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <ValidationInfoBlock label="Agence" value={selectedAgence?.nom || 'N/A'} tone="accent" />
                         <ValidationInfoBlock label="Terminal" value={selectedTerminal?.reference || 'N/A'} />
-                        <ValidationInfoBlock label="Type d'intervention" value={getInterventionTypeLabel(form.typeIntervention)} />
-                        <ValidationInfoBlock label="Sous-ensemble" value={form.sousEnsemble || 'N/A'} />
+                        <ValidationInfoBlock label="Sous-ensembles" value={`${validationInterventionItems.length} intervention(s)`} />
+                        <ValidationInfoBlock label="Validation" value="Une ligne par sous-ensemble" />
                       </div>
                     </div>
 
                     <div className="space-y-3">
-                      <h5 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Constat et traitement</h5>
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <ValidationInfoBlock label="Code" value={getCurrentInterventionCodeLabel()} tone="accent" />
-                        <ValidationInfoBlock label={currentDetailLabel} value={currentDetailValue} />
-                        <ValidationInfoBlock label="Remplacement" value={remplacementValue} />
-                        <ValidationInfoBlock label="Commentaire" value={form.commentaire || 'Aucun commentaire'} fullWidth tone="default" />
+                      <h5 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Interventions à valider</h5>
+                      <div className="overflow-hidden rounded-xl border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Sous-ensemble</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead>Code</TableHead>
+                              <TableHead>Traitement</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {validationInterventionItems.map((item, index) => (
+                              <TableRow key={item.localId || `${item.sousEnsemble}-${index}`}>
+                                <TableCell className="font-medium">{item.sousEnsemble}</TableCell>
+                                <TableCell>{item.typeLabel}</TableCell>
+                                <TableCell>{item.codeLabel}</TableCell>
+                                <TableCell>
+                                  <div className="space-y-1 text-sm">
+                                    <p>{item.detailValue}</p>
+                                    <p className="text-muted-foreground">{item.remplacementValue}</p>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
                     </div>
                   </div>
@@ -2326,11 +2689,11 @@ const MaintenanceTab = ({ technicien }) => {
           
           {step === 2 && (
             <Button 
-              onClick={() => setStep(3)}
-              disabled={!form.code || (form.remplace === 'oui' && !form.remplacement) || isLoading}
+              onClick={handleGoToValidation}
+              disabled={isLoading || (interventionItems.length === 0 && (!form.sousEnsemble || !form.code || (form.remplace === 'oui' && !form.remplacement)))}
               className="ml-auto bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90"
             >
-              Suivant →
+              Passer aux signatures →
             </Button>
           )}
 
