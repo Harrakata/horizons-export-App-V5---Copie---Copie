@@ -27,7 +27,7 @@ import {
 } from '@/lib/guichetiereSpace';
 
 const MonPlanningPage = () => {
-  const { nomAgence, chefInfo } = useOutletContext();
+  const { nomAgence, chefInfo, chefDetails } = useOutletContext();
   const { toast } = useToast();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [planning, setPlanning] = useState({});
@@ -58,7 +58,9 @@ const MonPlanningPage = () => {
       .lte('date', format(endOfMonth(currentMonth), 'yyyy-MM-dd'));
 
     if (error) {
-      toast({ title: 'Erreur de chargement du planning', description: error.message, variant: 'destructive' });
+      if (!isSupabaseAuthError(error)) {
+        toast({ title: 'Erreur de chargement du planning', description: error.message, variant: 'destructive' });
+      }
       setPlanning({});
     } else {
       const newPlanning = {};
@@ -80,12 +82,14 @@ const MonPlanningPage = () => {
   const fetchGuichetieres = useCallback(async () => {
     if (!nomAgence) return;
     // Capacité de l'agence (= nombre de terminaux déclarés au référentiel)
-    const { data: agenceRow } = await supabase
+    let agenceQuery = supabase
       .from('agences')
       .select('nbreTerminaux')
-      .eq('nom', nomAgence)
-      .eq('is_current', true)
-      .maybeSingle();
+      .eq('is_current', true);
+    agenceQuery = chefDetails?.codePDV
+      ? agenceQuery.eq('codePDV', chefDetails.codePDV)
+      : agenceQuery.eq('nom', nomAgence);
+    const { data: agenceRow } = await agenceQuery.maybeSingle();
     setNbreTerminaux(Number.isFinite(parseInt(agenceRow?.nbreTerminaux, 10)) ? parseInt(agenceRow.nbreTerminaux, 10) : null);
 
     // SCD Type 2 : source de vérité = guichetiere_agence_history.
@@ -142,7 +146,7 @@ const MonPlanningPage = () => {
     } else {
       setGuichetieresAgence(data || []);
     }
-  }, [nomAgence, toast]);
+  }, [chefDetails?.codePDV, nomAgence, toast]);
 
   const fetchPlanningRequests = useCallback(async () => {
     if (!nomAgence) return;

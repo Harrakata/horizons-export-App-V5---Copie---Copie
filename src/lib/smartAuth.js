@@ -80,6 +80,115 @@ export async function fetchAuthLinkedProfile({
   return query.maybeSingle();
 }
 
+const applyStatusFilter = (query, statusCol, activeValue) =>
+  statusCol ? query.eq(statusCol, activeValue) : query;
+
+const fetchProfileCandidate = async ({
+  table,
+  identifier,
+  authEmail,
+  matriculeCol,
+  emailCol,
+  statusCol,
+  activeValue,
+}) => {
+  const normalizedEmail = String(authEmail || '').trim().toLowerCase();
+  if (normalizedEmail) {
+    let emailQuery = supabase
+      .from(table)
+      .select('*')
+      .ilike(emailCol, normalizedEmail)
+      .limit(1);
+    emailQuery = applyStatusFilter(emailQuery, statusCol, activeValue);
+
+    const { data, error } = await emailQuery.maybeSingle();
+    if (error) return { data: null, error };
+    if (data) return { data, error: null };
+  }
+
+  const id = String(identifier || '').trim();
+  if (id && !EMAIL_REGEX.test(id)) {
+    let matriculeQuery = supabase
+      .from(table)
+      .select('*')
+      .ilike(matriculeCol, id)
+      .limit(1);
+    matriculeQuery = applyStatusFilter(matriculeQuery, statusCol, activeValue);
+
+    const { data, error } = await matriculeQuery.maybeSingle();
+    if (error) return { data: null, error };
+    if (data) return { data, error: null };
+  }
+
+  return { data: null, error: null };
+};
+
+/**
+ * Récupère le profil lié à auth_user_id. Si le lien est absent mais que la
+ * fiche métier correspond à l'email ou au matricule saisi, le lien est créé.
+ */
+export async function fetchOrLinkAuthProfile({
+  table,
+  authUserId,
+  identifier = '',
+  authEmail = '',
+  matriculeCol = 'matricule',
+  emailCol = 'email',
+  statusCol = null,
+  activeValue = 'Actif',
+}) {
+  const linkedProfile = await fetchAuthLinkedProfile({
+    table,
+    authUserId,
+    statusCol,
+    activeValue,
+  });
+
+  if (linkedProfile.error || linkedProfile.data) return linkedProfile;
+
+  const candidateResponse = await fetchProfileCandidate({
+    table,
+    identifier,
+    authEmail,
+    matriculeCol,
+    emailCol,
+    statusCol,
+    activeValue,
+  });
+
+  if (candidateResponse.error || !candidateResponse.data) return candidateResponse;
+
+  const candidate = candidateResponse.data;
+  const candidateEmail = String(candidate?.[emailCol] || '').trim().toLowerCase();
+  const signedInEmail = String(authEmail || '').trim().toLowerCase();
+  const canRelinkSameEmailProfile = candidateEmail && signedInEmail && candidateEmail === signedInEmail;
+
+  if (
+    candidate.auth_user_id &&
+    String(candidate.auth_user_id) !== String(authUserId) &&
+    !canRelinkSameEmailProfile
+  ) {
+    return {
+      data: null,
+      error: { message: 'Cette fiche est déjà liée à un autre compte utilisateur.' },
+    };
+  }
+
+  if (!candidate.auth_user_id || String(candidate.auth_user_id) !== String(authUserId)) {
+    const { data, error } = await supabase
+      .from(table)
+      .update({ auth_user_id: authUserId })
+      .eq('id', candidate.id)
+      .select('*')
+      .maybeSingle();
+
+    if (error) return { data: null, error };
+    return { data: data || { ...candidate, auth_user_id: authUserId }, error: null };
+  }
+
+  return { data: candidate, error: null };
+}
+
 /**
  * Extrait le message d'erreur d'une réponse Edge Function (utile car
  * supabase.functions.invoke renvoie un "non-2xx status code" générique).

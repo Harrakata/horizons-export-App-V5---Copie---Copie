@@ -39,6 +39,48 @@ const loadSpaceUserProfilesSettings = async () => {
   return normalizeAppSpaceUserProfiles(data?.value);
 };
 
+const resolveCurrentAgenceName = async ({ agenceName, codePDV } = {}) => {
+  const cleanCode = String(codePDV || '').trim();
+  const cleanName = String(agenceName || '').trim();
+
+  if (cleanCode) {
+    const { data } = await publicSupabase
+      .from('agences')
+      .select('nom, codePDV')
+      .eq('codePDV', cleanCode)
+      .eq('is_current', true)
+      .maybeSingle();
+    if (data?.nom) return data.nom;
+  }
+
+  if (!cleanName) return cleanName;
+
+  const { data: currentByName } = await publicSupabase
+    .from('agences')
+    .select('nom, codePDV')
+    .eq('nom', cleanName)
+    .eq('is_current', true)
+    .maybeSingle();
+  if (currentByName?.nom) return currentByName.nom;
+
+  const { data: historicalRows } = await publicSupabase
+    .from('agences')
+    .select('nom, codePDV')
+    .eq('nom', cleanName)
+    .limit(1);
+  const historicalCode = historicalRows?.[0]?.codePDV;
+  if (!historicalCode) return cleanName;
+
+  const { data: currentByCode } = await publicSupabase
+    .from('agences')
+    .select('nom')
+    .eq('codePDV', historicalCode)
+    .eq('is_current', true)
+    .maybeSingle();
+
+  return currentByCode?.nom || cleanName;
+};
+
 const LoginPageChef = ({ onLogin }) => {
   const [matricule, setMatricule] = useState('');
   const [password, setPassword] = useState('');
@@ -609,20 +651,41 @@ const EspaceChefAgencePage = () => {
     // Charger les détails complets du chef d'agence si authentifié
     const loadChefDetails = async () => {
       if (isAuthenticated && chefAgenceInfo?.id) {
-        const { data, error } = await supabase
+        const { data, error } = await publicSupabase
           .from('chefs_agence')
           .select('*')
           .eq('id', chefAgenceInfo.id)
           .single();
           
         if (!error && data) {
-          setChefDetails(data);
+          let resolvedAgence = data.agenceEnCharge || chefAgenceInfo?.nomAgence;
+          try {
+            resolvedAgence = await resolveCurrentAgenceName({
+              agenceName: resolvedAgence,
+              codePDV: data.codePDV,
+            });
+          } catch {}
+          const enrichedData = { ...data, agenceEnCharge: resolvedAgence };
+          const enrichedInfo = {
+            nomAgence: resolvedAgence || 'Agence non renseignée',
+            nomChef: `${data.prenom} ${data.nom}`,
+            matricule: data.matricule,
+            codePDV: data.codePDV,
+            id: data.id,
+            photo_url: data.photo_url,
+          };
+          setChefDetails(enrichedData);
+          setChefAgenceInfo(enrichedInfo);
+          localStorage.setItem('pmuChefAuth', JSON.stringify({
+            isAuthenticated: true,
+            chefInfo: enrichedInfo,
+          }));
         }
       }
     };
     
     loadChefDetails();
-  }, [isAuthenticated, chefAgenceInfo]);
+  }, [isAuthenticated, chefAgenceInfo?.id]);
 
   useEffect(() => {
     const handleFunctionalitiesUpdated = (event) => {
@@ -672,21 +735,30 @@ const EspaceChefAgencePage = () => {
     }
   }, [location.pathname]);
 
-  const handleLogin = (status, chefData) => {
+  const handleLogin = async (status, chefData) => {
     setIsAuthenticated(status);
     if (status && chefData) {
+      let resolvedAgence = chefData.agenceEnCharge;
+      try {
+        resolvedAgence = await resolveCurrentAgenceName({
+          agenceName: resolvedAgence,
+          codePDV: chefData.codePDV,
+        });
+      } catch {}
+      const enrichedChefData = { ...chefData, agenceEnCharge: resolvedAgence };
       const authData = { 
         isAuthenticated: true, 
         chefInfo: { 
-          nomAgence: chefData.agenceEnCharge, 
+          nomAgence: resolvedAgence || 'Agence non renseignée',
           nomChef: `${chefData.prenom} ${chefData.nom}`, 
           matricule: chefData.matricule, 
+          codePDV: chefData.codePDV,
           id: chefData.id,
           photo_url: chefData.photo_url
         } 
       };
       setChefAgenceInfo(authData.chefInfo);
-      setChefDetails(chefData);
+      setChefDetails(enrichedChefData);
       localStorage.setItem('pmuChefAuth', JSON.stringify(authData));
 
       // Enregistrer la connexion du chef d'agence dans la base de données
@@ -740,9 +812,13 @@ const EspaceChefAgencePage = () => {
         const authData = {
           isAuthenticated: true,
           chefInfo: {
-            nomAgence: chef.agenceEnCharge,
+            nomAgence: await resolveCurrentAgenceName({
+              agenceName: chef.agenceEnCharge,
+              codePDV: chef.codePDV,
+            }).catch(() => chef.agenceEnCharge),
             nomChef: `${chef.prenom} ${chef.nom}`,
             matricule: chef.matricule,
+            codePDV: chef.codePDV,
             id: chef.id,
             photo_url: chef.photo_url,
           },
@@ -751,7 +827,7 @@ const EspaceChefAgencePage = () => {
         localStorage.setItem(APP_SPACE_USER_PROFILES_SETTINGS_KEY, JSON.stringify(profileSettings));
         setIsAuthenticated(true);
         setChefAgenceInfo(authData.chefInfo);
-        setChefDetails({ ...chef, appSpaceProfile: effectiveProfile });
+        setChefDetails({ ...chef, agenceEnCharge: authData.chefInfo.nomAgence, appSpaceProfile: effectiveProfile });
         localStorage.setItem('pmuChefAuth', JSON.stringify(authData));
       } else {
         // Session orpheline (aucun chef lié) → on déconnecte
@@ -949,7 +1025,13 @@ const EspaceChefAgencePage = () => {
               </CardContent>
             </Card>
           ) : (
-            <Outlet context={{ nomAgence: chefAgenceInfo?.nomAgence, chefInfo: chefAgenceInfo, chefDetails }} />
+            <Outlet
+              context={{
+                nomAgence: chefAgenceInfo?.nomAgence,
+                chefInfo: chefAgenceInfo,
+                chefDetails: chefDetails || { codePDV: chefAgenceInfo?.codePDV },
+              }}
+            />
           )}
         </motion.div>
       </main>

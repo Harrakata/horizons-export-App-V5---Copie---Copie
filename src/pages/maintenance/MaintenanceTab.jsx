@@ -16,6 +16,7 @@ import { Building2, CalendarClock, Globe, Wrench, ClipboardList } from 'lucide-r
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { ajouterAuStockDefectueux } from '@/lib/stockDefectueux';
 import { fetchRegions, buildRegionOptions, normalizeRegionText } from '@/lib/regions';
+import { isSupabaseAuthError } from '@/lib/guichetiereSpace';
 
 const normalizeMaintenanceText = (value) =>
   String(value ?? '')
@@ -312,7 +313,9 @@ const MaintenanceTab = ({ technicien }) => {
       if (!regionsResponse.error) setRegions(regionsResponse.data || []);
 
       if (agencesError) {
-        toast({ title: 'Erreur', description: 'Impossible de charger les agences', variant: 'destructive' });
+        if (!isSupabaseAuthError(agencesError)) {
+          toast({ title: 'Erreur', description: 'Impossible de charger les agences', variant: 'destructive' });
+        }
       } else {
         setAgences(agencesData || []);
       }

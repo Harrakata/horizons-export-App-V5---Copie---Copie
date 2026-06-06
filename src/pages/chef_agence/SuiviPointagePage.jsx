@@ -20,9 +20,31 @@ import {
   normalizePointageText,
 } from '@/lib/pointageMonitoring';
 import { supabase } from '@/lib/supabaseClient';
+import { isSupabaseAuthError } from '@/lib/guichetiereSpace';
+
+const normalizeAgencyName = (value) => String(value || '').trim();
+
+const buildAgencyNameScope = async ({ nomAgence, codePDV }) => {
+  const names = new Set([normalizeAgencyName(nomAgence)].filter(Boolean));
+  const cleanCode = String(codePDV || '').trim();
+
+  if (cleanCode) {
+    const { data } = await supabase
+      .from('agences')
+      .select('nom')
+      .eq('codePDV', cleanCode);
+
+    (data || []).forEach((agence) => {
+      const name = normalizeAgencyName(agence.nom);
+      if (name) names.add(name);
+    });
+  }
+
+  return Array.from(names);
+};
 
 const SuiviPointagePage = () => {
-  const { nomAgence } = useOutletContext();
+  const { nomAgence, chefDetails } = useOutletContext();
   const { toast } = useToast();
   const [guichetieresById, setGuichetieresById] = useState({});
   const [planningEntries, setPlanningEntries] = useState([]);
@@ -44,15 +66,29 @@ const SuiviPointagePage = () => {
     const historyStartDate = new Date(safeSelectedDate);
     historyStartDate.setMonth(historyStartDate.getMonth() - 11);
     const historyStart = historyStartDate.toISOString().slice(0, 10);
+    const agencyNames = await buildAgencyNameScope({
+      nomAgence,
+      codePDV: chefDetails?.codePDV,
+    });
 
     // SCD Type 2 : source de vérité = guichetiere_agence_history.
     // 1) On récupère d'abord les codes_prepose actuellement affectés à cette agence.
     const today = new Date().toISOString().slice(0, 10);
-    const { data: histRows } = await supabase
+    let historyQuery = supabase
       .from('guichetiere_agence_history')
       .select('code_prepose, valid_from, valid_to')
-      .eq('agence_assignee', nomAgence)
       .or(`valid_to.is.null,valid_to.gte.${today}`);
+
+    historyQuery = agencyNames.length > 1
+      ? historyQuery.in('agence_assignee', agencyNames)
+      : historyQuery.eq('agence_assignee', agencyNames[0] || nomAgence);
+
+    const { data: histRows, error: histError } = await historyQuery;
+
+    if (histError && !isSupabaseAuthError(histError)) {
+      toast({ title: 'Erreur chargement guichetières', description: histError.message, variant: 'destructive' });
+    }
+
     const codesMap = {};
     (histRows || []).forEach((h) => {
       const prev = codesMap[h.code_prepose];
@@ -71,20 +107,28 @@ const SuiviPointagePage = () => {
       { data: settingsData, error: settingsError },
       { data: guichetieresData, error: guichetieresError },
     ] = await Promise.all([
-      supabase
-        .from('planning')
-        .select('id, date, agenceNom, guichetiereId')
-        .eq('agenceNom', nomAgence)
-        .gte('date', historyStart)
-        .lte('date', selectedDate),
-      supabase
-        .from('pointages')
-        .select('*')
-        .eq('agence', nomAgence)
-        .gte('date', historyStart)
-        .lte('date', selectedDate)
-        .order('date', { ascending: false })
-        .order('time', { ascending: false }),
+      (() => {
+        let query = supabase
+          .from('planning')
+          .select('id, date, agenceNom, guichetiereId')
+          .gte('date', historyStart)
+          .lte('date', selectedDate);
+        return agencyNames.length > 1
+          ? query.in('agenceNom', agencyNames)
+          : query.eq('agenceNom', agencyNames[0] || nomAgence);
+      })(),
+      (() => {
+        let query = supabase
+          .from('pointages')
+          .select('*')
+          .gte('date', historyStart)
+          .lte('date', selectedDate)
+          .order('date', { ascending: false })
+          .order('time', { ascending: false });
+        return agencyNames.length > 1
+          ? query.in('agence', agencyNames)
+          : query.eq('agence', agencyNames[0] || nomAgence);
+      })(),
       supabase.from('app_settings').select('value').eq('key', 'general').single(),
       // 2) Fetch les guichetières par leur code_prepose (sources de vérité depuis history).
       //    Si aucune affectation courante n'est trouvée, on retombe sur la requête legacy
@@ -98,19 +142,23 @@ const SuiviPointagePage = () => {
         : supabase
             .from('guichetieres')
             .select('id, matricule, nom, prenom, codePrepose')
-            .eq('agenceAssigne', nomAgence)
+            .in('agenceAssigne', agencyNames.length ? agencyNames : [nomAgence])
             .eq('is_current', true),
     ]);
 
     if (planningError) {
-      toast({ title: 'Erreur chargement planning', description: planningError.message, variant: 'destructive' });
+      if (!isSupabaseAuthError(planningError)) {
+        toast({ title: 'Erreur chargement planning', description: planningError.message, variant: 'destructive' });
+      }
       setPlanningEntries([]);
     } else {
       setPlanningEntries(planningData || []);
     }
 
     if (pointagesError) {
-      toast({ title: 'Erreur chargement pointages', description: pointagesError.message, variant: 'destructive' });
+      if (!isSupabaseAuthError(pointagesError)) {
+        toast({ title: 'Erreur chargement pointages', description: pointagesError.message, variant: 'destructive' });
+      }
       setPointages([]);
     } else {
       setPointages(pointagesData || []);
@@ -123,7 +171,9 @@ const SuiviPointagePage = () => {
     }
 
     if (guichetieresError) {
-      toast({ title: 'Erreur chargement guichetières', description: guichetieresError.message, variant: 'destructive' });
+      if (!isSupabaseAuthError(guichetieresError)) {
+        toast({ title: 'Erreur chargement guichetières', description: guichetieresError.message, variant: 'destructive' });
+      }
       setGuichetieresById({});
     } else {
       setGuichetieresById(
@@ -135,7 +185,7 @@ const SuiviPointagePage = () => {
     }
 
     setIsLoading(false);
-  }, [nomAgence, selectedDate, toast]);
+  }, [chefDetails?.codePDV, nomAgence, selectedDate, toast]);
 
   useEffect(() => {
     loadData();

@@ -10,7 +10,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/lib/supabaseClient';
 import { GUICHETIERE_AUTH_KEY, buildGuichetiereDisplayName } from '@/lib/guichetiereSpace';
-import { smartSignIn, fetchAuthLinkedProfile } from '@/lib/smartAuth';
+import { smartSignIn, fetchAuthLinkedProfile, fetchOrLinkAuthProfile } from '@/lib/smartAuth';
 import {
   APP_SPACE_TAB_SETTINGS_KEY,
   APP_SPACE_USER_PROFILES_SETTINGS_KEY,
@@ -33,6 +33,48 @@ const loadSpaceUserProfilesSettings = async () => {
 
   if (error && error.code !== 'PGRST116') throw error;
   return normalizeAppSpaceUserProfiles(data?.value);
+};
+
+const resolveCurrentAgenceName = async ({ agenceName, codePDV } = {}) => {
+  const cleanCode = String(codePDV || '').trim();
+  const cleanName = String(agenceName || '').trim();
+
+  if (cleanCode) {
+    const { data } = await supabase
+      .from('agences')
+      .select('nom, codePDV')
+      .eq('codePDV', cleanCode)
+      .eq('is_current', true)
+      .maybeSingle();
+    if (data?.nom) return data.nom;
+  }
+
+  if (!cleanName) return cleanName;
+
+  const { data: currentByName } = await supabase
+    .from('agences')
+    .select('nom, codePDV')
+    .eq('nom', cleanName)
+    .eq('is_current', true)
+    .maybeSingle();
+  if (currentByName?.nom) return currentByName.nom;
+
+  const { data: historicalRows } = await supabase
+    .from('agences')
+    .select('nom, codePDV, is_current')
+    .eq('nom', cleanName)
+    .limit(1);
+  const historicalCode = historicalRows?.[0]?.codePDV;
+  if (!historicalCode) return cleanName;
+
+  const { data: currentByCode } = await supabase
+    .from('agences')
+    .select('nom')
+    .eq('codePDV', historicalCode)
+    .eq('is_current', true)
+    .maybeSingle();
+
+  return currentByCode?.nom || cleanName;
 };
 
 const LoginPageGuichetiere = ({ onLogin }) => {
@@ -72,9 +114,11 @@ const LoginPageGuichetiere = ({ onLogin }) => {
     }
 
     // 2) Récupérer la fiche guichetière liée à ce compte auth (filtre is_current = true)
-    const { data: profile, error: profileErr } = await fetchAuthLinkedProfile({
+    const { data: profile, error: profileErr } = await fetchOrLinkAuthProfile({
       table: 'guichetieres',
       authUserId: authData.user.id,
+      identifier,
+      authEmail: authData.user.email,
       statusCol: 'is_current',
       activeValue: true,
     });
@@ -82,7 +126,7 @@ const LoginPageGuichetiere = ({ onLogin }) => {
       await supabase.auth.signOut();
       toast({
         title: 'Aucune fiche guichetière associée',
-        description: 'Votre compte n\'est lié à aucune fiche guichetière active. Contactez un administrateur.',
+        description: profileErr?.message || 'Votre compte n\'est lié à aucune fiche guichetière active. Contactez un administrateur.',
         variant: 'destructive',
       });
       setIsLoading(false);
@@ -266,6 +310,12 @@ const EspaceGuichetierePage = () => {
       // En cas d'échec on retombe sur la valeur dénormalisée — comportement legacy.
     }
 
+    try {
+      resolvedAgence = await resolveCurrentAgenceName({ agenceName: resolvedAgence });
+    } catch {
+      // On conserve l'agence résolue depuis l'historique si la table agences est indisponible.
+    }
+
     const enrichedData = { ...guichetiereData, agenceAssigne: resolvedAgence };
     const nextAuthData = {
       isAuthenticated: true,
@@ -331,6 +381,56 @@ const EspaceGuichetierePage = () => {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const refreshCurrentAgency = async () => {
+      if (!isAuthenticated || !guichetiereDetails?.id) return;
+
+      const { data: profile } = await supabase
+        .from('guichetieres')
+        .select('*')
+        .eq('id', guichetiereDetails.id)
+        .maybeSingle();
+
+      if (cancelled || !profile) return;
+
+      let resolvedAgence = profile.agenceAssigne || guichetiereInfo?.nomAgence;
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const { data: histRows } = await supabase
+          .from('guichetiere_agence_history')
+          .select('agence_assignee, valid_from, valid_to')
+          .eq('code_prepose', profile.codePrepose)
+          .or(`valid_to.is.null,valid_to.gte.${today}`)
+          .order('valid_from', { ascending: false });
+        const current = (histRows || []).find((h) => h.valid_to == null) ?? histRows?.[0];
+        if (current?.agence_assignee) resolvedAgence = current.agence_assignee;
+        resolvedAgence = await resolveCurrentAgenceName({ agenceName: resolvedAgence });
+      } catch {}
+
+      if (cancelled) return;
+      const enrichedDetails = { ...profile, agenceAssigne: resolvedAgence };
+      const enrichedInfo = {
+        id: enrichedDetails.id,
+        matricule: enrichedDetails.matricule,
+        nomComplet: buildGuichetiereDisplayName(enrichedDetails),
+        nomAgence: resolvedAgence || 'Agence non renseignée',
+        photo_url: enrichedDetails.photo_url || null,
+      };
+      const nextAuthData = {
+        isAuthenticated: true,
+        guichetiereInfo: enrichedInfo,
+        guichetiereDetails: enrichedDetails,
+      };
+      setGuichetiereInfo(enrichedInfo);
+      setGuichetiereDetails(enrichedDetails);
+      localStorage.setItem(GUICHETIERE_AUTH_KEY, JSON.stringify(nextAuthData));
+    };
+
+    refreshCurrentAgency();
+    return () => { cancelled = true; };
+  }, [isAuthenticated, guichetiereDetails?.id]);
 
   const menuItems = [
     { path: 'mon-planning', label: 'Mon Planning', icon: <CalendarDays className="h-5 w-5" /> },

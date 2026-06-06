@@ -15,6 +15,7 @@ import MaintenanceAnalyticsSection from '@/components/maintenance/MaintenanceAna
 import MaintenanceAgenciesMap from '@/components/maintenance/MaintenanceAgenciesMap';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { supabase } from '@/lib/supabaseClient';
+import { isSupabaseAuthError } from '@/lib/guichetiereSpace';
 import {
   buildTerminalMonitoringGroups,
   formatMaintenanceDateTime,
@@ -72,25 +73,27 @@ const RegionalMaintenanceSection = ({ regionName = '', allowAllRegions = false, 
       supabase.from('techniciens').select('id, nom, prenom, matricule'),
     ]);
 
-    if (regionsError) {
+    if (regionsError && !isSupabaseAuthError(regionsError)) {
       toast({ title: 'Erreur chargement régions', description: regionsError.message, variant: 'destructive' });
     } else {
       setRegions(regionsData || []);
     }
 
     if (agencesError) {
-      toast({ title: 'Erreur chargement agences', description: agencesError.message, variant: 'destructive' });
+      if (!isSupabaseAuthError(agencesError)) {
+        toast({ title: 'Erreur chargement agences', description: agencesError.message, variant: 'destructive' });
+      }
     } else {
       setAgences(agencesData || []);
     }
 
-    if (terminauxError) {
+    if (terminauxError && !isSupabaseAuthError(terminauxError)) {
       toast({ title: 'Erreur chargement terminaux', description: terminauxError.message, variant: 'destructive' });
     } else {
       setTerminaux(terminauxData || []);
     }
 
-    if (interventionsError) {
+    if (interventionsError && !isSupabaseAuthError(interventionsError)) {
       toast({ title: 'Erreur chargement interventions', description: interventionsError.message, variant: 'destructive' });
     } else {
       setInterventions(interventionsData || []);

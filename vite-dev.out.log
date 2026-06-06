@@ -10,3 +10,18 @@ Port 5174 is in use, trying another one...
   [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5175[22m/[39m
 [2m14:42:39[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mdist/index.html[22m
 [2m17:15:06[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mdist/index.html[22m
+[2m00:39:40[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mindex.html[22m
+[2m00:41:43[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mdist/index.html[22m
+[2m22:47:46[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mdist/index.html[22m
+[2m23:49:17[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mdist/index.html[22m
+[2m10:23:15[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+Port 5173 is in use, trying another one...
+[2m10:23:15[22m [36m[1m[vite][22m[39m server restarted.
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5174[22m/[39m
+[2m10:24:55[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[2m10:24:56[22m [36m[1m[vite][22m[39m server restarted.
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5173[22m/[39m
+[2m10:24:56[22m [36m[1m[vite][22m[39m [32mvite.config.js changed, restarting server...[39m
+[2m10:24:56[22m [36m[1m[vite][22m[39m server restarted.

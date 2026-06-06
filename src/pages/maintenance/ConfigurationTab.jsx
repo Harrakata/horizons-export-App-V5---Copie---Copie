@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { buildRegionOptions, fetchRegions, normalizeRegionText } from '@/lib/regions';
 import { supabase } from '@/lib/supabaseClient';
+import { isSupabaseAuthError } from '@/lib/guichetiereSpace';
 import EquipmentManager from './EquipmentManager';
 
 const ALL_FILTER_VALUE = '__all__';
@@ -170,31 +171,37 @@ const ConfigurationTab = ({
       ]);
 
       if (regionsResponse.error) {
-        toast({
-          title: 'Erreur chargement régions',
-          description: regionsResponse.error.message,
-          variant: 'destructive',
-        });
+        if (!isSupabaseAuthError(regionsResponse.error)) {
+          toast({
+            title: 'Erreur chargement régions',
+            description: regionsResponse.error.message,
+            variant: 'destructive',
+          });
+        }
       } else {
         setRegions(regionsResponse.data || []);
       }
 
       if (agencesResponse.error) {
-        toast({
-          title: 'Erreur chargement agences',
-          description: agencesResponse.error.message,
-          variant: 'destructive',
-        });
+        if (!isSupabaseAuthError(agencesResponse.error)) {
+          toast({
+            title: 'Erreur chargement agences',
+            description: agencesResponse.error.message,
+            variant: 'destructive',
+          });
+        }
       } else {
         setAgences(agencesResponse.data || []);
       }
 
       if (terminauxResponse.error) {
-        toast({
-          title: 'Erreur chargement terminaux',
-          description: terminauxResponse.error.message,
-          variant: 'destructive',
-        });
+        if (!isSupabaseAuthError(terminauxResponse.error)) {
+          toast({
+            title: 'Erreur chargement terminaux',
+            description: terminauxResponse.error.message,
+            variant: 'destructive',
+          });
+        }
       } else {
         // Auto-réparation : terminaux orphelins (agence_id pointant vers une agence archivée
         // suite à un renommage SCD2). On retrouve le successeur via le codePDV identique.

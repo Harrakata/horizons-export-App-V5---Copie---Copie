@@ -10,7 +10,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
-import { formatDisplayDate, formatDisplayDateTime } from '@/lib/guichetiereSpace';
+import { formatDisplayDate, formatDisplayDateTime, isSupabaseAuthError } from '@/lib/guichetiereSpace';
 
 const MesPointagesPage = () => {
   const { guichetiereInfo, guichetiereDetails } = useOutletContext();
@@ -52,22 +52,26 @@ const MesPointagesPage = () => {
     ]);
 
     if (planningError) {
-      toast({
-        title: 'Erreur chargement planning',
-        description: planningError.message,
-        variant: 'destructive',
-      });
+      if (!isSupabaseAuthError(planningError)) {
+        toast({
+          title: 'Erreur chargement planning',
+          description: planningError.message,
+          variant: 'destructive',
+        });
+      }
       setPlanningEntries([]);
     } else {
       setPlanningEntries(planningData || []);
     }
 
     if (pointagesError) {
-      toast({
-        title: 'Erreur chargement pointages',
-        description: pointagesError.message,
-        variant: 'destructive',
-      });
+      if (!isSupabaseAuthError(pointagesError)) {
+        toast({
+          title: 'Erreur chargement pointages',
+          description: pointagesError.message,
+          variant: 'destructive',
+        });
+      }
       setPointages([]);
     } else {
       setPointages(pointagesData || []);

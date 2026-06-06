@@ -21,7 +21,7 @@ import {
   normalizeAppSpaceTabFunctionalities,
   normalizeAppSpaceUserProfiles,
 } from '@/lib/exploitationProfiles';
-import { smartSignIn, fetchAuthLinkedProfile } from '@/lib/smartAuth';
+import { smartSignIn, fetchAuthLinkedProfile, fetchOrLinkAuthProfile } from '@/lib/smartAuth';
 
 // Code-split : ces composants lourds (formulaire de maintenance + signature,
 // onglets de réparation, date-fns…) ne sont téléchargés qu'une fois le
@@ -80,15 +80,18 @@ const LoginPage = ({ onLogin }) => {
 
     // 2) Récupérer le profil technicien lié à ce compte auth
     const tProfile = performance.now();
-    const { data: profile, error: profileErr } = await fetchAuthLinkedProfile({
-      table: 'techniciens', authUserId: authData.user.id,
+    const { data: profile, error: profileErr } = await fetchOrLinkAuthProfile({
+      table: 'techniciens',
+      authUserId: authData.user.id,
+      identifier,
+      authEmail: authData.user.email,
     });
     console.info(`[perf] fetchAuthLinkedProfile: ${Math.round(performance.now() - tProfile)} ms`);
     if (profileErr || !profile) {
       await supabase.auth.signOut();
       toast({
         title: 'Aucun profil technicien associé',
-        description: 'Votre compte n\'est lié à aucune fiche technicien. Contactez un administrateur.',
+        description: profileErr?.message || 'Votre compte n\'est lié à aucune fiche technicien. Contactez un administrateur.',
         variant: 'destructive',
       });
       setIsLoading(false);

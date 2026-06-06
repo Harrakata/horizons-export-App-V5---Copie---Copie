@@ -19,6 +19,7 @@ import {
   normalizePointageText,
 } from '@/lib/pointageMonitoring';
 import { supabase } from '@/lib/supabaseClient';
+import { isSupabaseAuthError } from '@/lib/guichetiereSpace';
 import { fetchRegions, normalizeRegionText, resolveRegionName } from '@/lib/regions';
 
 const ALL_FILTER_VALUE = '__all__';
@@ -56,12 +57,14 @@ const RegionalPointageSection = ({ regionName = '', allowAllRegions = false, hid
       supabase.from('agences').select('id, nom, codePDV, region').eq('is_current', true).order('nom', { ascending: true }),
     ]);
 
-    if (regionsError) {
+    if (regionsError && !isSupabaseAuthError(regionsError)) {
       toast({ title: 'Erreur chargement régions', description: regionsError.message, variant: 'destructive' });
     }
 
     if (agencesError) {
-      toast({ title: 'Erreur chargement agences', description: agencesError.message, variant: 'destructive' });
+      if (!isSupabaseAuthError(agencesError)) {
+        toast({ title: 'Erreur chargement agences', description: agencesError.message, variant: 'destructive' });
+      }
       setIsLoading(false);
       return;
     }
@@ -114,14 +117,18 @@ const RegionalPointageSection = ({ regionName = '', allowAllRegions = false, hid
     ]);
 
     if (planningError) {
-      toast({ title: 'Erreur chargement planning pointage', description: planningError.message, variant: 'destructive' });
+      if (!isSupabaseAuthError(planningError)) {
+        toast({ title: 'Erreur chargement planning pointage', description: planningError.message, variant: 'destructive' });
+      }
       setPlanningEntries([]);
     } else {
       setPlanningEntries(planningData || []);
     }
 
     if (pointagesError) {
-      toast({ title: 'Erreur chargement pointages', description: pointagesError.message, variant: 'destructive' });
+      if (!isSupabaseAuthError(pointagesError)) {
+        toast({ title: 'Erreur chargement pointages', description: pointagesError.message, variant: 'destructive' });
+      }
       setPointages([]);
     } else {
       setPointages(pointagesData || []);
@@ -149,7 +156,9 @@ const RegionalPointageSection = ({ regionName = '', allowAllRegions = false, hid
       .in('id', guichetiereIds);
 
     if (guichetieresError) {
-      toast({ title: 'Erreur chargement guichetières', description: guichetieresError.message, variant: 'destructive' });
+      if (!isSupabaseAuthError(guichetieresError)) {
+        toast({ title: 'Erreur chargement guichetières', description: guichetieresError.message, variant: 'destructive' });
+      }
       setGuichetieresById({});
     } else {
       setGuichetieresById(

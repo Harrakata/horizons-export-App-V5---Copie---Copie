@@ -13,9 +13,37 @@ import { fr } from 'date-fns/locale';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import SalaireGuichetiereTab from '@/pages/exploitation/SalaireGuichetiereTab';
+import { isSupabaseAuthError } from '@/lib/guichetiereSpace';
+
+const normalizeAgencyName = (value) => String(value || '').trim();
+const normalizeSearchText = (value) =>
+  String(value || '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+const buildAgencyNameScope = async ({ nomAgence, codePDV }) => {
+  const names = new Set([normalizeAgencyName(nomAgence)].filter(Boolean));
+  const cleanCode = String(codePDV || '').trim();
+
+  if (cleanCode) {
+    const { data } = await supabase
+      .from('agences')
+      .select('nom')
+      .eq('codePDV', cleanCode);
+
+    (data || []).forEach((agence) => {
+      const name = normalizeAgencyName(agence.nom);
+      if (name) names.add(name);
+    });
+  }
+
+  return Array.from(names);
+};
 
 const MesGuichetieresPage = () => {
-  const { nomAgence } = useOutletContext();
+  const { nomAgence, chefDetails } = useOutletContext();
   const { toast } = useToast();
   const [guichetieres, setGuichetieres] = useState([]);
   const [searchTerm, setSearchTerm] = usePageState('chef-mes-guichetieres', 'searchTerm', '');
@@ -26,25 +54,37 @@ const MesGuichetieresPage = () => {
       if (!nomAgence) return;
       setIsLoading(true);
 
+      const agencyNames = await buildAgencyNameScope({
+        nomAgence,
+        codePDV: chefDetails?.codePDV,
+      });
+
       // Source de vérité = guichetiere_agence_history.
       // 1) On récupère les codes_prepose actuellement affectés à cette agence
       //    (entrée courante = valid_to IS NULL ou valid_to >= aujourd'hui).
       const today = new Date().toISOString().slice(0, 10);
-      const { data: histRows, error: histErr } = await supabase
+      let historyQuery = supabase
         .from('guichetiere_agence_history')
         .select('code_prepose, agence_assignee, valid_from, valid_to')
-        .eq('agence_assignee', nomAgence)
         .or(`valid_to.is.null,valid_to.gte.${today}`);
 
+      historyQuery = agencyNames.length > 1
+        ? historyQuery.in('agence_assignee', agencyNames)
+        : historyQuery.eq('agence_assignee', agencyNames[0] || nomAgence);
+
+      const { data: histRows, error: histErr } = await historyQuery;
+
       if (histErr) {
-        toast({ title: 'Erreur de chargement', description: histErr.message, variant: 'destructive' });
-        setGuichetieres([]);
-        setIsLoading(false);
-        return;
+        if (!isSupabaseAuthError(histErr)) {
+          toast({ title: 'Erreur chargement guichetières', description: histErr.message, variant: 'destructive' });
+        }
       }
+
+      const safeHistRows = histErr ? [] : (histRows || []);
+
       // Dédupliquer par code_prepose et garder l'entrée courante la plus récente
       const codesMap = {};
-      (histRows || []).forEach((h) => {
+      safeHistRows.forEach((h) => {
         const prev = codesMap[h.code_prepose];
         if (!prev) { codesMap[h.code_prepose] = h; return; }
         const isCurrent = (x) => x.valid_to == null;
@@ -54,46 +94,75 @@ const MesGuichetieresPage = () => {
         }
       });
       const codes = Object.keys(codesMap);
-      if (codes.length === 0) {
-        setGuichetieres([]);
-        setIsLoading(false);
-        return;
-      }
 
-      // 2) Fetch les guichetières correspondantes (encore en vigueur dans le SCD)
-      const { data: guichRows, error: guichErr } = await supabase
-        .from('guichetieres')
-        .select('*')
-        .in('codePrepose', codes)
-        .eq('is_current', true)
-        .order('nom', { ascending: true });
+      // 2) Fetch les guichetières correspondantes (SCD history + fallback legacy agenceAssigne).
+      // L'état de caisse s'appuie aussi sur agenceAssigne quand l'historique n'est pas renseigné :
+      // on garde donc ce secours pour éviter une liste vide alors que des guichetières existent.
+      const [historyGuichResponse, directGuichResponse] = await Promise.all([
+        codes.length > 0
+          ? supabase
+              .from('guichetieres')
+              .select('*')
+              .in('codePrepose', codes)
+              .eq('is_current', true)
+              .order('nom', { ascending: true })
+          : Promise.resolve({ data: [], error: null }),
+        supabase
+          .from('guichetieres')
+          .select('*')
+          .in('agenceAssigne', agencyNames.length ? agencyNames : [nomAgence])
+          .eq('is_current', true)
+          .order('nom', { ascending: true }),
+      ]);
 
-      if (guichErr) {
-        toast({ title: 'Erreur de chargement', description: guichErr.message, variant: 'destructive' });
+      const guichErr = historyGuichResponse.error || directGuichResponse.error;
+
+      if (historyGuichResponse.error && directGuichResponse.error) {
+        if (!isSupabaseAuthError(guichErr)) {
+          toast({ title: 'Erreur chargement guichetières', description: guichErr.message, variant: 'destructive' });
+        }
         setGuichetieres([]);
       } else {
-        // Override agenceAssigne avec la valeur de l'historique (cohérence d'affichage)
-        const enriched = (guichRows || []).map((g) => ({
-          ...g,
-          agenceAssigne: codesMap[g.codePrepose]?.agence_assignee ?? g.agenceAssigne,
-        }));
+        const rowsByKey = new Map();
+        [
+          ...(directGuichResponse.error ? [] : directGuichResponse.data || []),
+          ...(historyGuichResponse.error ? [] : historyGuichResponse.data || []),
+        ].forEach((g) => {
+          const key = g.codePrepose || g.matricule || g.id;
+          if (!key) return;
+          rowsByKey.set(String(key), {
+            ...g,
+            agenceAssigne: codesMap[g.codePrepose]?.agence_assignee ?? g.agenceAssigne,
+          });
+        });
+
+        const agencyScope = new Set(agencyNames.map(normalizeSearchText));
+        const enriched = Array.from(rowsByKey.values())
+          .filter((g) => agencyScope.size === 0 || agencyScope.has(normalizeSearchText(g.agenceAssigne)))
+          .sort((first, second) =>
+            `${first.nom || ''} ${first.prenom || ''}`.localeCompare(`${second.nom || ''} ${second.prenom || ''}`)
+          );
+
         setGuichetieres(enriched);
       }
       setIsLoading(false);
     };
 
     fetchGuichetieresAgence();
-  }, [nomAgence, toast]);
+  }, [chefDetails?.codePDV, nomAgence, toast]);
 
   const filteredGuichetieres = useMemo(() => {
-    return guichetieres.filter(g => 
-      (
-        g.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        g.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        g.matricule.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (g.disponibilite && g.disponibilite.toLowerCase().includes(searchTerm.toLowerCase()))
-      )
-    );
+    const normalizedSearch = normalizeSearchText(searchTerm);
+    return guichetieres.filter((g) => {
+      if (!normalizedSearch) return true;
+      return (
+        normalizeSearchText(g.nom).includes(normalizedSearch) ||
+        normalizeSearchText(g.prenom).includes(normalizedSearch) ||
+        normalizeSearchText(g.matricule).includes(normalizedSearch) ||
+        normalizeSearchText(g.codePrepose).includes(normalizedSearch) ||
+        normalizeSearchText(g.disponibilite).includes(normalizedSearch)
+      );
+    });
   }, [guichetieres, searchTerm]);
 
   const getDisponibiliteInfo = (g) => {

@@ -128,11 +128,13 @@ const PointsVenteMobiChefPage = () => {
     ]);
 
     if (pointsVenteResponse.error) {
-      toast({
-        title: 'Erreur de chargement',
-        description: "Impossible de charger les points de vente mobi de l'agence.",
-        variant: 'destructive',
-      });
+      if (!isSupabaseAuthError(pointsVenteResponse.error)) {
+        toast({
+          title: 'Erreur de chargement',
+          description: "Impossible de charger les points de vente mobi de l'agence.",
+          variant: 'destructive',
+        });
+      }
       setPointsVente([]);
     } else {
       setPointsVente(pointsVenteResponse.data || []);
@@ -140,21 +142,27 @@ const PointsVenteMobiChefPage = () => {
     }
 
     if (regionsResponse.error) {
-      toast({ title: 'Erreur chargement régions', description: regionsResponse.error.message, variant: 'destructive' });
+      if (!isSupabaseAuthError(regionsResponse.error)) {
+        toast({ title: 'Erreur chargement régions', description: regionsResponse.error.message, variant: 'destructive' });
+      }
       setRegions([]);
     } else {
       setRegions(regionsResponse.data || []);
     }
 
     if (agencesResponse.error) {
-      toast({ title: 'Erreur chargement agences', description: agencesResponse.error.message, variant: 'destructive' });
+      if (!isSupabaseAuthError(agencesResponse.error)) {
+        toast({ title: 'Erreur chargement agences', description: agencesResponse.error.message, variant: 'destructive' });
+      }
       setAgences([]);
     } else {
       setAgences(agencesResponse.data || []);
     }
 
     if (terminauxResponse.error) {
-      toast({ title: 'Erreur chargement terminaux mobi', description: terminauxResponse.error.message, variant: 'destructive' });
+      if (!isSupabaseAuthError(terminauxResponse.error)) {
+        toast({ title: 'Erreur chargement terminaux mobi', description: terminauxResponse.error.message, variant: 'destructive' });
+      }
       setTerminaux([]);
     } else {
       setTerminaux(terminauxResponse.data || []);

@@ -378,31 +378,50 @@ const centerViewportOnMarker = (viewport, marker) => {
   };
 };
 
-const getStatusBadgeClassName = (status) => {
+const getStatusBadgeClassName = (status, mode = 'maintenance') => {
+  if (mode === 'planning' && status === 'planned') return 'border-blue-200 bg-blue-50 text-blue-700';
   if (status === 'ok') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
   if (status === 'empty') return 'border-amber-200 bg-amber-50 text-amber-700';
   return 'border-red-200 bg-red-50 text-red-700';
 };
 
-const getStatusLabel = (row) => {
+const getStatusLabel = (row, mode = 'maintenance') => {
+  if (mode === 'planning') {
+    if (row.status === 'empty') return 'Aucun créneau planifié';
+    return `${row.terminalCount} créneau(x) planifié(s)`;
+  }
+
   if (row.status === 'ok') return 'Maintenance à jour';
   if (row.status === 'empty') return 'Aucun terminal visible';
   return `${row.preventiveCount} terminal(aux) à traiter`;
 };
 
-const getShortStatusLabel = (status) => {
+const getShortStatusLabel = (status, mode = 'maintenance') => {
+  if (mode === 'planning') {
+    if (status === 'planned') return 'Planifiée';
+    return 'Sans créneau';
+  }
+
   if (status === 'ok') return 'À jour';
   if (status === 'empty') return 'Sans suivi';
   return 'À traiter';
 };
 
-const getMarkerClassName = (status) => {
+const getMarkerClassName = (status, mode = 'maintenance') => {
+  if (mode === 'planning' && status === 'planned') return 'bg-blue-500 text-white';
   if (status === 'ok') return 'bg-emerald-500 text-white';
   if (status === 'empty') return 'bg-amber-500 text-white';
   return 'bg-red-500 text-white';
 };
 
-const MaintenanceAgenciesMap = ({ agencies = [], groups = [] }) => {
+const MaintenanceAgenciesMap = ({
+  agencies = [],
+  groups = [],
+  mode = 'maintenance',
+  title = 'Carte des agences',
+  description = "Les marqueurs utilisent uniquement le champ Adresse de chaque agence et colorent l'état du suivi maintenance.",
+  emptyMessage = 'Aucune agence ne correspond aux filtres de suivi actuels.',
+}) => {
   const [locations, setLocations] = useState({});
   const [selectedAgencyKey, setSelectedAgencyKey] = useState(null);
   const [viewportOverride, setViewportOverride] = useState(null);
@@ -457,25 +476,34 @@ const MaintenanceAgenciesMap = ({ agencies = [], groups = [] }) => {
 
       const row = rowsByAgency.get(agencyKey);
       row.terminalCount += 1;
-      if (group.followUp?.label === 'Maintenance à jour') row.upToDateCount += 1;
-      else row.preventiveCount += 1;
+      if (mode === 'planning') {
+        if (group.creneau === 'matin') row.upToDateCount += 1;
+        else row.preventiveCount += 1;
+      } else if (group.followUp?.label === 'Maintenance à jour') {
+        row.upToDateCount += 1;
+      } else {
+        row.preventiveCount += 1;
+      }
     });
 
     return Array.from(rowsByAgency.values())
       .map((row) => ({
         ...row,
-        status:
-          row.terminalCount === 0
+        status: mode === 'planning'
+          ? row.terminalCount === 0
             ? 'empty'
-            : row.preventiveCount > 0
-              ? 'preventive'
-              : 'ok',
+            : 'planned'
+          : row.terminalCount === 0
+              ? 'empty'
+              : row.preventiveCount > 0
+                ? 'preventive'
+                : 'ok',
       }))
       .sort((firstRow, secondRow) =>
         firstRow.region.localeCompare(secondRow.region, 'fr') ||
         firstRow.nom.localeCompare(secondRow.nom, 'fr')
       );
-  }, [agencies, agenciesById, groups]);
+  }, [agencies, agenciesById, groups, mode]);
 
   useEffect(() => {
     if (agencyRows.length === 0) {
@@ -607,7 +635,7 @@ const MaintenanceAgenciesMap = ({ agencies = [], groups = [] }) => {
   if (agencyRows.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed bg-muted/30 p-8 text-center text-sm text-muted-foreground">
-        Aucune agence ne correspond aux filtres de suivi actuels.
+        {emptyMessage}
       </div>
     );
   }
@@ -618,10 +646,10 @@ const MaintenanceAgenciesMap = ({ agencies = [], groups = [] }) => {
         <div>
           <h3 className="flex items-center gap-2 text-xl font-semibold text-primary">
             <MapPinned className="h-5 w-5" />
-            Carte des agences
+            {title}
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Les marqueurs utilisent uniquement le champ Adresse de chaque agence et colorent l'état du suivi maintenance.
+            {description}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs">
@@ -712,7 +740,7 @@ const MaintenanceAgenciesMap = ({ agencies = [], groups = [] }) => {
                   >
                     <span
                       className={`flex h-9 w-9 items-center justify-center rounded-full border-2 border-white shadow-lg ${
-                        getMarkerClassName(marker.status)
+                        getMarkerClassName(marker.status, mode)
                       }`}
                     >
                       <MapPin className="h-5 w-5" />
@@ -724,20 +752,33 @@ const MaintenanceAgenciesMap = ({ agencies = [], groups = [] }) => {
                 );
               })}
 
-              <div className="absolute bottom-3 left-3 flex flex-wrap gap-2 rounded-xl border bg-white/95 px-3 py-2 text-xs shadow">
-                <span className="flex items-center gap-1">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                  À jour
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
-                  À traiter
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-                  Sans suivi
-                </span>
-              </div>
+              {mode === 'planning' ? (
+                <div className="absolute bottom-3 left-3 flex flex-wrap gap-2 rounded-xl border bg-white/95 px-3 py-2 text-xs shadow">
+                  <span className="flex items-center gap-1">
+                    <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                    Planifiée
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                    Adresse à préciser
+                  </span>
+                </div>
+              ) : (
+                <div className="absolute bottom-3 left-3 flex flex-wrap gap-2 rounded-xl border bg-white/95 px-3 py-2 text-xs shadow">
+                  <span className="flex items-center gap-1">
+                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                    À jour
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+                    À traiter
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                    Sans suivi
+                  </span>
+                </div>
+              )}
             </>
           ) : mapEmbedUrl ? (
             <iframe
@@ -765,28 +806,28 @@ const MaintenanceAgenciesMap = ({ agencies = [], groups = [] }) => {
                   <p className="truncate font-semibold text-slate-900">{selectedAgency.nom}</p>
                   <p className="text-xs text-muted-foreground">{selectedAgency.region}</p>
                 </div>
-                <Badge variant="outline" className={getStatusBadgeClassName(selectedAgency.status)}>
+                <Badge variant="outline" className={getStatusBadgeClassName(selectedAgency.status, mode)}>
                   {selectedAgency.status === 'ok' ? (
                     <CheckCircle2 className="mr-1 h-3 w-3" />
                   ) : (
                     <AlertTriangle className="mr-1 h-3 w-3" />
                   )}
-                  {getShortStatusLabel(selectedAgency.status)}
+                  {getShortStatusLabel(selectedAgency.status, mode)}
                 </Badge>
               </div>
 
               <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
                 <div className="rounded-lg border bg-slate-50 px-2 py-2">
                   <p className="font-semibold text-slate-900">{selectedAgency.terminalCount}</p>
-                  <p className="text-muted-foreground">Terminaux</p>
+                  <p className="text-muted-foreground">{mode === 'planning' ? 'Créneaux' : 'Terminaux'}</p>
                 </div>
-                <div className="rounded-lg border bg-emerald-50 px-2 py-2 text-emerald-700">
+                <div className={`rounded-lg border px-2 py-2 ${mode === 'planning' ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700'}`}>
                   <p className="font-semibold">{selectedAgency.upToDateCount}</p>
-                  <p>À jour</p>
+                  <p>{mode === 'planning' ? 'Matin' : 'À jour'}</p>
                 </div>
-                <div className="rounded-lg border bg-red-50 px-2 py-2 text-red-700">
+                <div className={`rounded-lg border px-2 py-2 ${mode === 'planning' ? 'bg-violet-50 text-violet-700' : 'bg-red-50 text-red-700'}`}>
                   <p className="font-semibold">{selectedAgency.preventiveCount}</p>
-                  <p>À traiter</p>
+                  <p>{mode === 'planning' ? 'Après-midi' : 'À traiter'}</p>
                 </div>
               </div>
 
@@ -840,7 +881,9 @@ const MaintenanceAgenciesMap = ({ agencies = [], groups = [] }) => {
                       ) : location?.status === 'resolved' ? (
                         <MapPin
                           className={`mt-0.5 h-4 w-4 shrink-0 ${
-                            row.status === 'ok'
+                            mode === 'planning' && row.status === 'planned'
+                              ? 'text-blue-500'
+                              : row.status === 'ok'
                               ? 'text-emerald-500'
                               : row.status === 'empty'
                                 ? 'text-amber-500'
@@ -852,8 +895,8 @@ const MaintenanceAgenciesMap = ({ agencies = [], groups = [] }) => {
                       )}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1">
-                      <Badge variant="outline" className={getStatusBadgeClassName(row.status)}>
-                        {getStatusLabel(row)}
+                      <Badge variant="outline" className={getStatusBadgeClassName(row.status, mode)}>
+                        {getStatusLabel(row, mode)}
                       </Badge>
                     </div>
                   </button>

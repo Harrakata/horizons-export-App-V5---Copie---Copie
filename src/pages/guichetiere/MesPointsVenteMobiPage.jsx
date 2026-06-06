@@ -81,13 +81,15 @@ const MesPointsVenteMobiPage = () => {
     ]);
 
     if (pointsError) {
-      toast({ title: 'Erreur chargement points de vente', description: pointsError.message, variant: 'destructive' });
+      if (!isSupabaseAuthError(pointsError)) {
+        toast({ title: 'Erreur chargement points de vente', description: pointsError.message, variant: 'destructive' });
+      }
       setPointsVente([]);
     } else {
       setPointsVente(pointsData || []);
     }
 
-    if (regionsError) {
+    if (regionsError && !isSupabaseAuthError(regionsError)) {
       toast({ title: 'Erreur chargement régions', description: regionsError.message, variant: 'destructive' });
       setRegions([]);
     } else {
@@ -95,14 +97,18 @@ const MesPointsVenteMobiPage = () => {
     }
 
     if (agencesError) {
-      toast({ title: 'Erreur chargement agences', description: agencesError.message, variant: 'destructive' });
+      if (!isSupabaseAuthError(agencesError)) {
+        toast({ title: 'Erreur chargement agences', description: agencesError.message, variant: 'destructive' });
+      }
       setAgences([]);
     } else {
       setAgences(agencesData || []);
     }
 
     if (terminauxError) {
-      toast({ title: 'Erreur chargement terminaux', description: terminauxError.message, variant: 'destructive' });
+      if (!isSupabaseAuthError(terminauxError)) {
+        toast({ title: 'Erreur chargement terminaux', description: terminauxError.message, variant: 'destructive' });
+      }
       setTerminaux([]);
     } else {
       setTerminaux(terminauxData || []);

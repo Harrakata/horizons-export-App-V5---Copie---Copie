@@ -1,9 +1,19 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const rawSupabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-if (!supabaseUrl || !supabaseAnonKey) {
+const resolveSupabaseUrl = (value) => {
+  if (!value) return ''
+  if (value.startsWith('/') && typeof window !== 'undefined') {
+    return `${window.location.origin}${value}`
+  }
+  return value
+}
+
+const supabaseUrl = resolveSupabaseUrl(rawSupabaseUrl)
+
+if (!rawSupabaseUrl || !supabaseAnonKey) {
   throw new Error(
     "Configuration Supabase manquante : définissez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY dans le fichier .env, puis redémarrez le serveur de dev (Vite ne lit le .env qu'au démarrage)."
   )
@@ -17,6 +27,9 @@ const createScopedClient = (storageKey) =>
       autoRefreshToken: true,
       detectSessionInUrl: true,
     },
+    global: {
+      fetch: fetchWithAuthReadFallback,
+    },
   })
 
 const fetchWithoutAuthorization = (input, init = {}) => {
@@ -26,7 +39,40 @@ const fetchWithoutAuthorization = (input, init = {}) => {
   return fetch(input, { ...init, headers })
 }
 
-const defaultSupabase = createClient(supabaseUrl, supabaseAnonKey)
+const isReadRequest = (init = {}) => {
+  const method = String(init.method || 'GET').toUpperCase()
+  return method === 'GET' || method === 'HEAD'
+}
+
+const fetchWithAuthReadFallback = async (input, init = {}) => {
+  const response = await fetch(input, init)
+
+  if (!isReadRequest(init) || (response.status !== 401 && response.status !== 403)) {
+    return response
+  }
+
+  const clone = response.clone()
+  const body = await clone.text().catch(() => '')
+  const authErrorBody = body.toLowerCase()
+
+  if (
+    !authErrorBody.includes('no suitable key') &&
+    !authErrorBody.includes('wrong key type') &&
+    !authErrorBody.includes('jwt') &&
+    !authErrorBody.includes('unauthorized')
+  ) {
+    return response
+  }
+
+  return fetchWithoutAuthorization(input, init)
+}
+
+const defaultSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: {
+    fetch: fetchWithAuthReadFallback,
+  },
+})
+
 const publicSupabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: false,
@@ -78,8 +124,42 @@ export const getCurrentSupabaseClient = () => {
   return defaultSupabase
 }
 
+export const getCurrentSupabaseAuthClient = () => {
+  const pathname = getPathname()
+  if (pathname === '/maintenance-terminaux' || pathname.startsWith('/espace-technicien')) {
+    return technicienSupabase
+  }
+  if (pathname.startsWith('/espace-exploitation')) {
+    return exploitationSupabase
+  }
+  if (pathname === '/guichetiere' || pathname.startsWith('/espace-guichetiere')) {
+    return guichetiereSupabase
+  }
+  if (
+    pathname === '/chef-agence' ||
+    pathname === '/paiement-gros-gain' ||
+    pathname.startsWith('/espace-chef-agence')
+  ) {
+    return chefAgenceSupabase
+  }
+  if (pathname === '/validation-paiement-gain' || pathname.startsWith('/espace-validation-paiement-gain')) {
+    return validationGainSupabase
+  }
+  if (pathname.startsWith('/espace-directeur-general')) {
+    return directeurGeneralSupabase
+  }
+  if (pathname.startsWith('/pointage')) {
+    return pointageSupabase
+  }
+  return defaultSupabase
+}
+
 export const supabase = new Proxy(defaultSupabase, {
   get(_target, prop) {
+    if (prop === 'auth') {
+      return getCurrentSupabaseAuthClient().auth
+    }
+
     const client = getCurrentSupabaseClient()
     const value = client[prop]
     return typeof value === 'function' ? value.bind(client) : value

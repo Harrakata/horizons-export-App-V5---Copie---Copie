@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { addMonths, addWeeks, endOfMonth, endOfWeek, eachDayOfInterval, format, getDay, isSameDay, isSameMonth, parseISO, startOfMonth, startOfWeek, subMonths, subWeeks } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Copy, FileText, Pencil, PlusCircle, Search, ShieldAlert, TimerReset, Wrench } from 'lucide-react';
+import { CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Copy, FileText, MapPinned, Pencil, PlusCircle, Search, ShieldAlert, TimerReset, Wrench } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +21,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
+import MaintenanceAgenciesMap from '@/components/maintenance/MaintenanceAgenciesMap';
 import { supabase } from '@/lib/supabaseClient';
+import { isSupabaseAuthError } from '@/lib/guichetiereSpace';
 import { buildRegionOptions, fetchRegions } from '@/lib/regions';
 import { formatMaintenanceDateTime, getMaintenanceInterventionTypeLabel, normalizeMaintenanceText } from '@/lib/maintenanceMonitoring';
 import {
@@ -98,6 +100,8 @@ const MaintenancePlanningSection = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('month');
+  const [showPlanningMap, setShowPlanningMap] = useState(false);
+  const [planningMapDate, setPlanningMapDate] = useState(() => extractMaintenancePlanningDateKey(new Date()));
   const [realizedDetail, setRealizedDetail] = useState(null);
   const [ficheDialog, setFicheDialog] = useState({ open: false, html: '', loading: false });
 
@@ -154,7 +158,7 @@ const MaintenancePlanningSection = ({
       { data: planningData, error: planningError },
     ] = await Promise.all([
       fetchRegions(),
-      supabase.from('agences').select('id, nom, codePDV, region').eq('is_current', true).order('nom', { ascending: true }),
+      supabase.from('agences').select('id, nom, codePDV, region, adresse').eq('is_current', true).order('nom', { ascending: true }),
       supabase.from('techniciens').select('id, matricule, nom, prenom, telephone, email, photo_url').order('nom', { ascending: true }),
       supabase.from('terminaux').select('id, agence_id, reference, type_terminal, position').order('reference', { ascending: true }),
       supabase
@@ -168,44 +172,48 @@ const MaintenancePlanningSection = ({
         .order('creneau', { ascending: true }),
     ]);
 
-    if (regionsError) {
+    if (regionsError && !isSupabaseAuthError(regionsError)) {
       toast({ title: 'Erreur chargement régions', description: regionsError.message, variant: 'destructive' });
     } else {
       setRegions(regionsData || []);
     }
 
     if (agencesError) {
-      toast({ title: 'Erreur chargement agences', description: agencesError.message, variant: 'destructive' });
+      if (!isSupabaseAuthError(agencesError)) {
+        toast({ title: 'Erreur chargement agences', description: agencesError.message, variant: 'destructive' });
+      }
     } else {
       setAgences(agencesData || []);
     }
 
-    if (techniciensError) {
+    if (techniciensError && !isSupabaseAuthError(techniciensError)) {
       toast({ title: 'Erreur chargement techniciens', description: techniciensError.message, variant: 'destructive' });
     } else {
       setTechniciens(techniciensData || []);
     }
 
-    if (terminauxError) {
+    if (terminauxError && !isSupabaseAuthError(terminauxError)) {
       toast({ title: 'Erreur chargement terminaux', description: terminauxError.message, variant: 'destructive' });
     } else {
       setTerminaux(terminauxData || []);
     }
 
-    if (interventionsError) {
+    if (interventionsError && !isSupabaseAuthError(interventionsError)) {
       toast({ title: 'Erreur chargement interventions', description: interventionsError.message, variant: 'destructive' });
     } else {
       setInterventions(interventionsData || []);
     }
 
     if (planningError) {
-      toast({
-        title: 'Erreur chargement planning maintenance',
-        description: planningError.message.includes('planning_maintenance')
-          ? 'La table planning_maintenance est absente de Supabase. Il faut exécuter le script SQL de planification.'
-          : planningError.message,
-        variant: 'destructive',
-      });
+      if (!isSupabaseAuthError(planningError)) {
+        toast({
+          title: 'Erreur chargement planning maintenance',
+          description: planningError.message.includes('planning_maintenance')
+            ? 'La table planning_maintenance est absente de Supabase. Il faut exécuter le script SQL de planification.'
+            : planningError.message,
+          variant: 'destructive',
+        });
+      }
       setPlanningEntries([]);
     } else {
       setPlanningEntries(planningData || []);
@@ -381,6 +389,45 @@ const MaintenancePlanningSection = ({
         return accumulator;
       }, {}),
     [filteredRows]
+  );
+
+  const planningMapRows = useMemo(
+    () => (filteredRowsByDate[planningMapDate] || []).filter((row) => row.executionStatus !== 'annulee'),
+    [filteredRowsByDate, planningMapDate]
+  );
+
+  const planningMapAgencies = useMemo(() => {
+    const rowsByAgency = new Map();
+
+    planningMapRows.forEach((row) => {
+      const agencyKey = String(row.agence_id || '').trim();
+      if (!agencyKey || rowsByAgency.has(agencyKey)) return;
+
+      rowsByAgency.set(agencyKey, agencesById[agencyKey] || {
+        id: row.agence_id,
+        nom: row.agenceNom,
+        region: row.regionNom,
+        codePDV: row.codePDV || '',
+        adresse: '',
+      });
+    });
+
+    return Array.from(rowsByAgency.values()).sort((firstAgency, secondAgency) =>
+      (firstAgency.region || '').localeCompare(secondAgency.region || '', 'fr') ||
+      (firstAgency.nom || '').localeCompare(secondAgency.nom || '', 'fr')
+    );
+  }, [agencesById, planningMapRows]);
+
+  const planningMapGroups = useMemo(
+    () =>
+      planningMapRows.map((row) => ({
+        id: row.id,
+        agenceId: row.agence_id,
+        agenceNom: row.agenceNom,
+        regionNom: row.regionNom,
+        creneau: row.creneau,
+      })),
+    [planningMapRows]
   );
 
   // Interventions déjà rattachées à un créneau planifié : on les exclut de la
@@ -805,8 +852,26 @@ const MaintenancePlanningSection = ({
               </Button>
             </div>
 
-            {canManage && (
-              <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Input
+                type="date"
+                value={planningMapDate}
+                onChange={(event) => setPlanningMapDate(event.target.value || extractMaintenancePlanningDateKey(new Date()))}
+                className="h-9 w-[160px]"
+                disabled={isLoading}
+                title="Journée à visualiser sur la carte"
+              />
+              <Button
+                size="sm"
+                variant={showPlanningMap ? 'default' : 'outline'}
+                onClick={() => setShowPlanningMap((currentValue) => !currentValue)}
+                disabled={isLoading}
+              >
+                <MapPinned className="mr-2 h-4 w-4" />
+                {showPlanningMap ? 'Masquer la carte' : 'Visualiser sur carte'}
+              </Button>
+              {canManage && (
+                <>
                 <Button size="sm" variant="outline" onClick={() => handleCopyPrevious('week')} disabled={isLoading}>
                   <Copy className="mr-2 h-4 w-4" />
                   Copier Sem.
@@ -815,8 +880,9 @@ const MaintenancePlanningSection = ({
                   <Copy className="mr-2 h-4 w-4" />
                   Copier Mois
                 </Button>
-              </div>
-            )}
+                </>
+              )}
+            </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -951,6 +1017,19 @@ const MaintenancePlanningSection = ({
         </CardHeader>
 
         <CardContent>
+          {showPlanningMap && (
+            <div className="mb-5 overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+              <MaintenanceAgenciesMap
+                agencies={planningMapAgencies}
+                groups={planningMapGroups}
+                mode="planning"
+                title="Agences planifiées"
+                description={`Agences avec au moins un créneau maintenance le ${formatMaintenancePlanningDate(planningMapDate)}.`}
+                emptyMessage="Aucune agence planifiée pour cette journée avec les filtres actuels."
+              />
+            </div>
+          )}
+
           {isLoading && filteredRows.length === 0 ? (
             <p className="py-8 text-center text-muted-foreground">Chargement du planning maintenance...</p>
           ) : (
