@@ -14,6 +14,8 @@ import {
   ShieldCheck,
   Wrench,
   XCircle,
+  Menu,
+  X,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -228,6 +230,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
   const [pendingSearchTerm, setPendingSearchTerm] = usePageState(spaceLsKey, 'pendingSearch', '');
   const [historySearchTerm, setHistorySearchTerm] = usePageState(spaceLsKey, 'historySearch', '');
   const [actionComment, setActionComment] = useState('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
@@ -1032,11 +1035,20 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
 
   return (
     <div className="app-space-layout flex flex-col gap-4 md:flex-row lg:gap-8">
+      <Button
+        type="button"
+        variant="outline"
+        className="app-space-menu-toggle md:hidden"
+        onClick={() => setIsMobileMenuOpen((open) => !open)}
+      >
+        {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+        {isMobileMenuOpen ? 'Fermer le menu' : 'Menu de l’espace'}
+      </Button>
       <motion.aside
         initial={{ x: -100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className="app-space-sidebar md:w-72 md:shrink-0"
+        className={`app-space-sidebar md:w-72 md:shrink-0 ${isMobileMenuOpen ? 'is-open' : ''}`}
       >
         <div className="app-space-sidebar-scroll sticky top-20 space-y-3 max-h-[calc(100vh-5.5rem)] overflow-y-auto pb-4 pr-1 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
           <Card className="relative overflow-hidden border border-primary/20 bg-white/92 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">

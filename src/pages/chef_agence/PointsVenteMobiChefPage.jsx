@@ -35,7 +35,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
-import { supabase } from '@/lib/supabaseClient';
+import { publicSupabase, supabase } from '@/lib/supabaseClient';
 import {
   REQUEST_STATUS,
   formatDisplayDateTime,
@@ -51,6 +51,8 @@ const defaultRequestForm = {
   requested_terminal_reference: '',
   commentaire: '',
 };
+
+const suiviTrmMobiTable = () => publicSupabase.schema('public').from('suivi_trm_mobi_v2_export');
 
 const normalizeText = (value) =>
   String(value ?? '')
@@ -257,8 +259,7 @@ const PointsVenteMobiChefPage = () => {
       return;
     }
 
-    supabase
-      .from('vue_suivi_trm_mobi_v2')
+    suiviTrmMobiTable()
       .select('id_trm_mobi, derniere_utilisation, dernier_prepose, hors_service, age_d_utilisation')
       .in('id_trm_mobi', terminalReferences)
       .then(({ data }) => {
@@ -306,8 +307,7 @@ const PointsVenteMobiChefPage = () => {
       return;
     }
 
-    supabase
-      .from('vue_suivi_trm_mobi_v2')
+    suiviTrmMobiTable()
       .select('id_trm_mobi, age_d_utilisation, premiere_utilisation, derniere_utilisation, dernier_prepose, hors_service')
       .eq('id_trm_mobi', selectedActivePoint.terminalReference)
       .maybeSingle()

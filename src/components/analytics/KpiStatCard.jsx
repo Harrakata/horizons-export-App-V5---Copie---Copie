@@ -49,16 +49,16 @@ const KpiStatCard = ({ icon, label, value, helper = '', tone = 'primary' }) => {
     <Card className={`relative overflow-hidden border bg-white/92 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur ${toneStyle.border}`}>
       <div className={`pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${toneStyle.rail}`} />
       <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${toneStyle.accent}`} />
-      <CardContent className="relative px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ring-1 ${toneStyle.iconWrap} shadow-[0_8px_16px_-10px_rgba(15,23,42,0.35)]`}>
-            {isIconElement ? React.cloneElement(icon, { className: 'h-5 w-5' }) : null}
-            {Icon ? <Icon className="h-5 w-5" /> : null}
+      <CardContent className="relative px-3 py-2.5 sm:px-4 sm:py-3">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ring-1 sm:h-10 sm:w-10 ${toneStyle.iconWrap} shadow-[0_8px_16px_-10px_rgba(15,23,42,0.35)]`}>
+            {isIconElement ? React.cloneElement(icon, { className: 'h-4 w-4 sm:h-5 sm:w-5' }) : null}
+            {Icon ? <Icon className="h-4 w-4 sm:h-5 sm:w-5" /> : null}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80 leading-none">{label}</p>
-            <p className="mt-1 text-2xl font-black tracking-tight text-foreground leading-none">{value}</p>
-            {helper ? <p className="mt-1 text-[0.7rem] leading-4 text-muted-foreground">{helper}</p> : null}
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.06em] text-muted-foreground/80 leading-none sm:text-[0.7rem]">{label}</p>
+            <p className="mt-1 text-xl font-black tracking-tight text-foreground leading-none sm:text-2xl">{value}</p>
+            {helper ? <p className="mt-1 text-[0.66rem] leading-3.5 text-muted-foreground sm:text-[0.7rem] sm:leading-4">{helper}</p> : null}
           </div>
         </div>
       </CardContent>

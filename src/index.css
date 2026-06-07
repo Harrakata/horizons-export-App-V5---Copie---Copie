@@ -181,6 +181,24 @@ aside,
     max-width: 100%;
   }
 
+  .app-space-menu-toggle {
+    position: sticky;
+    top: 4.5rem;
+    z-index: 30;
+    display: inline-flex;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-color: hsl(var(--primary) / 0.22);
+    background: hsl(var(--card) / 0.96);
+    color: hsl(var(--primary));
+    font-size: 0.82rem;
+    font-weight: 700;
+    box-shadow: 0 14px 35px -28px rgba(15, 23, 42, 0.35);
+    backdrop-filter: blur(10px);
+  }
+
   .app-space-sidebar-scroll {
     position: static !important;
     display: flex;
@@ -211,6 +229,12 @@ aside,
   }
 }
 
+@media (min-width: 768px) and (max-width: 1023px) {
+  .app-space-menu-toggle {
+    display: none !important;
+  }
+}
+
 @media (max-width: 767px) {
   .container {
     width: 100%;
@@ -226,36 +250,87 @@ aside,
     height: 4px;
   }
 
+  .app-space-sidebar:not(.is-open) {
+    display: none;
+  }
+
+  .app-space-sidebar.is-open .app-space-sidebar-scroll {
+    display: block;
+    max-height: min(62vh, 34rem) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    padding: 0 0.1rem 0.75rem !important;
+  }
+
+  .app-space-sidebar.is-open .app-space-sidebar-scroll > * {
+    width: 100%;
+    max-width: 100%;
+    margin-bottom: 0.6rem;
+  }
+
   .app-space-main .p-8,
   .app-space-main .p-7,
   .app-space-main .p-6 {
-    padding: 1rem !important;
+    padding: 0.85rem !important;
   }
 
   .app-space-main .px-8 {
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
+    padding-left: 0.85rem !important;
+    padding-right: 0.85rem !important;
   }
 
   .app-space-main .py-8 {
-    padding-top: 1rem !important;
-    padding-bottom: 1rem !important;
+    padding-top: 0.85rem !important;
+    padding-bottom: 0.85rem !important;
+  }
+
+  .app-space-main .gap-8,
+  .app-space-main .gap-7,
+  .app-space-main .gap-6 {
+    gap: 0.9rem !important;
+  }
+
+  .app-space-main .space-y-8 > :not([hidden]) ~ :not([hidden]),
+  .app-space-main .space-y-7 > :not([hidden]) ~ :not([hidden]),
+  .app-space-main .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.9rem !important;
   }
 
   .app-space-main .text-5xl,
   .app-space-main .text-4xl {
-    font-size: 1.9rem !important;
-    line-height: 2.25rem !important;
+    font-size: 1.55rem !important;
+    line-height: 1.9rem !important;
   }
 
   .app-space-main .text-3xl {
-    font-size: 1.55rem !important;
-    line-height: 1.95rem !important;
+    font-size: 1.35rem !important;
+    line-height: 1.7rem !important;
   }
 
   .app-space-main .text-2xl {
-    font-size: 1.35rem !important;
-    line-height: 1.75rem !important;
+    font-size: 1.15rem !important;
+    line-height: 1.5rem !important;
+  }
+
+  .app-space-main .text-xl {
+    font-size: 1rem !important;
+    line-height: 1.35rem !important;
+  }
+
+  .app-space-main .text-base,
+  .app-space-main .text-lg {
+    font-size: 0.88rem !important;
+    line-height: 1.25rem !important;
+  }
+
+  .app-space-main .text-sm {
+    font-size: 0.76rem !important;
+    line-height: 1.05rem !important;
+  }
+
+  .app-space-main .text-xs {
+    font-size: 0.68rem !important;
+    line-height: 0.95rem !important;
   }
 
   [role="tablist"] {
@@ -290,12 +365,21 @@ aside,
   }
 
   table {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
   }
 
   th,
   td {
     white-space: nowrap;
+    padding: 0.5rem 0.55rem !important;
+  }
+
+  button,
+  input,
+  select,
+  textarea,
+  [role="combobox"] {
+    font-size: 0.82rem;
   }
 
   h1,
