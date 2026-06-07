@@ -827,14 +827,27 @@ const MaintenanceTab = ({ technicien }) => {
     return currentItem ? [currentItem] : [];
   };
 
+  const isSousEnsembleAlreadyPrepared = (sousEnsemble) =>
+    interventionItems.some((item) => String(item.sousEnsemble) === String(sousEnsemble));
+
+  const notifyDuplicateSousEnsemble = (sousEnsemble) => {
+    toast({
+      title: 'Sous-ensemble déjà traité',
+      description: `${sousEnsemble} est déjà présent dans cette intervention. Retirez la ligne existante pour la refaire.`,
+      variant: 'destructive',
+    });
+  };
+
   const handleAddInterventionItem = () => {
     const item = buildInterventionItem(form, { showToast: true });
     if (!item) return;
 
-    setInterventionItems((previousItems) => [
-      ...previousItems.filter((previousItem) => previousItem.sousEnsemble !== item.sousEnsemble),
-      item,
-    ]);
+    if (isSousEnsembleAlreadyPrepared(item.sousEnsemble)) {
+      notifyDuplicateSousEnsemble(item.sousEnsemble);
+      return;
+    }
+
+    setInterventionItems((previousItems) => [...previousItems, item]);
 
     clearValidationDraft();
     setForm((previous) => ({
@@ -874,10 +887,12 @@ const MaintenanceTab = ({ technicien }) => {
       return;
     }
 
-    setInterventionItems((previousItems) => [
-      ...previousItems.filter((previousItem) => previousItem.sousEnsemble !== item.sousEnsemble),
-      item,
-    ]);
+    if (isSousEnsembleAlreadyPrepared(item.sousEnsemble)) {
+      notifyDuplicateSousEnsemble(item.sousEnsemble);
+      return;
+    }
+
+    setInterventionItems((previousItems) => [...previousItems, item]);
     setStep(3);
   };
 
@@ -1709,6 +1724,14 @@ const MaintenanceTab = ({ technicien }) => {
   const saveInterventions = async (itemsToSave) => {
     setIsLoading(true);
     try {
+      const sousEnsembles = itemsToSave.map((item) => String(item.sousEnsemble || '').trim()).filter(Boolean);
+      const duplicateSousEnsemble = sousEnsembles.find((value, index) => sousEnsembles.indexOf(value) !== index);
+
+      if (duplicateSousEnsemble) {
+        notifyDuplicateSousEnsemble(duplicateSousEnsemble);
+        return [];
+      }
+
       const savedInterventions = [];
 
       for (const item of itemsToSave) {
@@ -1939,6 +1962,9 @@ const MaintenanceTab = ({ technicien }) => {
   };
 
   const validationInterventionItems = getValidationInterventionItems();
+  const currentSousEnsembleAlreadyPrepared = Boolean(
+    form.sousEnsemble && isSousEnsembleAlreadyPrepared(form.sousEnsemble)
+  );
 
   if (recap) {
     const recapAgence = agences.find(a => String(a.id) === recap.agence);
@@ -2272,6 +2298,11 @@ const MaintenanceTab = ({ technicien }) => {
                   <p className="text-xs text-muted-foreground">
                     Ajoutez une ligne par sous-ensemble traité avant de passer à la signature.
                   </p>
+                  {currentSousEnsembleAlreadyPrepared && (
+                    <p className="text-xs font-medium text-red-600">
+                      Ce sous-ensemble est déjà ajouté à cette intervention.
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-3">
@@ -2404,7 +2435,7 @@ const MaintenanceTab = ({ technicien }) => {
                       Enregistre la ligne courante dans la fiche puis permet de saisir un autre sous-ensemble du même terminal.
                     </p>
                   </div>
-                  <Button type="button" variant="outline" onClick={handleAddInterventionItem} disabled={isLoading}>
+                  <Button type="button" variant="outline" onClick={handleAddInterventionItem} disabled={isLoading || currentSousEnsembleAlreadyPrepared}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Ajouter ce sous-ensemble
                   </Button>
@@ -2690,7 +2721,7 @@ const MaintenanceTab = ({ technicien }) => {
           {step === 2 && (
             <Button 
               onClick={handleGoToValidation}
-              disabled={isLoading || (interventionItems.length === 0 && (!form.sousEnsemble || !form.code || (form.remplace === 'oui' && !form.remplacement)))}
+              disabled={isLoading || currentSousEnsembleAlreadyPrepared || (interventionItems.length === 0 && (!form.sousEnsemble || !form.code || (form.remplace === 'oui' && !form.remplacement)))}
               className="ml-auto bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90"
             >
               Passer aux signatures →
