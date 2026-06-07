@@ -44,6 +44,7 @@ const ParametresPage                        = lazy(() => import('@/pages/exploit
 const ChiffresDaffairesPage                 = lazy(() => import('@/pages/exploitation/ChiffresDaffairesPage'));
 const EtatPlanningGeneralPage               = lazy(() => import('@/pages/exploitation/EtatPlanningGeneralPage'));
 const SuiviPointageExploitationPage         = lazy(() => import('@/pages/exploitation/SuiviPointagePage'));
+const ActivitesUtilisateursPage             = lazy(() => import('@/pages/exploitation/ActivitesUtilisateursPage'));
 
 // Chef d'agence
 const MesGuichetieresPage                   = lazy(() => import('@/pages/chef_agence/MesGuichetieresPage'));
@@ -121,6 +122,7 @@ const App = () => (
             <Route path="autorisation-paiement-gain"  element={<LazyRoute><AutorisationsPaiementGainPage /></LazyRoute>} />
             <Route path="referentiel-parametres"      element={<LazyRoute><ReferentielParametresPage /></LazyRoute>} />
             <Route path="etat-planning-general"       element={<LazyRoute><EtatPlanningGeneralPage /></LazyRoute>} />
+            <Route path="activites-utilisateurs"      element={<LazyRoute><ActivitesUtilisateursPage /></LazyRoute>} />
             <Route path="chiffres-daffaires"          element={<LazyRoute><ChiffresDaffairesPage /></LazyRoute>} />
             <Route path="parametres"                  element={<LazyRoute><ParametresPage /></LazyRoute>} />
             <Route path="profils-exploitation"        element={<LazyRoute><ProfilsExploitationPage /></LazyRoute>} />

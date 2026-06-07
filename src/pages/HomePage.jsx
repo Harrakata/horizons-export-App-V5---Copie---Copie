@@ -5,6 +5,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CalendarCheck, Users, BarChart3, Settings, LogIn } from 'lucide-react';
+import {
+  APP_SPACE_SETTINGS_KEY,
+  buildDefaultAppSpaceFunctionalities,
+  isAppSpaceFunctionalityEnabled,
+  normalizeAppSpaceFunctionalities,
+} from '@/lib/exploitationProfiles';
 
 const FeatureCard = ({ icon, title, description, delay }) => (
   <motion.div
@@ -26,6 +32,26 @@ const FeatureCard = ({ icon, title, description, delay }) => (
 );
 
 const HomePage = () => {
+  const [spaceFunctionalities, setSpaceFunctionalities] = React.useState(() => {
+    try {
+      return normalizeAppSpaceFunctionalities(
+        JSON.parse(window.localStorage.getItem(APP_SPACE_SETTINGS_KEY) || '{}')
+      );
+    } catch {
+      return buildDefaultAppSpaceFunctionalities();
+    }
+  });
+
+  React.useEffect(() => {
+    const handleFunctionalitiesUpdated = (event) => {
+      setSpaceFunctionalities(normalizeAppSpaceFunctionalities(event.detail));
+    };
+    window.addEventListener('app-functionalities-updated', handleFunctionalitiesUpdated);
+    return () => window.removeEventListener('app-functionalities-updated', handleFunctionalitiesUpdated);
+  }, []);
+
+  const isPointageEnabled = isAppSpaceFunctionalityEnabled(spaceFunctionalities, 'pointage');
+
   return (
     <div className="min-h-[calc(100vh-10rem)] flex flex-col items-center justify-center p-4 md:p-8 bg-gradient-to-br from-background to-secondary/30 dark:from-background dark:to-secondary/10">
 
@@ -55,13 +81,15 @@ const HomePage = () => {
             <p className="text-lg text-muted-foreground max-w-2xl">
               Optimisez la gestion de vos agences avec une solution moderne, intuitive et performante.
             </p>
-            <div className="mt-8">
-              <Button asChild size="lg" className="text-lg px-10 py-7 rounded-full shadow-lg bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90 text-primary-foreground transition-transform hover:scale-105">
-                <Link to="/pointage">
-                  <LogIn className="mr-3 h-5 w-5" /> Commencer vos Pointages
-                </Link>
-              </Button>
-            </div>
+            {isPointageEnabled && (
+              <div className="mt-8">
+                <Button asChild size="lg" className="text-lg px-10 py-7 rounded-full shadow-lg bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90 text-primary-foreground transition-transform hover:scale-105">
+                  <Link to="/pointage">
+                    <LogIn className="mr-3 h-5 w-5" /> Commencer vos Pointages
+                  </Link>
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.header>

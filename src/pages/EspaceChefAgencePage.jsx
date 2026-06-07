@@ -11,6 +11,7 @@ import { publicSupabase, supabase } from '@/lib/supabaseClient';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar.jsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
+import { useActivityTracker } from '@/hooks/useActivityTracker';
 import {
   APP_SPACE_SETTINGS_KEY,
   APP_SPACE_TAB_SETTINGS_KEY,
@@ -624,6 +625,12 @@ const EspaceChefAgencePage = () => {
     }
   });
   
+  useActivityTracker({
+    spaceKey: 'espace-chef-agence',
+    isAuthenticated,
+    identity: chefAgenceInfo,
+  });
+
   // Charger les paramètres de session
   useEffect(() => {
     const loadSessionSettings = async () => {
@@ -632,12 +639,12 @@ const EspaceChefAgencePage = () => {
         .select('value')
         .eq('key', 'general')
         .single();
-        
+
       if (!error && data && data.value) {
         setSessionDurationMinutes(data.value.sessionDureeMinutes || 30);
       }
     };
-    
+
     loadSessionSettings();
   }, []);
   

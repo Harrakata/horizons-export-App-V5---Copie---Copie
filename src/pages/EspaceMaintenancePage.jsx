@@ -22,6 +22,7 @@ import {
   normalizeAppSpaceUserProfiles,
 } from '@/lib/exploitationProfiles';
 import { smartSignIn, fetchAuthLinkedProfile, fetchOrLinkAuthProfile } from '@/lib/smartAuth';
+import { useActivityTracker } from '@/hooks/useActivityTracker';
 
 // Code-split : ces composants lourds (formulaire de maintenance + signature,
 // onglets de réparation, date-fns…) ne sont téléchargés qu'une fois le
@@ -192,6 +193,12 @@ const EspaceMaintenancePage = () => {
     } catch (error) {
       return buildDefaultAppSpaceUserProfiles();
     }
+  });
+
+  useActivityTracker({
+    spaceKey: 'espace-technicien',
+    isAuthenticated,
+    identity: userData,
   });
 
   // Restauration de la session : si l'utilisateur a déjà un JWT Supabase valide,

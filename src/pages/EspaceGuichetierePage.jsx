@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/lib/supabaseClient';
 import { GUICHETIERE_AUTH_KEY, buildGuichetiereDisplayName } from '@/lib/guichetiereSpace';
 import { smartSignIn, fetchAuthLinkedProfile, fetchOrLinkAuthProfile } from '@/lib/smartAuth';
+import { useActivityTracker } from '@/hooks/useActivityTracker';
 import {
   APP_SPACE_TAB_SETTINGS_KEY,
   APP_SPACE_USER_PROFILES_SETTINGS_KEY,
@@ -243,6 +244,12 @@ const EspaceGuichetierePage = () => {
     } catch (error) {
       return buildDefaultAppSpaceUserProfiles();
     }
+  });
+
+  useActivityTracker({
+    spaceKey: 'espace-guichetiere',
+    isAuthenticated,
+    identity: guichetiereInfo,
   });
 
   useEffect(() => {

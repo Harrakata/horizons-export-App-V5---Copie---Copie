@@ -54,7 +54,7 @@ import ReparationTerminauxTab from '@/pages/maintenance/ReparationTerminauxTab';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { supabase } from '@/lib/supabaseClient';
 import { formatDisplayDate, formatDisplayDateTime } from '@/lib/guichetiereSpace';
-import { APP_SPACE_TAB_SETTINGS_KEY, normalizeAppSpaceTabFunctionalities } from '@/lib/exploitationProfiles';
+import { APP_SPACE_TAB_SETTINGS_KEY, isAppSpaceUserTabAllowed, normalizeAppSpaceTabFunctionalities } from '@/lib/exploitationProfiles';
 import {
   getMaintenancePlanningShiftLabel,
 } from '@/lib/maintenancePlanning';
@@ -103,7 +103,9 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
     window.addEventListener('app-space-tabs-updated', handler);
     return () => window.removeEventListener('app-space-tabs-updated', handler);
   }, []);
-  const tabEnabled = (key) => spaceTabFunctionalities?.['espace-technicien']?.[key] !== false;
+  const tabEnabled = (key) =>
+    spaceTabFunctionalities?.['espace-technicien']?.[key] !== false
+    && isAppSpaceUserTabAllowed(technicien?.appSpaceProfile, key);
   const [planningEntries, setPlanningEntries] = useState([]);
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(false);

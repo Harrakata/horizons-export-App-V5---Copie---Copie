@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+import KpiStatCard from '@/components/analytics/KpiStatCard';
 import {
   AlertTriangle,
   CalendarClock,
@@ -374,42 +375,34 @@ const DevisPiecesTab = () => {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CalendarClock className="h-4 w-4 text-primary" /> Période
-            </div>
-            <p className="mt-2 text-lg font-semibold">{PERIOD_OPTIONS.find((p) => p.value === periodMonths)?.label}</p>
-            <p className="text-xs text-muted-foreground">{formatDate(periodBounds.start)} au {formatDate(periodBounds.end)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <FileText className="h-4 w-4 text-primary" /> Sorties
-            </div>
-            <p className="mt-2 text-lg font-semibold">{movements.length}</p>
-            <p className="text-xs text-muted-foreground">{totalQuantity} pièce(s) consommée(s)</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Calculator className="h-4 w-4 text-primary" /> Pièces HT
-            </div>
-            <p className="mt-2 text-lg font-semibold text-primary">{formatMoney(totalPiecesHt)}</p>
-            <p className="text-xs text-muted-foreground">{quoteLines.length} référence(s)</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Receipt className="h-4 w-4 text-primary" /> Total devis HT
-            </div>
-            <p className="mt-2 text-lg font-semibold text-primary">{formatMoney(totalHt)}</p>
-            <p className="text-xs text-muted-foreground">Hors TVA</p>
-          </CardContent>
-        </Card>
+        <KpiStatCard
+          icon={<CalendarClock />}
+          tone="primary"
+          label="Période"
+          value={PERIOD_OPTIONS.find((p) => p.value === periodMonths)?.label}
+          helper={`${formatDate(periodBounds.start)} au ${formatDate(periodBounds.end)}`}
+        />
+        <KpiStatCard
+          icon={<FileText />}
+          tone="blue"
+          label="Sorties"
+          value={movements.length}
+          helper={`${totalQuantity} pièce(s) consommée(s)`}
+        />
+        <KpiStatCard
+          icon={<Calculator />}
+          tone="primary"
+          label="Pièces HT"
+          value={formatMoney(totalPiecesHt)}
+          helper={`${quoteLines.length} référence(s)`}
+        />
+        <KpiStatCard
+          icon={<Receipt />}
+          tone="emerald"
+          label="Total devis HT"
+          value={formatMoney(totalHt)}
+          helper="Hors TVA"
+        />
       </div>
 
       {hasMissingPrices && (

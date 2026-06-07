@@ -1755,3 +1755,16 @@ BEGIN
   END IF;
 END $$;
 ```
+
+## Suivi des activités utilisateurs (Activités utilisateurs)
+
+Alimente l'onglet **Suivi et Gestion → Activités utilisateurs** de l'Espace Exploitation
+(état en ligne / hors ligne, historique des sessions et détail de navigation par
+utilisateur et par espace). Deux tables sont nécessaires :
+
+- `public.activites_sessions` — 1 ligne par session ouverte dans un espace
+  (`last_seen_at` mis à jour par heartbeat toutes les 60 s, `ended_at` à la déconnexion).
+- `public.activites_evenements` — 1 ligne par évènement (`login`, `navigation`, `logout`).
+
+Le script complet (tables + index + RLS `anon`/`authenticated`) se trouve dans
+`supabase/migrations/add_user_activity_tracking.sql` — **à exécuter dans le SQL Editor Supabase**.

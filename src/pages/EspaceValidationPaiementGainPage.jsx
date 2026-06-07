@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
+import { useActivityTracker } from '@/hooks/useActivityTracker';
 import RegionalMaintenanceSection from '@/components/directeur_regional/RegionalMaintenanceSection';
 import RegionalPointageSection from '@/components/directeur_regional/RegionalPointageSection';
 import CcopePage from '@/pages/exploitation/CcopePage';
@@ -246,6 +247,12 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
     spaceConfig.expectedFunction === VALIDATOR_FUNCTIONS.GENERAL
       ? 'espace-directeur-general'
       : 'espace-directeur-regional';
+
+  useActivityTracker({
+    spaceKey: currentSpaceKey,
+    isAuthenticated: Boolean(validator),
+    identity: validator,
+  });
 
   useEffect(() => {
     const storedValidator = getStoredValidatorForSpace(

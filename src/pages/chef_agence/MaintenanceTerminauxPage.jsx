@@ -32,7 +32,7 @@ import {
   getMaintenanceInterventionTypeLabel,
   normalizeMaintenanceText,
 } from '@/lib/maintenanceMonitoring';
-import { APP_SPACE_TAB_SETTINGS_KEY, normalizeAppSpaceTabFunctionalities } from '@/lib/exploitationProfiles';
+import { APP_SPACE_TAB_SETTINGS_KEY, isAppSpaceUserTabAllowed, normalizeAppSpaceTabFunctionalities } from '@/lib/exploitationProfiles';
 
 const ALL_FILTER_VALUE = '__all__';
 
@@ -71,7 +71,9 @@ const MaintenanceTerminauxPage = () => {
     window.addEventListener('app-space-tabs-updated', handler);
     return () => window.removeEventListener('app-space-tabs-updated', handler);
   }, []);
-  const tabEnabled = (key) => spaceTabFunctionalities?.['espace-chef-agence']?.[key] !== false;
+  const tabEnabled = (key) =>
+    spaceTabFunctionalities?.['espace-chef-agence']?.[key] !== false
+    && isAppSpaceUserTabAllowed(chefDetails?.appSpaceProfile, key);
 
   const loadData = useCallback(async () => {
     if (!nomAgence) return;
