@@ -155,7 +155,7 @@ const Layout = () => {
               <img
                 src="/carrus-logo.png"
                 alt="CARRUS Betting Solutions & Services"
-                className="h-20 w-auto object-contain drop-shadow-sm"
+                className="h-16 w-auto object-contain drop-shadow-sm sm:h-20"
               />
             </motion.div>
           </Link>
@@ -292,7 +292,7 @@ const Layout = () => {
         </div>
       </header>
 
-      <main className="flex-1 container py-8">
+      <main className="flex-1 container min-w-0 px-3 py-4 sm:px-4 sm:py-6 lg:px-6 lg:py-8">
         <Outlet />
       </main>
 

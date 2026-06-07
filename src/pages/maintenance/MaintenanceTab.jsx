@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, publicSupabase } from '@/lib/supabaseClient';
 import { motion } from 'framer-motion';
 import SignatureCanvas from 'react-signature-canvas';
 import { Building2, CalendarClock, Globe, Wrench, ClipboardList, PlusCircle, Trash2 } from 'lucide-react';
@@ -256,7 +256,7 @@ const MaintenanceTab = ({ technicien }) => {
       setRecentInterventions([]);
       setIsRecentInterventionsLoading(false);
     }
-  }, [form.agence, form.terminal, form.sousEnsemble]);
+  }, [form.agence, form.terminal, form.sousEnsemble, terminaux]);
 
   useEffect(() => {
     if (form.agence) {
@@ -348,13 +348,37 @@ const MaintenanceTab = ({ technicien }) => {
   };
 
   const loadTerminaux = async (agenceId) => {
+    const agence = agences.find((item) => String(item.id) === String(agenceId));
+    const terminalSelect = 'id, reference, type_terminal, position, statut, adresse_ip, agence_id, imprimante_reference, lecteur_reference, ecran_reference, afficheur_reference, buc_reference, carrosserie_reference';
+
     try {
-      const { data, error } = await supabase
+      let { data, error } = await publicSupabase
         .from('terminaux')
-        .select('*')
+        .select(terminalSelect)
         .eq('agence_id', agenceId)
-        .eq('statut', 'Actif')
         .order('reference', { ascending: true });
+
+      if (!error && (!data || data.length === 0) && agence?.codePDV) {
+        const { data: agencyVersions, error: agencyVersionsError } = await publicSupabase
+          .from('agences')
+          .select('id, codePDV')
+          .eq('codePDV', agence.codePDV);
+
+        if (!agencyVersionsError) {
+          const agencyIds = (agencyVersions || []).map((item) => item.id).filter(Boolean);
+
+          if (agencyIds.length > 0) {
+            const fallbackResult = await publicSupabase
+              .from('terminaux')
+              .select(terminalSelect)
+              .in('agence_id', agencyIds)
+              .order('reference', { ascending: true });
+
+            data = fallbackResult.data;
+            error = fallbackResult.error;
+          }
+        }
+      }
       
       if (error) {
         toast({ title: 'Erreur', description: 'Impossible de charger les terminaux', variant: 'destructive' });
@@ -385,7 +409,7 @@ const MaintenanceTab = ({ technicien }) => {
         if (selectedTerminal) {
           terminalRecords = [selectedTerminal];
         } else {
-          const { data: terminalData, error: terminalError } = await supabase
+          const { data: terminalData, error: terminalError } = await publicSupabase
             .from('terminaux')
             .select('id, reference')
             .eq('id', form.terminal);
@@ -396,8 +420,10 @@ const MaintenanceTab = ({ technicien }) => {
 
           terminalRecords = terminalData || [];
         }
+      } else if (terminaux.length > 0) {
+        terminalRecords = terminaux;
       } else {
-        const { data: terminalData, error: terminalError } = await supabase
+        const { data: terminalData, error: terminalError } = await publicSupabase
           .from('terminaux')
           .select('id, reference')
           .eq('agence_id', form.agence);
@@ -466,23 +492,14 @@ const MaintenanceTab = ({ technicien }) => {
     }
 
     try {
-      let { data, error } = await supabase
-        .from('chefs_agence')
-        .select('id, matricule, nom, prenom, agenceEnCharge, codePDV')
-        .eq('agenceEnCharge', agence.nom)
-        .limit(1);
+      let chef = null;
 
-      if (error) {
-        throw error;
-      }
-
-      let chef = data?.[0] || null;
-
-      if (!chef && agence.codePDV) {
-        const chefByCodePdv = await supabase
+      if (agence.codePDV) {
+        const chefByCodePdv = await publicSupabase
           .from('chefs_agence')
-          .select('id, matricule, nom, prenom, agenceEnCharge, codePDV')
+          .select('id, matricule, nom, prenom, agenceEnCharge, codePDV, is_current')
           .eq('codePDV', agence.codePDV)
+          .eq('is_current', true)
           .limit(1);
 
         if (chefByCodePdv.error) {
@@ -492,15 +509,52 @@ const MaintenanceTab = ({ technicien }) => {
         chef = chefByCodePdv.data?.[0] || null;
       }
 
+      if (!chef) {
+        const { data, error } = await publicSupabase
+          .from('chefs_agence')
+          .select('id, matricule, nom, prenom, agenceEnCharge, codePDV, is_current')
+          .eq('agenceEnCharge', agence.nom)
+          .eq('is_current', true)
+          .limit(1);
+
+        if (error) {
+          throw error;
+        }
+
+        chef = data?.[0] || null;
+      }
+
+      if (!chef && agence.codePDV) {
+        const { data: agencyVersions, error: agencyVersionsError } = await publicSupabase
+          .from('agences')
+          .select('nom')
+          .eq('codePDV', agence.codePDV)
+          .order('is_current', { ascending: false });
+
+        if (!agencyVersionsError) {
+          const agencyNames = [...new Set((agencyVersions || []).map((item) => item.nom).filter(Boolean))];
+
+          if (agencyNames.length > 0) {
+            const chefByHistoricalNames = await publicSupabase
+              .from('chefs_agence')
+              .select('id, matricule, nom, prenom, agenceEnCharge, codePDV, is_current')
+              .in('agenceEnCharge', agencyNames)
+              .eq('is_current', true)
+              .limit(1);
+
+            if (chefByHistoricalNames.error) {
+              throw chefByHistoricalNames.error;
+            }
+
+            chef = chefByHistoricalNames.data?.[0] || null;
+          }
+        }
+      }
+
       setChefAgence(chef);
     } catch (error) {
       console.error("Erreur chargement chef d'agence:", error);
       setChefAgence(null);
-      toast({
-        title: 'Erreur',
-        description: "Impossible de charger le chef d'agence associé",
-        variant: 'destructive',
-      });
     }
   };
 

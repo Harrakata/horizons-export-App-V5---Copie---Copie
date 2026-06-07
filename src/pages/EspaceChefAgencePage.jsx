@@ -936,14 +936,14 @@ const EspaceChefAgencePage = () => {
   }
 
   return (
-    <div className="flex flex-col md:flex-row gap-8">
+    <div className="app-space-layout flex flex-col gap-4 md:flex-row lg:gap-8">
       <motion.aside
         initial={{ x: -100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className="md:w-72"
+        className="app-space-sidebar md:w-72 md:shrink-0"
       >
-        <div className="sticky top-20 space-y-3 max-h-[calc(100vh-5.5rem)] overflow-y-auto pb-4 pr-1 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
+        <div className="app-space-sidebar-scroll sticky top-20 space-y-3 max-h-[calc(100vh-5.5rem)] overflow-y-auto pb-4 pr-1 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
           <Card className="relative overflow-hidden border border-primary/20 bg-white/92 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
@@ -1010,7 +1010,7 @@ const EspaceChefAgencePage = () => {
           )}
         </div>
       </motion.aside>
-      <main className="flex-1 min-w-0 overflow-x-hidden">
+      <main className="app-space-main flex-1 min-w-0 overflow-visible md:overflow-x-hidden">
         <motion.div
           key={location.pathname}
           initial={{ opacity: 0, y: 20 }}
