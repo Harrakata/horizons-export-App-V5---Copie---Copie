@@ -328,11 +328,12 @@ const EspaceMaintenancePage = () => {
       <Button
         type="button"
         variant="outline"
+        size="icon"
+        aria-label={isMobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
         className="app-space-menu-toggle md:hidden"
         onClick={() => setIsMobileMenuOpen((open) => !open)}
       >
         {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-        {isMobileMenuOpen ? 'Fermer le menu' : 'Menu de l’espace'}
       </Button>
       {isMobileMenuOpen && (
         <div className="app-space-backdrop md:hidden" onClick={() => setIsMobileMenuOpen(false)} aria-hidden="true" />

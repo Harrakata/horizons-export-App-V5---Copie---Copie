@@ -312,6 +312,64 @@ aside,
     to { opacity: 1; }
   }
 
+  /* Tiroir mobile : plus compact, dans l'esprit du menu de la barre de navigation */
+  .app-space-sidebar.is-open .app-space-sidebar-scroll {
+    gap: 0.5rem;
+  }
+
+  .app-space-sidebar.is-open .app-space-sidebar-scroll > * {
+    margin-bottom: 0.45rem !important;
+    border-radius: 0.85rem;
+  }
+
+  /* Carte utilisateur du tiroir : plus discrète */
+  .app-space-sidebar.is-open .app-space-sidebar-scroll > :first-child .relative.p-4,
+  .app-space-sidebar.is-open .app-space-sidebar-scroll .p-4 {
+    padding: 0.7rem !important;
+  }
+
+  .app-space-sidebar.is-open .app-space-sidebar-scroll .p-3 {
+    padding: 0.55rem !important;
+  }
+
+  /* Éléments de menu : lignes plus serrées */
+  .app-space-sidebar.is-open .app-space-sidebar-scroll a,
+  .app-space-sidebar.is-open .app-space-sidebar-scroll nav button {
+    padding-top: 0.4rem !important;
+    padding-bottom: 0.4rem !important;
+  }
+
+  /* ── Fenêtres flottantes (menus, listes, popovers) : plus compactes ──
+     Le rendu mobile par défaut de Radix paraît surdimensionné. */
+  [role="menu"],
+  [role="listbox"],
+  [data-radix-popper-content-wrapper] > * {
+    max-width: min(84vw, 19rem) !important;
+    font-size: 0.82rem !important;
+    border-radius: 0.85rem !important;
+  }
+
+  [role="menuitem"],
+  [role="option"] {
+    min-height: 2rem;
+    padding-top: 0.4rem !important;
+    padding-bottom: 0.4rem !important;
+  }
+
+  [role="menuitem"] svg,
+  [role="option"] svg {
+    height: 0.95rem;
+    width: 0.95rem;
+  }
+
+  /* Déclencheurs de liste déroulante un peu plus bas */
+  button[role="combobox"],
+  [data-radix-select-trigger] {
+    min-height: 2.3rem;
+    height: 2.3rem;
+    font-size: 0.82rem;
+  }
+
   .app-space-main .p-8,
   .app-space-main .p-7,
   .app-space-main .p-6 {
