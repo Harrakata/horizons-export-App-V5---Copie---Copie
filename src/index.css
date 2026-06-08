@@ -299,16 +299,32 @@ aside,
     padding: 0 !important;
   }
 
-  /* Cartes internes (carte profil, groupes, déconnexion) aplaties et translucides */
+  /* Cartes internes (carte profil, groupes, déconnexion) : verre dépoli translucide */
   .app-space-sidebar.is-open .app-space-sidebar-scroll > *,
   .app-space-sidebar.is-open .app-space-sidebar-scroll nav > * {
     width: 100%;
     max-width: 100%;
-    margin-bottom: 0.2rem !important;
+    margin-bottom: 0.35rem !important;
+    background: hsl(var(--card) / 0.55) !important;
+    border: 1px solid hsl(var(--primary) / 0.14) !important;
+    box-shadow: 0 6px 18px -12px rgba(15, 23, 42, 0.3) !important;
+    border-radius: 0.85rem;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  /* Le conteneur <nav> ne doit pas être frosté (sinon cartes emboîtées) */
+  .app-space-sidebar.is-open .app-space-sidebar-scroll nav {
     background: transparent !important;
-    border-color: transparent !important;
+    border: 0 !important;
     box-shadow: none !important;
-    border-radius: 0.75rem;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 0 0.35rem !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
   }
 
   /* Masque les voiles/gradients internes des cartes (rendu plat) */
