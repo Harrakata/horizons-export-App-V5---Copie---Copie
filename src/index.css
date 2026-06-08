@@ -583,22 +583,43 @@ aside,
      Rendues dans un portail (hors de .app-space-main), elles échappent
      aux adaptations mobiles ci-dessus : on les recadre explicitement. */
   [role="dialog"] {
-    width: calc(100vw - 1.25rem) !important;
-    max-width: calc(100vw - 1.25rem) !important;
-    max-height: 90vh !important;
+    width: calc(100vw - 1.75rem) !important;
+    max-width: calc(100vw - 1.75rem) !important;
+    max-height: 86vh !important;
     overflow-y: auto !important;
-    padding: 1rem !important;
+    gap: 0.7rem !important;
+    padding: 0.8rem !important;
     border-radius: 1rem !important;
   }
 
   [role="dialog"] .text-2xl {
-    font-size: 1.1rem !important;
-    line-height: 1.4rem !important;
+    font-size: 1.05rem !important;
+    line-height: 1.35rem !important;
   }
 
   [role="dialog"] .text-xl {
-    font-size: 1rem !important;
+    font-size: 0.98rem !important;
     line-height: 1.3rem !important;
+  }
+
+  [role="dialog"] .text-lg {
+    font-size: 0.9rem !important;
+    line-height: 1.2rem !important;
+  }
+
+  /* Compacte les sections internes (entête, blocs, espacements) */
+  [role="dialog"] .space-y-6 > :not([hidden]) ~ :not([hidden]),
+  [role="dialog"] .space-y-4 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.65rem !important;
+  }
+
+  [role="dialog"] .py-4 {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+
+  [role="dialog"] .gap-4 {
+    gap: 0.65rem !important;
   }
 
   [role="dialog"] table {
