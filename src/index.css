@@ -254,22 +254,37 @@ aside,
     display: none;
   }
 
-  /* Menu ouvert en mobile = tiroir latéral superposé (n'écrase plus le contenu) */
+  /* Menu ouvert en mobile = tiroir translucide au format du menu de navigation */
   .app-space-sidebar.is-open {
     position: fixed !important;
     top: 0;
     left: 0;
     bottom: 0;
     z-index: 70;
-    width: min(86vw, 21rem) !important;
-    max-width: 86vw !important;
+    width: min(80vw, 17.5rem) !important;
+    max-width: 80vw !important;
     margin: 0 !important;
-    background: hsl(var(--background));
-    box-shadow: 0 20px 60px -10px rgba(15, 23, 42, 0.55);
+    background: hsl(var(--card) / 0.86);
+    border-right: 1px solid hsl(var(--primary) / 0.18);
+    box-shadow: 0 20px 60px -10px rgba(15, 23, 42, 0.45);
     overflow-y: auto;
-    padding: 0.75rem 0.65rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    padding: 0.6rem 0.55rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
     animation: app-space-drawer-in 0.24s ease;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
     -webkit-overflow-scrolling: touch;
+  }
+
+  /* Liséré dégradé en haut, comme le menu de la barre de navigation */
+  .app-space-sidebar.is-open::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(80vw, 17.5rem);
+    height: 3px;
+    z-index: 71;
+    background: linear-gradient(to right, hsl(var(--primary)), hsl(var(--primary) / 0.8), hsl(var(--primary) / 0.35));
   }
 
   .app-space-sidebar.is-open .app-space-sidebar-scroll {
@@ -278,12 +293,23 @@ aside,
     max-height: none !important;
     overflow: visible !important;
     padding: 0 !important;
+    gap: 0.25rem;
   }
 
+  /* Cartes internes aplaties : elles se fondent dans le panneau translucide */
   .app-space-sidebar.is-open .app-space-sidebar-scroll > * {
     width: 100%;
     max-width: 100%;
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.3rem !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0.75rem;
+  }
+
+  /* On masque les voiles/gradients internes des cartes (rendu plus plat) */
+  .app-space-sidebar.is-open .app-space-sidebar-scroll > * > .pointer-events-none {
+    display: none !important;
   }
 
   /* Fond assombri derrière le tiroir (ferme le menu au tap) */
@@ -291,15 +317,31 @@ aside,
     position: fixed;
     inset: 0;
     z-index: 65;
-    background: rgba(15, 23, 42, 0.45);
+    background: rgba(15, 23, 42, 0.4);
     backdrop-filter: blur(1px);
     animation: app-space-backdrop-in 0.2s ease;
   }
 
-  /* La barre du haut "Menu de l'espace" : plus compacte et discrète */
+  /* Bouton menu de l'espace : identique au bouton du menu de navigation */
   .app-space-menu-toggle {
-    width: auto !important;
+    position: sticky;
+    top: 4.5rem;
+    z-index: 30;
+    display: inline-flex !important;
+    width: 2.25rem !important;
+    min-width: 2.25rem !important;
+    height: 2.25rem !important;
+    padding: 0 !important;
+    align-items: center;
+    justify-content: center;
     align-self: flex-start;
+    border-radius: 0.6rem !important;
+    border: 1px solid hsl(var(--primary) / 0.2) !important;
+    background: hsl(var(--primary) / 0.06) !important;
+    color: hsl(var(--primary)) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    font-size: 0 !important;
   }
 
   @keyframes app-space-drawer-in {
