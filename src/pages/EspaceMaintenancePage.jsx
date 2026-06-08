@@ -5,8 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Wrench, Loader2, LogOut, CalendarDays, AtSign, KeyRound, Menu, X } from 'lucide-react';
-import ChangePasswordDialog from '@/components/ChangePasswordDialog';
+import { Wrench, Loader2, LogOut, CalendarDays, AtSign, UserCog, Menu, X } from 'lucide-react';
+import EditProfileDialog from '@/components/EditProfileDialog';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
@@ -177,7 +177,7 @@ const EspaceMaintenancePage = () => {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [activeSection, setActiveSection] = useState('maintenance');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
     try {
       return normalizeAppSpaceTabFunctionalities(
@@ -306,6 +306,11 @@ const EspaceMaintenancePage = () => {
     }
   }, [activeSection, menuItems, spaceTabFunctionalities]);
 
+  // Ferme le tiroir mobile après sélection d'une section
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [activeSection]);
+
   if (isCheckingSession) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
@@ -329,6 +334,9 @@ const EspaceMaintenancePage = () => {
         {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         {isMobileMenuOpen ? 'Fermer le menu' : 'Menu de l’espace'}
       </Button>
+      {isMobileMenuOpen && (
+        <div className="app-space-backdrop md:hidden" onClick={() => setIsMobileMenuOpen(false)} aria-hidden="true" />
+      )}
       <motion.aside
         initial={{ x: -100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
@@ -341,11 +349,19 @@ const EspaceMaintenancePage = () => {
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
             <CardContent className="relative p-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white text-primary ring-1 ring-primary/20 shadow-[0_8px_20px_-10px_rgba(15,23,42,0.35)]">
-                  <span className="text-lg font-black">
-                    {[userData?.prenom?.[0], userData?.nom?.[0]].filter(Boolean).join('') || 'TM'}
-                  </span>
-                </div>
+                {userData?.photo_url ? (
+                  <img
+                    src={userData.photo_url}
+                    alt="Photo de profil"
+                    className="h-12 w-12 shrink-0 rounded-[1rem] object-cover ring-1 ring-primary/20 shadow-[0_8px_20px_-10px_rgba(15,23,42,0.35)]"
+                  />
+                ) : (
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white text-primary ring-1 ring-primary/20 shadow-[0_8px_20px_-10px_rgba(15,23,42,0.35)]">
+                    <span className="text-lg font-black">
+                      {[userData?.prenom?.[0], userData?.nom?.[0]].filter(Boolean).join('') || 'TM'}
+                    </span>
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">Espace Technicien</p>
                   <p className="mt-0.5 truncate text-sm font-bold text-foreground">{userData?.prenom} {userData?.nom}</p>
@@ -382,11 +398,11 @@ const EspaceMaintenancePage = () => {
               <div className="mt-1 border-t pt-1">
                 <button
                   type="button"
-                  onClick={() => setIsPasswordDialogOpen(true)}
+                  onClick={() => setIsProfileDialogOpen(true)}
                   className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-all hover:bg-primary/10 hover:text-primary"
                 >
-                  <KeyRound className="h-4 w-4 shrink-0" />
-                  Changer mon mot de passe
+                  <UserCog className="h-4 w-4 shrink-0" />
+                  Modifier mon profil
                 </button>
                 <button
                   type="button"
@@ -402,7 +418,17 @@ const EspaceMaintenancePage = () => {
         </div>
       </motion.aside>
 
-      <ChangePasswordDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen} />
+      <EditProfileDialog
+        open={isProfileDialogOpen}
+        onOpenChange={setIsProfileDialogOpen}
+        table="techniciens"
+        recordId={userData?.id}
+        withPhoto
+        photoPrefix="photos_techniciens"
+        currentPhotoUrl={userData?.photo_url || null}
+        initialData={{ nom: userData?.nom, prenom: userData?.prenom, telephone: userData?.telephone, email: userData?.email }}
+        onSaved={(fields) => setUserData((prev) => ({ ...(prev || {}), ...fields }))}
+      />
 
       <main className="app-space-main min-w-0 flex-1 overflow-visible">
         <motion.div

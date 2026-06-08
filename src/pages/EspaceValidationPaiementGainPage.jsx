@@ -9,7 +9,7 @@ import {
   FileText,
   Loader2,
   LogOut,
-  KeyRound,
+  UserCog,
   BarChart2,
   Search,
   ShieldCheck,
@@ -29,7 +29,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { useActivityTracker } from '@/hooks/useActivityTracker';
-import ChangePasswordDialog from '@/components/ChangePasswordDialog';
+import EditProfileDialog from '@/components/EditProfileDialog';
 import RegionalMaintenanceSection from '@/components/directeur_regional/RegionalMaintenanceSection';
 import RegionalPointageSection from '@/components/directeur_regional/RegionalPointageSection';
 import CcopePage from '@/pages/exploitation/CcopePage';
@@ -234,7 +234,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
   const [historySearchTerm, setHistorySearchTerm] = usePageState(spaceLsKey, 'historySearch', '');
   const [actionComment, setActionComment] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
@@ -1039,6 +1039,11 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
     }
   }, [activeSection, currentSpaceKey, menuItems, spaceTabFunctionalities]);
 
+  // Ferme le tiroir mobile après sélection d'une section
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [activeSection]);
+
   if (!validator) {
     return <LoginPage onLogin={handleLogin} spaceConfig={spaceConfig} />;
   }
@@ -1054,6 +1059,9 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
         {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         {isMobileMenuOpen ? 'Fermer le menu' : 'Menu de l’espace'}
       </Button>
+      {isMobileMenuOpen && (
+        <div className="app-space-backdrop md:hidden" onClick={() => setIsMobileMenuOpen(false)} aria-hidden="true" />
+      )}
       <motion.aside
         initial={{ x: -100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
@@ -1114,11 +1122,11 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
               <div className="mt-1 border-t pt-1">
                 <button
                   type="button"
-                  onClick={() => setIsPasswordDialogOpen(true)}
+                  onClick={() => setIsProfileDialogOpen(true)}
                   className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-all hover:bg-primary/10 hover:text-primary"
                 >
-                  <KeyRound className="h-4 w-4 shrink-0" />
-                  Changer mon mot de passe
+                  <UserCog className="h-4 w-4 shrink-0" />
+                  Modifier mon profil
                 </button>
                 <button
                   type="button"
@@ -1140,7 +1148,20 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
         </div>
       </motion.aside>
 
-      <ChangePasswordDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen} />
+      <EditProfileDialog
+        open={isProfileDialogOpen}
+        onOpenChange={setIsProfileDialogOpen}
+        table="validateurs_paiement_gain"
+        recordId={validator?.id}
+        initialData={{ nom: validator?.nom, prenom: validator?.prenom, telephone: validator?.telephone, email: validator?.email }}
+        onSaved={(fields) => {
+          const updated = { ...(validator || {}), ...fields };
+          setValidator(updated);
+          try {
+            localStorage.setItem(spaceConfig.storageKey, JSON.stringify({ isAuthenticated: true, userData: updated }));
+          } catch {}
+        }}
+      />
 
       <main className="app-space-main flex-1 min-w-0 overflow-visible md:overflow-x-hidden">
         <motion.div

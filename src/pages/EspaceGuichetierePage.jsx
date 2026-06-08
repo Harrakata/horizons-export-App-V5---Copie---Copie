@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CalendarDays, LogOut, MapPin, FileText, ShieldCheck, Wallet, AtSign, Loader2, KeyRound, Menu, X } from 'lucide-react';
-import ChangePasswordDialog from '@/components/ChangePasswordDialog';
+import { CalendarDays, LogOut, MapPin, FileText, ShieldCheck, Wallet, AtSign, Loader2, UserCog, Menu, X } from 'lucide-react';
+import EditProfileDialog from '@/components/EditProfileDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -228,7 +228,7 @@ const EspaceGuichetierePage = () => {
     JSON.parse(localStorage.getItem(GUICHETIERE_AUTH_KEY))?.guichetiereDetails || null
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
     try {
       return normalizeAppSpaceTabFunctionalities(
@@ -477,6 +477,10 @@ const EspaceGuichetierePage = () => {
     }
   }, [isAuthenticated, isMenuItemActive, menuItems, navigate, normalizedPathname, spaceTabFunctionalities]);
 
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
   if (!isAuthenticated) {
     return <LoginPageGuichetiere onLogin={handleLogin} />;
   }
@@ -492,6 +496,9 @@ const EspaceGuichetierePage = () => {
         {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         {isMobileMenuOpen ? 'Fermer le menu' : 'Menu de l’espace'}
       </Button>
+      {isMobileMenuOpen && (
+        <div className="app-space-backdrop md:hidden" onClick={() => setIsMobileMenuOpen(false)} aria-hidden="true" />
+      )}
       <motion.aside
         initial={{ x: -100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
@@ -504,11 +511,19 @@ const EspaceGuichetierePage = () => {
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
             <CardContent className="relative p-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white text-primary ring-1 ring-primary/20 shadow-[0_8px_20px_-10px_rgba(15,23,42,0.35)]">
-                  <span className="text-lg font-black">
-                    {guichetiereInfo?.nomComplet?.split(' ').map((part) => part[0]).join('') || 'G'}
-                  </span>
-                </div>
+                {(guichetiereInfo?.photo_url || guichetiereDetails?.photo_url) ? (
+                  <img
+                    src={guichetiereInfo?.photo_url || guichetiereDetails?.photo_url}
+                    alt="Photo de profil"
+                    className="h-12 w-12 shrink-0 rounded-[1rem] object-cover ring-1 ring-primary/20 shadow-[0_8px_20px_-10px_rgba(15,23,42,0.35)]"
+                  />
+                ) : (
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white text-primary ring-1 ring-primary/20 shadow-[0_8px_20px_-10px_rgba(15,23,42,0.35)]">
+                    <span className="text-lg font-black">
+                      {guichetiereInfo?.nomComplet?.split(' ').map((part) => part[0]).join('') || 'G'}
+                    </span>
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">Guichetière</p>
                   <p className="mt-0.5 truncate text-sm font-bold text-foreground">{guichetiereInfo?.nomComplet}</p>
@@ -544,11 +559,11 @@ const EspaceGuichetierePage = () => {
               <div className="mt-1 border-t pt-1">
                 <button
                   type="button"
-                  onClick={() => setIsPasswordDialogOpen(true)}
+                  onClick={() => setIsProfileDialogOpen(true)}
                   className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-all hover:bg-primary/10 hover:text-primary"
                 >
-                  <KeyRound className="h-4 w-4 shrink-0" />
-                  Changer mon mot de passe
+                  <UserCog className="h-4 w-4 shrink-0" />
+                  Modifier mon profil
                 </button>
                 <button
                   type="button"
@@ -561,7 +576,30 @@ const EspaceGuichetierePage = () => {
               </div>
             </CardContent>
           </Card>
-          <ChangePasswordDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen} />
+          <EditProfileDialog
+            open={isProfileDialogOpen}
+            onOpenChange={setIsProfileDialogOpen}
+            table="guichetieres"
+            recordId={guichetiereDetails?.id || guichetiereInfo?.id}
+            withPhoto
+            photoPrefix="photos_guichetieres"
+            currentPhotoUrl={guichetiereDetails?.photo_url || guichetiereInfo?.photo_url || null}
+            initialData={{ nom: guichetiereDetails?.nom, prenom: guichetiereDetails?.prenom, telephone: guichetiereDetails?.telephone, email: guichetiereDetails?.email }}
+            onSaved={(fields) => {
+              setGuichetiereDetails((prev) => ({ ...(prev || {}), ...fields }));
+              const nomComplet = `${fields.prenom} ${fields.nom}`.trim();
+              setGuichetiereInfo((prev) => (prev ? { ...prev, nomComplet, photo_url: fields.photo_url ?? prev.photo_url } : prev));
+              try {
+                const stored = JSON.parse(localStorage.getItem(GUICHETIERE_AUTH_KEY) || 'null');
+                if (stored?.guichetiereInfo) {
+                  stored.guichetiereInfo.nomComplet = nomComplet;
+                  if ('photo_url' in fields) stored.guichetiereInfo.photo_url = fields.photo_url;
+                  stored.guichetiereDetails = { ...(stored.guichetiereDetails || {}), ...fields };
+                  localStorage.setItem(GUICHETIERE_AUTH_KEY, JSON.stringify(stored));
+                }
+              } catch {}
+            }}
+          />
         </div>
       </motion.aside>
 

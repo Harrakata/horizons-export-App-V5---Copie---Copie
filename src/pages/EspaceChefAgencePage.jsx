@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { UserCog, CalendarDays, ShieldCheck, LogOut, Loader2, Camera, RotateCcw, Timer, Wallet, Wrench, MapPin, ClipboardCheck, KeyRound, Menu, X } from 'lucide-react';
-import ChangePasswordDialog from '@/components/ChangePasswordDialog';
+import { UserCog, CalendarDays, ShieldCheck, LogOut, Loader2, Camera, RotateCcw, Timer, Wallet, Wrench, MapPin, ClipboardCheck, Menu, X } from 'lucide-react';
+import EditProfileDialog from '@/components/EditProfileDialog';
 import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -597,7 +597,7 @@ const EspaceChefAgencePage = () => {
   );
   const [chefDetails, setChefDetails] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [sessionDurationMinutes, setSessionDurationMinutes] = useState(30);
   const [spaceFunctionalities, setSpaceFunctionalities] = useState(() => {
     try {
@@ -941,6 +941,10 @@ const EspaceChefAgencePage = () => {
     }
   }, [isAuthenticated, menuItems, navigate, normalizedPathname, spaceTabFunctionalities]);
 
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
   if (!isAuthenticated) {
     return <LoginPageChef onLogin={handleLogin} />;
   }
@@ -956,6 +960,9 @@ const EspaceChefAgencePage = () => {
         {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         {isMobileMenuOpen ? 'Fermer le menu' : 'Menu de l’espace'}
       </Button>
+      {isMobileMenuOpen && (
+        <div className="app-space-backdrop md:hidden" onClick={() => setIsMobileMenuOpen(false)} aria-hidden="true" />
+      )}
       <motion.aside
         initial={{ x: -100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
@@ -968,11 +975,19 @@ const EspaceChefAgencePage = () => {
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
             <CardContent className="relative p-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white text-primary ring-1 ring-primary/20 shadow-[0_8px_20px_-10px_rgba(15,23,42,0.35)]">
-                  <span className="text-lg font-black">
-                    {chefAgenceInfo?.nomChef?.split(' ').map(n => n[0]).join('') || 'CA'}
-                  </span>
-                </div>
+                {(chefDetails?.photo_url || chefAgenceInfo?.photo_url) ? (
+                  <img
+                    src={chefDetails?.photo_url || chefAgenceInfo?.photo_url}
+                    alt="Photo de profil"
+                    className="h-12 w-12 shrink-0 rounded-[1rem] object-cover ring-1 ring-primary/20 shadow-[0_8px_20px_-10px_rgba(15,23,42,0.35)]"
+                  />
+                ) : (
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white text-primary ring-1 ring-primary/20 shadow-[0_8px_20px_-10px_rgba(15,23,42,0.35)]">
+                    <span className="text-lg font-black">
+                      {chefAgenceInfo?.nomChef?.split(' ').map(n => n[0]).join('') || 'CA'}
+                    </span>
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">Chef d'Agence</p>
                   <p className="mt-0.5 truncate text-sm font-bold text-foreground">{chefAgenceInfo?.nomChef}</p>
@@ -1008,11 +1023,11 @@ const EspaceChefAgencePage = () => {
               <div className="mt-1 border-t pt-1">
                 <button
                   type="button"
-                  onClick={() => setIsPasswordDialogOpen(true)}
+                  onClick={() => setIsProfileDialogOpen(true)}
                   className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-all hover:bg-primary/10 hover:text-primary"
                 >
-                  <KeyRound className="h-4 w-4 shrink-0" />
-                  Changer mon mot de passe
+                  <UserCog className="h-4 w-4 shrink-0" />
+                  Modifier mon profil
                 </button>
                 <button
                   type="button"
@@ -1025,7 +1040,28 @@ const EspaceChefAgencePage = () => {
               </div>
             </CardContent>
           </Card>
-          <ChangePasswordDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen} />
+          <EditProfileDialog
+            open={isProfileDialogOpen}
+            onOpenChange={setIsProfileDialogOpen}
+            table="chefs_agence"
+            recordId={chefDetails?.id || chefAgenceInfo?.id}
+            withPhoto
+            photoPrefix="photos_chefs"
+            currentPhotoUrl={chefDetails?.photo_url || null}
+            initialData={{ nom: chefDetails?.nom, prenom: chefDetails?.prenom, telephone: chefDetails?.telephone, email: chefDetails?.email }}
+            onSaved={(fields) => {
+              setChefDetails((prev) => ({ ...(prev || {}), ...fields }));
+              const nomChef = `${fields.prenom} ${fields.nom}`.trim();
+              setChefAgenceInfo((prev) => (prev ? { ...prev, nomChef } : prev));
+              try {
+                const stored = JSON.parse(localStorage.getItem('pmuChefAuth') || 'null');
+                if (stored?.chefInfo) {
+                  stored.chefInfo.nomChef = nomChef;
+                  localStorage.setItem('pmuChefAuth', JSON.stringify(stored));
+                }
+              } catch {}
+            }}
+          />
 
           {sessionExpiring && (
             <div className="flex items-center gap-2 rounded-xl border border-yellow-200 bg-yellow-50 p-3">

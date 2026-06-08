@@ -28,9 +28,6 @@ const normalizeText = (value) =>
 const BLOCKED_EQUIPMENT_STATUSES = new Set(['en panne', 'hors service']);
 const isEquipmentAvailableStatus = (status) => !BLOCKED_EQUIPMENT_STATUSES.has(normalizeText(status));
 
-// Type de terminal pour lequel le sous-ensemble Alimentation est applicable.
-const ALIMENTATION_TERMINAL_TYPE = '2020';
-
 const DEFAULT_FORM_DATA = {
   ref: '',
   type: '2020',
@@ -541,7 +538,6 @@ const ConfigurationTab = ({
     () => buildEquipmentOptions(equipments.alimentations || [], 'alimentations', formData.alimentation),
     [buildEquipmentOptions, equipments.alimentations, formData.alimentation]
   );
-  const showAlimentation = formData.type === ALIMENTATION_TERMINAL_TYPE;
 
   const findEquipmentConflict = useCallback(
     (formKey, selectedReference) => {
@@ -629,8 +625,7 @@ const ConfigurationTab = ({
       afficheur_reference: formData.afficheur || null,
       buc_reference: formData.buc || null,
       carrosserie_reference: formData.carrosserie || null,
-      // Alimentation réservée aux terminaux de type 2020
-      alimentation_reference: formData.type === ALIMENTATION_TERMINAL_TYPE ? (formData.alimentation || null) : null,
+      alimentation_reference: formData.alimentation || null,
       statut: editingTerminal?.statut || 'Actif',
     };
 
@@ -1001,21 +996,18 @@ const ConfigurationTab = ({
                 disabled={isLoading}
               />
             </div>
-            {showAlimentation && (
-              <div className="space-y-2">
-                <Label>Alimentation</Label>
-                <Combobox
-                  options={alimentationsOptions}
-                  value={formData.alimentation}
-                  onSelect={(value) => setFormData((previousState) => ({ ...previousState, alimentation: value }))}
-                  placeholder="Choisir une alimentation"
-                  searchPlaceholder="Rechercher une alimentation..."
-                  emptyText="Aucune alimentation disponible."
-                  disabled={isLoading}
-                />
-                <p className="text-[11px] text-muted-foreground">Sous-ensemble réservé aux terminaux de type 2020.</p>
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label>Alimentation</Label>
+              <Combobox
+                options={alimentationsOptions}
+                value={formData.alimentation}
+                onSelect={(value) => setFormData((previousState) => ({ ...previousState, alimentation: value }))}
+                placeholder="Choisir une alimentation"
+                searchPlaceholder="Rechercher une alimentation..."
+                emptyText="Aucune alimentation disponible."
+                disabled={isLoading}
+              />
+            </div>
           </div>
 
           {selectedAgency ? (
@@ -1233,7 +1225,7 @@ const ConfigurationTab = ({
                     <TableCell>{terminal.afficheur_reference || 'Non affecté'}</TableCell>
                     <TableCell>{terminal.buc_reference || 'Non affecté'}</TableCell>
                     <TableCell>{terminal.carrosserie_reference || 'Non affectée'}</TableCell>
-                    <TableCell>{terminal.type_terminal === ALIMENTATION_TERMINAL_TYPE ? (terminal.alimentation_reference || 'Non affectée') : '—'}</TableCell>
+                    <TableCell>{terminal.alimentation_reference || 'Non affectée'}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={getTerminalStatusBadgeClass(terminal.statut)}>
                         {terminal.statut || 'N/A'}
@@ -1368,12 +1360,10 @@ const ConfigurationTab = ({
               <Label>Carrosserie</Label>
               <Combobox options={carrosseriesOptions} value={formData.carrosserie} onSelect={(v) => setFormData((s) => ({ ...s, carrosserie: v }))} placeholder="Choisir une carrosserie" searchPlaceholder="Rechercher..." emptyText="Aucune disponible." disabled={isLoading} />
             </div>
-            {showAlimentation && (
-              <div className="space-y-2">
-                <Label>Alimentation</Label>
-                <Combobox options={alimentationsOptions} value={formData.alimentation} onSelect={(v) => setFormData((s) => ({ ...s, alimentation: v }))} placeholder="Choisir une alimentation" searchPlaceholder="Rechercher..." emptyText="Aucune disponible." disabled={isLoading} />
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label>Alimentation</Label>
+              <Combobox options={alimentationsOptions} value={formData.alimentation} onSelect={(v) => setFormData((s) => ({ ...s, alimentation: v }))} placeholder="Choisir une alimentation" searchPlaceholder="Rechercher..." emptyText="Aucune disponible." disabled={isLoading} />
+            </div>
           </div>
 
           {selectedAgency && (

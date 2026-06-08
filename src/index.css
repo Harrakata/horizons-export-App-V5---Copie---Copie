@@ -254,18 +254,62 @@ aside,
     display: none;
   }
 
+  /* Menu ouvert en mobile = tiroir latéral superposé (n'écrase plus le contenu) */
+  .app-space-sidebar.is-open {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 70;
+    width: min(86vw, 21rem) !important;
+    max-width: 86vw !important;
+    margin: 0 !important;
+    background: hsl(var(--background));
+    box-shadow: 0 20px 60px -10px rgba(15, 23, 42, 0.55);
+    overflow-y: auto;
+    padding: 0.75rem 0.65rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    animation: app-space-drawer-in 0.24s ease;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .app-space-sidebar.is-open .app-space-sidebar-scroll {
+    position: static !important;
     display: block;
-    max-height: min(62vh, 34rem) !important;
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    padding: 0 0.1rem 0.75rem !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
   }
 
   .app-space-sidebar.is-open .app-space-sidebar-scroll > * {
     width: 100%;
     max-width: 100%;
     margin-bottom: 0.6rem;
+  }
+
+  /* Fond assombri derrière le tiroir (ferme le menu au tap) */
+  .app-space-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 65;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(1px);
+    animation: app-space-backdrop-in 0.2s ease;
+  }
+
+  /* La barre du haut "Menu de l'espace" : plus compacte et discrète */
+  .app-space-menu-toggle {
+    width: auto !important;
+    align-self: flex-start;
+  }
+
+  @keyframes app-space-drawer-in {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+  }
+
+  @keyframes app-space-backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   .app-space-main .p-8,
