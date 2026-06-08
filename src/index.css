@@ -278,18 +278,23 @@ aside,
     backdrop-filter: blur(16px) saturate(1.4);
     -webkit-backdrop-filter: blur(16px) saturate(1.4);
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--primary) / 0.5) transparent;
   }
 
-  /* Liséré dégradé en haut du panneau */
-  .app-space-sidebar.is-open::before {
-    content: '';
-    position: sticky;
-    top: 0;
-    display: block;
-    height: 3px;
-    margin: -0.45rem -0.45rem 0.3rem;
-    border-radius: 1rem 1rem 0 0;
-    background: linear-gradient(to right, hsl(var(--primary)), hsl(var(--primary) / 0.8), hsl(var(--primary) / 0.35));
+  /* Barre de défilement latérale visible du tiroir */
+  .app-space-sidebar.is-open::-webkit-scrollbar {
+    width: 6px;
+  }
+  .app-space-sidebar.is-open::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .app-space-sidebar.is-open::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary) / 0.5);
+    border-radius: 999px;
+  }
+  .app-space-sidebar.is-open::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.7);
   }
 
   .app-space-sidebar.is-open .app-space-sidebar-scroll {
@@ -315,12 +320,6 @@ aside,
     border-radius: 0.65rem;
   }
 
-  /* Séparateurs fins entre sections, comme le menu de navigation */
-  .app-space-sidebar.is-open .app-space-sidebar-scroll nav > * + * {
-    border-top: 1px solid hsl(var(--primary) / 0.12) !important;
-    padding-top: 0.25rem;
-  }
-
   /* Le conteneur <nav> ne doit pas être frosté (sinon cartes emboîtées) */
   .app-space-sidebar.is-open .app-space-sidebar-scroll nav {
     background: transparent !important;
@@ -335,9 +334,16 @@ aside,
     gap: 0.35rem;
   }
 
-  /* Masque les voiles/gradients internes des cartes (rendu plat) */
+  /* On masque les voiles dégradés internes (inset-0)… */
   .app-space-sidebar.is-open .app-space-sidebar-scroll .pointer-events-none {
     display: none !important;
+  }
+
+  /* …mais on garde la BARRE HORIZONTALE en haut de chaque menu (rail top-0) */
+  .app-space-sidebar.is-open .app-space-sidebar-scroll .pointer-events-none.top-0 {
+    display: block !important;
+    height: 3px !important;
+    border-radius: 3px 3px 0 0;
   }
 
   /* Carte profil : plus compacte, avatar réduit */
