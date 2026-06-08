@@ -266,16 +266,17 @@ aside,
     width: min(80vw, 17.5rem) !important;
     max-width: 80vw !important;
     margin: 0 !important;
-    background: hsl(var(--card) / 0.78);
-    border: 1px solid hsl(var(--primary) / 0.18);
-    border-radius: 1rem;
-    box-shadow: 0 24px 60px -14px rgba(15, 23, 42, 0.45);
+    /* Caractéristiques identiques au menu de la barre de navigation */
+    background: hsl(var(--primary) / 0.06);
+    border: 1px solid hsl(var(--primary) / 0.2);
+    border-radius: 0.75rem;
+    box-shadow: 0 8px 30px -8px rgba(15, 23, 42, 0.2);
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 0.45rem;
+    padding: 0.4rem;
     animation: app-space-drawer-in 0.22s ease;
-    backdrop-filter: blur(22px) saturate(1.4);
-    -webkit-backdrop-filter: blur(22px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
     -webkit-overflow-scrolling: touch;
   }
 
@@ -299,18 +300,25 @@ aside,
     padding: 0 !important;
   }
 
-  /* Cartes internes (carte profil, groupes, déconnexion) : verre dépoli translucide */
+  /* Cartes internes aplaties : tout repose sur l'unique panneau translucide
+     (rendu identique au menu de la barre de navigation, qui est une liste plate) */
   .app-space-sidebar.is-open .app-space-sidebar-scroll > *,
   .app-space-sidebar.is-open .app-space-sidebar-scroll nav > * {
     width: 100%;
     max-width: 100%;
-    margin-bottom: 0.35rem !important;
-    background: hsl(var(--card) / 0.55) !important;
-    border: 1px solid hsl(var(--primary) / 0.14) !important;
-    box-shadow: 0 6px 18px -12px rgba(15, 23, 42, 0.3) !important;
-    border-radius: 0.85rem;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    margin-bottom: 0.15rem !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-radius: 0.65rem;
+  }
+
+  /* Séparateurs fins entre sections, comme le menu de navigation */
+  .app-space-sidebar.is-open .app-space-sidebar-scroll nav > * + * {
+    border-top: 1px solid hsl(var(--primary) / 0.12) !important;
+    padding-top: 0.25rem;
   }
 
   /* Le conteneur <nav> ne doit pas être frosté (sinon cartes emboîtées) */
@@ -346,14 +354,13 @@ aside,
     width: 2.4rem !important;
   }
 
-  /* Fond assombri derrière le tiroir (ferme le menu au tap) */
+  /* Zone de capture des taps pour fermer le menu — sans assombrir la page
+     (comme le menu de la barre de navigation, qui ne grise pas le fond) */
   .app-space-backdrop {
     position: fixed;
     inset: 0;
     z-index: 65;
-    background: rgba(15, 23, 42, 0.4);
-    backdrop-filter: blur(1px);
-    animation: app-space-backdrop-in 0.2s ease;
+    background: transparent;
   }
 
   /* Bouton menu de l'espace : identique au bouton du menu de navigation */
