@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CalendarDays, LogOut, MapPin, FileText, ShieldCheck, Wallet, AtSign, Loader2, Menu, X } from 'lucide-react';
+import { CalendarDays, LogOut, MapPin, FileText, ShieldCheck, Wallet, AtSign, Loader2, KeyRound, Menu, X } from 'lucide-react';
+import ChangePasswordDialog from '@/components/ChangePasswordDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -227,6 +228,7 @@ const EspaceGuichetierePage = () => {
     JSON.parse(localStorage.getItem(GUICHETIERE_AUTH_KEY))?.guichetiereDetails || null
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
     try {
       return normalizeAppSpaceTabFunctionalities(
@@ -542,6 +544,14 @@ const EspaceGuichetierePage = () => {
               <div className="mt-1 border-t pt-1">
                 <button
                   type="button"
+                  onClick={() => setIsPasswordDialogOpen(true)}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-all hover:bg-primary/10 hover:text-primary"
+                >
+                  <KeyRound className="h-4 w-4 shrink-0" />
+                  Changer mon mot de passe
+                </button>
+                <button
+                  type="button"
                   onClick={handleLogout}
                   className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-red-500 transition-all hover:bg-red-50 hover:text-red-600"
                 >
@@ -551,6 +561,7 @@ const EspaceGuichetierePage = () => {
               </div>
             </CardContent>
           </Card>
+          <ChangePasswordDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen} />
         </div>
       </motion.aside>
 

@@ -9,6 +9,7 @@ import {
   FileText,
   Loader2,
   LogOut,
+  KeyRound,
   BarChart2,
   Search,
   ShieldCheck,
@@ -28,6 +29,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { useActivityTracker } from '@/hooks/useActivityTracker';
+import ChangePasswordDialog from '@/components/ChangePasswordDialog';
 import RegionalMaintenanceSection from '@/components/directeur_regional/RegionalMaintenanceSection';
 import RegionalPointageSection from '@/components/directeur_regional/RegionalPointageSection';
 import CcopePage from '@/pages/exploitation/CcopePage';
@@ -232,6 +234,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
   const [historySearchTerm, setHistorySearchTerm] = usePageState(spaceLsKey, 'historySearch', '');
   const [actionComment, setActionComment] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
@@ -1111,6 +1114,14 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
               <div className="mt-1 border-t pt-1">
                 <button
                   type="button"
+                  onClick={() => setIsPasswordDialogOpen(true)}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-all hover:bg-primary/10 hover:text-primary"
+                >
+                  <KeyRound className="h-4 w-4 shrink-0" />
+                  Changer mon mot de passe
+                </button>
+                <button
+                  type="button"
                   onClick={handleLogout}
                   className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-red-500 transition-all hover:bg-red-50 hover:text-red-600"
                 >
@@ -1128,6 +1139,8 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
           )}
         </div>
       </motion.aside>
+
+      <ChangePasswordDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen} />
 
       <main className="app-space-main flex-1 min-w-0 overflow-visible md:overflow-x-hidden">
         <motion.div

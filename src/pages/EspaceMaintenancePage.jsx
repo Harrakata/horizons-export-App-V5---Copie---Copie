@@ -5,7 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Wrench, Loader2, LogOut, CalendarDays, AtSign, Menu, X } from 'lucide-react';
+import { Wrench, Loader2, LogOut, CalendarDays, AtSign, KeyRound, Menu, X } from 'lucide-react';
+import ChangePasswordDialog from '@/components/ChangePasswordDialog';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
@@ -176,6 +177,7 @@ const EspaceMaintenancePage = () => {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [activeSection, setActiveSection] = useState('maintenance');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
     try {
       return normalizeAppSpaceTabFunctionalities(
@@ -380,6 +382,14 @@ const EspaceMaintenancePage = () => {
               <div className="mt-1 border-t pt-1">
                 <button
                   type="button"
+                  onClick={() => setIsPasswordDialogOpen(true)}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-all hover:bg-primary/10 hover:text-primary"
+                >
+                  <KeyRound className="h-4 w-4 shrink-0" />
+                  Changer mon mot de passe
+                </button>
+                <button
+                  type="button"
                   onClick={handleLogout}
                   className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-red-500 transition-all hover:bg-red-50 hover:text-red-600"
                 >
@@ -391,6 +401,8 @@ const EspaceMaintenancePage = () => {
           </Card>
         </div>
       </motion.aside>
+
+      <ChangePasswordDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen} />
 
       <main className="app-space-main min-w-0 flex-1 overflow-visible">
         <motion.div

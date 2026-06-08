@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { UserCog, CalendarDays, ShieldCheck, LogOut, Loader2, Camera, RotateCcw, Timer, Wallet, Wrench, MapPin, ClipboardCheck, Menu, X } from 'lucide-react';
+import { UserCog, CalendarDays, ShieldCheck, LogOut, Loader2, Camera, RotateCcw, Timer, Wallet, Wrench, MapPin, ClipboardCheck, KeyRound, Menu, X } from 'lucide-react';
+import ChangePasswordDialog from '@/components/ChangePasswordDialog';
 import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -596,6 +597,7 @@ const EspaceChefAgencePage = () => {
   );
   const [chefDetails, setChefDetails] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [sessionDurationMinutes, setSessionDurationMinutes] = useState(30);
   const [spaceFunctionalities, setSpaceFunctionalities] = useState(() => {
     try {
@@ -1006,6 +1008,14 @@ const EspaceChefAgencePage = () => {
               <div className="mt-1 border-t pt-1">
                 <button
                   type="button"
+                  onClick={() => setIsPasswordDialogOpen(true)}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-all hover:bg-primary/10 hover:text-primary"
+                >
+                  <KeyRound className="h-4 w-4 shrink-0" />
+                  Changer mon mot de passe
+                </button>
+                <button
+                  type="button"
                   onClick={handleLogout}
                   className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-red-500 transition-all hover:bg-red-50 hover:text-red-600"
                 >
@@ -1015,6 +1025,7 @@ const EspaceChefAgencePage = () => {
               </div>
             </CardContent>
           </Card>
+          <ChangePasswordDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen} />
 
           {sessionExpiring && (
             <div className="flex items-center gap-2 rounded-xl border border-yellow-200 bg-yellow-50 p-3">

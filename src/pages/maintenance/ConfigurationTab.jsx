@@ -28,6 +28,9 @@ const normalizeText = (value) =>
 const BLOCKED_EQUIPMENT_STATUSES = new Set(['en panne', 'hors service']);
 const isEquipmentAvailableStatus = (status) => !BLOCKED_EQUIPMENT_STATUSES.has(normalizeText(status));
 
+// Type de terminal pour lequel le sous-ensemble Alimentation est applicable.
+const ALIMENTATION_TERMINAL_TYPE = '2020';
+
 const DEFAULT_FORM_DATA = {
   ref: '',
   type: '2020',
@@ -39,6 +42,7 @@ const DEFAULT_FORM_DATA = {
   afficheur: '',
   buc: '',
   carrosserie: '',
+  alimentation: '',
 };
 
 const EQUIPMENT_FIELD_CONFIG = [
@@ -84,6 +88,13 @@ const EQUIPMENT_FIELD_CONFIG = [
     table: 'equipments_carrosseries',
     label: 'Carrosserie',
   },
+  {
+    formKey: 'alimentation',
+    pluralKey: 'alimentations',
+    terminalKey: 'alimentation_reference',
+    table: 'equipments_alimentations',
+    label: 'Alimentation',
+  },
 ];
 
 const getTerminalStatusBadgeClass = (status) => {
@@ -121,6 +132,7 @@ const ConfigurationTab = ({
     afficheurs: [],
     bucs: [],
     carrosseries: [],
+    alimentations: [],
   });
   const [agenceId, setAgenceId] = useState('');
   const [formRegion, setFormRegion] = useState('');
@@ -137,7 +149,6 @@ const ConfigurationTab = ({
     search: '',
   });
 
-  const ipPool = ['192.168.1.10', '192.168.1.11', '192.168.1.12', '192.168.1.13'];
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -153,13 +164,14 @@ const ConfigurationTab = ({
         afficheurResponse,
         bucsResponse,
         carrosseriesResponse,
+        alimentationsResponse,
       ] = await Promise.all([
         fetchRegions(),
         supabase.from('agences').select('id, nom, nbreTerminaux, codePDV, region').eq('is_current', true).order('nom', { ascending: true }),
         supabase
           .from('terminaux')
           .select(
-            'id, reference, type_terminal, position, adresse_ip, agence_id, imprimante_reference, lecteur_reference, ecran_reference, afficheur_reference, buc_reference, carrosserie_reference, statut'
+            'id, reference, type_terminal, position, adresse_ip, agence_id, imprimante_reference, lecteur_reference, ecran_reference, afficheur_reference, buc_reference, carrosserie_reference, alimentation_reference, statut'
           )
           .order('reference', { ascending: true }),
         supabase.from('equipments_imprimantes').select('*').order('reference', { ascending: true }),
@@ -168,6 +180,7 @@ const ConfigurationTab = ({
         supabase.from('equipments_afficheurs').select('*').order('reference', { ascending: true }),
         supabase.from('equipments_bucs').select('*').order('reference', { ascending: true }),
         supabase.from('equipments_carrosseries').select('*').order('reference', { ascending: true }),
+        supabase.from('equipments_alimentations').select('*').order('reference', { ascending: true }),
       ]);
 
       if (regionsResponse.error) {
@@ -258,6 +271,7 @@ const ConfigurationTab = ({
         { key: 'afficheurs', response: afficheurResponse },
         { key: 'bucs', response: bucsResponse },
         { key: 'carrosseries', response: carrosseriesResponse },
+        { key: 'alimentations', response: alimentationsResponse },
       ];
 
       const equipmentData = {};
@@ -441,15 +455,6 @@ const ConfigurationTab = ({
     });
   };
 
-  const ipOptions = useMemo(
-    () =>
-      Array.from(new Set([...ipPool, formData.ip].filter(Boolean))).map((ip) => ({
-        value: ip,
-        label: ip,
-      })),
-    [formData.ip]
-  );
-
   const assignedEquipmentReferences = useMemo(
     () =>
       terminaux
@@ -468,6 +473,15 @@ const ConfigurationTab = ({
             if (terminal.afficheur_reference) {
               accumulator.afficheurs.add(normalizeText(terminal.afficheur_reference));
             }
+            if (terminal.buc_reference) {
+              accumulator.bucs.add(normalizeText(terminal.buc_reference));
+            }
+            if (terminal.carrosserie_reference) {
+              accumulator.carrosseries.add(normalizeText(terminal.carrosserie_reference));
+            }
+            if (terminal.alimentation_reference) {
+              accumulator.alimentations.add(normalizeText(terminal.alimentation_reference));
+            }
             return accumulator;
           },
           {
@@ -477,6 +491,7 @@ const ConfigurationTab = ({
             afficheurs: new Set(),
             bucs: new Set(),
             carrosseries: new Set(),
+            alimentations: new Set(),
           }
         ),
     [editingTerminalId, terminaux]
@@ -522,6 +537,11 @@ const ConfigurationTab = ({
     () => buildEquipmentOptions(equipments.carrosseries || [], 'carrosseries', formData.carrosserie),
     [buildEquipmentOptions, equipments.carrosseries, formData.carrosserie]
   );
+  const alimentationsOptions = useMemo(
+    () => buildEquipmentOptions(equipments.alimentations || [], 'alimentations', formData.alimentation),
+    [buildEquipmentOptions, equipments.alimentations, formData.alimentation]
+  );
+  const showAlimentation = formData.type === ALIMENTATION_TERMINAL_TYPE;
 
   const findEquipmentConflict = useCallback(
     (formKey, selectedReference) => {
@@ -609,6 +629,8 @@ const ConfigurationTab = ({
       afficheur_reference: formData.afficheur || null,
       buc_reference: formData.buc || null,
       carrosserie_reference: formData.carrosserie || null,
+      // Alimentation réservée aux terminaux de type 2020
+      alimentation_reference: formData.type === ALIMENTATION_TERMINAL_TYPE ? (formData.alimentation || null) : null,
       statut: editingTerminal?.statut || 'Actif',
     };
 
@@ -679,6 +701,7 @@ const ConfigurationTab = ({
       afficheur: terminal.afficheur_reference || '',
       buc: terminal.buc_reference || '',
       carrosserie: terminal.carrosserie_reference || '',
+      alimentation: terminal.alimentation_reference || '',
     });
 
     setIsEditDialogOpen(true);
@@ -896,13 +919,10 @@ const ConfigurationTab = ({
             </div>
             <div className="space-y-2">
               <Label>Adresse IP</Label>
-              <Combobox
-                options={ipOptions}
+              <Input
                 value={formData.ip}
-                onSelect={(value) => setFormData((previousState) => ({ ...previousState, ip: value }))}
-                placeholder="Choisir une adresse IP"
-                searchPlaceholder="Rechercher une IP..."
-                emptyText="Aucune IP disponible."
+                onChange={(event) => setFormData((previousState) => ({ ...previousState, ip: event.target.value }))}
+                placeholder="Ex : 192.168.1.10"
                 disabled={isLoading}
               />
             </div>
@@ -981,6 +1001,21 @@ const ConfigurationTab = ({
                 disabled={isLoading}
               />
             </div>
+            {showAlimentation && (
+              <div className="space-y-2">
+                <Label>Alimentation</Label>
+                <Combobox
+                  options={alimentationsOptions}
+                  value={formData.alimentation}
+                  onSelect={(value) => setFormData((previousState) => ({ ...previousState, alimentation: value }))}
+                  placeholder="Choisir une alimentation"
+                  searchPlaceholder="Rechercher une alimentation..."
+                  emptyText="Aucune alimentation disponible."
+                  disabled={isLoading}
+                />
+                <p className="text-[11px] text-muted-foreground">Sous-ensemble réservé aux terminaux de type 2020.</p>
+              </div>
+            )}
           </div>
 
           {selectedAgency ? (
@@ -1173,6 +1208,7 @@ const ConfigurationTab = ({
                   <TableHead>Afficheur client</TableHead>
                   <TableHead>BUC</TableHead>
                   <TableHead>Carrosserie</TableHead>
+                  <TableHead>Alimentation</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -1197,6 +1233,7 @@ const ConfigurationTab = ({
                     <TableCell>{terminal.afficheur_reference || 'Non affecté'}</TableCell>
                     <TableCell>{terminal.buc_reference || 'Non affecté'}</TableCell>
                     <TableCell>{terminal.carrosserie_reference || 'Non affectée'}</TableCell>
+                    <TableCell>{terminal.type_terminal === ALIMENTATION_TERMINAL_TYPE ? (terminal.alimentation_reference || 'Non affectée') : '—'}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={getTerminalStatusBadgeClass(terminal.statut)}>
                         {terminal.statut || 'N/A'}
@@ -1300,13 +1337,10 @@ const ConfigurationTab = ({
             </div>
             <div className="space-y-2">
               <Label>Adresse IP</Label>
-              <Combobox
-                options={ipOptions}
+              <Input
                 value={formData.ip}
-                onSelect={(value) => setFormData((s) => ({ ...s, ip: value }))}
-                placeholder="Choisir une adresse IP"
-                searchPlaceholder="Rechercher une IP..."
-                emptyText="Aucune IP disponible."
+                onChange={(event) => setFormData((s) => ({ ...s, ip: event.target.value }))}
+                placeholder="Ex : 192.168.1.10"
                 disabled={isLoading}
               />
             </div>
@@ -1334,6 +1368,12 @@ const ConfigurationTab = ({
               <Label>Carrosserie</Label>
               <Combobox options={carrosseriesOptions} value={formData.carrosserie} onSelect={(v) => setFormData((s) => ({ ...s, carrosserie: v }))} placeholder="Choisir une carrosserie" searchPlaceholder="Rechercher..." emptyText="Aucune disponible." disabled={isLoading} />
             </div>
+            {showAlimentation && (
+              <div className="space-y-2">
+                <Label>Alimentation</Label>
+                <Combobox options={alimentationsOptions} value={formData.alimentation} onSelect={(v) => setFormData((s) => ({ ...s, alimentation: v }))} placeholder="Choisir une alimentation" searchPlaceholder="Rechercher..." emptyText="Aucune disponible." disabled={isLoading} />
+              </div>
+            )}
           </div>
 
           {selectedAgency && (

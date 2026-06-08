@@ -73,6 +73,7 @@ export const getTerminalSousEnsembles = (terminal) =>
     { key: 'afficheur', label: 'Afficheur client', reference: terminal?.afficheur_reference || '' },
     { key: 'buc', label: 'BUC', reference: terminal?.buc_reference || '' },
     { key: 'carrosserie', label: 'Carrosserie', reference: terminal?.carrosserie_reference || '' },
+    { key: 'alimentation', label: 'Alimentation', reference: terminal?.alimentation_reference || '' },
   ].filter((item) => item.reference);
 
 const getSousEnsemblePrefix = (reference) =>

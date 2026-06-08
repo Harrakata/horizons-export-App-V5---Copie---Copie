@@ -340,18 +340,13 @@ const MaintenancePlanningSection = ({
     filteredRows.find((row) => String(row.id) === String(selectedPlanningId)) || null;
 
   useEffect(() => {
-    const fallbackId = filteredRows[0]?.id || null;
-
-    if (!selectedPlanningId && fallbackId) {
-      setSelectedPlanningId(fallbackId);
-      return;
-    }
-
+    // Le détail s'ouvre uniquement sur clic d'une intervention (Dialog) :
+    // on ne fait que purger une sélection devenue obsolète après filtrage.
     if (
       selectedPlanningId &&
       !filteredRows.some((row) => String(row.id) === String(selectedPlanningId))
     ) {
-      setSelectedPlanningId(fallbackId);
+      setSelectedPlanningId(null);
     }
   }, [filteredRows, selectedPlanningId]);
 
@@ -1033,7 +1028,7 @@ const MaintenancePlanningSection = ({
           {isLoading && filteredRows.length === 0 ? (
             <p className="py-8 text-center text-muted-foreground">Chargement du planning maintenance...</p>
           ) : (
-            <div className="overflow-hidden rounded-lg border border-border shadow-sm">
+            <div className="planning-calendar overflow-hidden rounded-lg border border-border shadow-sm">
               {/* En-tête jours */}
               <div className="grid grid-cols-7 bg-muted/60">
                 {(viewMode === 'week'
@@ -1476,17 +1471,19 @@ const MaintenancePlanningSection = ({
         </DialogContent>
       </Dialog>
 
-      {selectedPlanning && (
-        <Card className="shadow-xl glassmorphism">
-          <CardHeader>
-            <CardTitle className="text-2xl text-primary">
+      <Dialog open={Boolean(selectedPlanning)} onOpenChange={(isOpen) => { if (!isOpen) setSelectedPlanningId(null); }}>
+        <DialogContent className="sm:max-w-3xl glassmorphism max-h-[85vh] overflow-y-auto">
+          {selectedPlanning && (
+          <>
+          <DialogHeader>
+            <DialogTitle className="text-2xl text-primary">
               Détail de la planification du {formatMaintenancePlanningDate(selectedPlanning.date_planification)}
-            </CardTitle>
-            <CardDescription>
+            </DialogTitle>
+            <DialogDescription>
               {selectedPlanning.agenceNom} • {selectedPlanning.creneauLabel} • {selectedPlanning.technicienNom}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 pt-2">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-xl border bg-background/70 p-4">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Région</p>
@@ -1580,9 +1577,11 @@ const MaintenancePlanningSection = ({
                 </div>
               )}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+          </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

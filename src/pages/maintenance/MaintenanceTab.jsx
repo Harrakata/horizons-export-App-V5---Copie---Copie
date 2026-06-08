@@ -747,11 +747,6 @@ const MaintenanceTab = ({ technicien }) => {
     label: `${c.code} - ${c.libelle}`
   }));
 
-  const piecesRechangeOptions = piecesRechange.map(p => ({
-    value: p.nom,
-    label: `${p.nom} - Stock: ${p.stock_disponible}`
-  }));
-
   const formatInterventionDate = (dateValue) => {
     if (!dateValue) {
       return 'N/A';
@@ -814,8 +809,8 @@ const MaintenanceTab = ({ technicien }) => {
   const getInterventionDetailFromData = (interventionData = form) => {
     const isCurative = interventionData.typeIntervention === 'curative';
     return {
-      detailLabel: isCurative ? 'Description panne' : 'Pièce utilisée',
-      detailValue: isCurative ? (interventionData.panne || 'N/A') : (interventionData.piece || 'Aucune'),
+      detailLabel: isCurative ? 'Description panne' : 'Traitement',
+      detailValue: isCurative ? (interventionData.panne || 'N/A') : 'Maintenance préventive',
       remplacementValue: interventionData.remplace === 'oui' ? (interventionData.remplacement || 'N/A') : 'Aucun remplacement',
     };
   };
@@ -971,8 +966,8 @@ const MaintenanceTab = ({ technicien }) => {
     const typeLabel       = p ? p.typeLabel       : (validationItems.length > 1 ? `${validationItems.length} interventions` : (firstItem.typeLabel || getInterventionTypeLabel(form.typeIntervention)));
     const codeLabel       = p ? p.codeLabel       : (validationItems.length > 1 ? `${validationItems.length} codes` : (firstItem.codeLabel || getCurrentInterventionCodeLabel()));
     const validationDate  = p ? p.validationDate  : formatValidationDate();
-    const detailLabel     = p ? p.detailLabel     : (firstItem.detailLabel || (form.typeIntervention === 'curative' ? 'Description panne' : 'Pièce utilisée'));
-    const detailValue     = p ? p.detailValue     : (firstItem.detailValue || (form.typeIntervention === 'curative' ? (form.panne || 'N/A') : (form.piece || 'Aucune')));
+    const detailLabel     = p ? p.detailLabel     : (firstItem.detailLabel || (form.typeIntervention === 'curative' ? 'Description panne' : 'Traitement'));
+    const detailValue     = p ? p.detailValue     : (firstItem.detailValue || (form.typeIntervention === 'curative' ? (form.panne || 'N/A') : 'Maintenance préventive'));
     const remplacementValue = p ? p.remplacementValue : (validationItems.length > 1 ? `${validationItems.filter((item) => item.remplace === 'oui').length} remplacement(s)` : (firstItem.remplacementValue || 'Aucun remplacement'));
     const commentValue    = p ? p.commentValue    : (firstItem.commentaire || form.commentaire || 'Aucun commentaire');
     const validationState = p ? p.validationState : (validationReadyCount === 2 ? 'Validation complete' : 'Validation en cours');
@@ -1610,7 +1605,7 @@ const MaintenanceTab = ({ technicien }) => {
         typeLabel,
         codeLabel,
         validationDate: formatValidationDate(intervention.date_fin || intervention.date_intervention),
-        detailLabel: intervention.type_intervention === 'curative' ? 'Description panne' : 'Pièce utilisée',
+        detailLabel: intervention.type_intervention === 'curative' ? 'Description panne' : 'Traitement',
         detailValue: intervention.commentaire || 'N/A',
         remplacementValue: isReplaced ? (intervention.reference_remplacement || 'N/A') : 'Aucun remplacement',
         commentValue: intervention.commentaire || 'Aucun commentaire',
@@ -2415,18 +2410,6 @@ const MaintenanceTab = ({ technicien }) => {
                           placeholder="Choisir un code d'intervention"
                           searchPlaceholder="Rechercher un code ou libellé..."
                           emptyText="Aucun code d'intervention trouvé."
-                          disabled={isLoading}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="piece">Pièce utilisée</Label>
-                        <Combobox
-                          options={piecesRechangeOptions}
-                          value={form.piece}
-                          onSelect={handleChange('piece')}
-                          placeholder="Choisir une pièce de rechange"
-                          searchPlaceholder="Rechercher une pièce..."
-                          emptyText="Aucune pièce disponible en stock."
                           disabled={isLoading}
                         />
                       </div>

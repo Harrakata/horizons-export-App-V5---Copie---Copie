@@ -387,6 +387,110 @@ aside,
   .text-5xl {
     overflow-wrap: anywhere;
   }
+
+  /* ── Boîtes de dialogue ──────────────────────────────────────────────
+     Rendues dans un portail (hors de .app-space-main), elles échappent
+     aux adaptations mobiles ci-dessus : on les recadre explicitement. */
+  [role="dialog"] {
+    width: calc(100vw - 1.25rem) !important;
+    max-width: calc(100vw - 1.25rem) !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    padding: 1rem !important;
+    border-radius: 1rem !important;
+  }
+
+  [role="dialog"] .text-2xl {
+    font-size: 1.1rem !important;
+    line-height: 1.4rem !important;
+  }
+
+  [role="dialog"] .text-xl {
+    font-size: 1rem !important;
+    line-height: 1.3rem !important;
+  }
+
+  [role="dialog"] table {
+    font-size: 0.72rem;
+  }
+
+  [role="dialog"] th,
+  [role="dialog"] td {
+    white-space: nowrap;
+    padding: 0.45rem 0.5rem !important;
+  }
+
+  /* Grilles internes de dialogue : une colonne sur petit écran */
+  [role="dialog"] .grid.md\:grid-cols-2,
+  [role="dialog"] .grid.sm\:grid-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Pied de dialogue : boutons pleine largeur, plus faciles à toucher */
+  [role="dialog"] [class*="flex-col-reverse"] > button {
+    width: 100%;
+  }
+
+  /* Calendrier de planification : défilement horizontal + colonnes lisibles */
+  .planning-calendar {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .planning-calendar > .grid {
+    min-width: 640px;
+  }
+
+  /* Barres de filtres : contrôles pleine largeur et empilés */
+  .app-space-main [data-radix-select-trigger],
+  .app-space-main button[role="combobox"] {
+    width: 100% !important;
+  }
+
+  /* ── Tableaux denses → cartes empilées (opt-in via .responsive-cards) ──
+     Chaque ligne devient une carte ; chaque cellule affiche son libellé
+     via data-label="…". À appliquer sur les tableaux trop larges. */
+  table.responsive-cards thead {
+    display: none;
+  }
+
+  table.responsive-cards tbody,
+  table.responsive-cards tr {
+    display: block;
+    width: 100%;
+  }
+
+  table.responsive-cards tr {
+    margin-bottom: 0.6rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.85rem;
+    padding: 0.35rem 0.75rem;
+    background: hsl(var(--card));
+  }
+
+  table.responsive-cards td {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    white-space: normal !important;
+    border: 0 !important;
+    padding: 0.35rem 0 !important;
+    text-align: right;
+  }
+
+  table.responsive-cards td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-weight: 600;
+    color: hsl(var(--muted-foreground));
+    text-align: left;
+  }
+
+  /* Cellule sans libellé (ex. actions) : centrée, sans pseudo-libellé */
+  table.responsive-cards td[data-label=""]::before {
+    content: none;
+  }
 }
 
 @media (max-width: 479px) {

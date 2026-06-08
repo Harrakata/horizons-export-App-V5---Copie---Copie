@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Edit, Monitor, PlusCircle, Printer, Scan, Search, Trash2, Tv, CheckCircle2, Wrench, XCircle, Package, Box, Shield } from 'lucide-react';
+import { Edit, Monitor, PlusCircle, Printer, Scan, Search, Trash2, Tv, CheckCircle2, Wrench, XCircle, Package, Box, Shield, Plug, FileUp, FileDown } from 'lucide-react';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -24,6 +24,11 @@ const STATUS_BADGE_COLORS = {
 const getStatusBadgeColor = (status) => STATUS_BADGE_COLORS[status] ?? 'bg-gray-100 text-gray-800';
 
 const STATUS_OPTIONS = ['Disponible', 'En service', 'En panne', 'En maintenance', 'Hors service'];
+
+// Détecte une table absente ou un cache de schéma PostgREST non rafraîchi
+// (erreur typique juste après la création d'une nouvelle table).
+const isMissingTableError = (error) =>
+  error?.code === 'PGRST205' || /could not find the table/i.test(error?.message || '');
 
 const EQUIPMENT_TYPES = {
   imprimantes: {
@@ -68,6 +73,13 @@ const EQUIPMENT_TYPES = {
     table: 'equipments_carrosseries',
     sousEnsemble: 'carrosserie',
   },
+  alimentations: {
+    label: 'Alimentation',
+    singular: 'Alimentation',
+    icon: <Plug className="h-5 w-5" />,
+    table: 'equipments_alimentations',
+    sousEnsemble: 'alimentation',
+  },
 };
 
 const KPI_STATS = [
@@ -78,7 +90,8 @@ const KPI_STATS = [
   { key: 'horsService',   label: 'Hors service', helper: 'Retirés du parc.',                     tone: 'violet',  icon: XCircle },
 ];
 
-const EquipmentTable = ({ type, config, allEquipments, filteredEquipments, hasData, searchTerm, onSearchChange, onOpenDialog, onDelete, isLoading, canManage }) => {
+const EquipmentTable = ({ type, config, allEquipments, filteredEquipments, hasData, searchTerm, onSearchChange, onOpenDialog, onDelete, onExport, onImport, isLoading, canManage }) => {
+  const fileInputRef = useRef(null);
   const kpi = {
     total:         allEquipments.length,
     disponible:    allEquipments.filter(e => e.statut === 'Disponible').length,
@@ -100,14 +113,43 @@ const EquipmentTable = ({ type, config, allEquipments, filteredEquipments, hasDa
             <CardDescription>Gérez les {config.label.toLowerCase()} disponibles</CardDescription>
           </div>
         </div>
-        <Button
-          onClick={() => onOpenDialog(null, type)}
-          className="bg-gradient-to-r from-primary to-blue-600 text-white hover:from-primary/90 hover:to-blue-600/90"
-          disabled={isLoading || !canManage}
-        >
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Ajouter
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) onImport(type, file);
+              event.target.value = null;
+            }}
+          />
+          <Button
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading || !canManage}
+          >
+            <FileUp className="mr-2 h-4 w-4" />
+            Importer
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => onExport(type)}
+            disabled={isLoading}
+          >
+            <FileDown className="mr-2 h-4 w-4" />
+            Exporter
+          </Button>
+          <Button
+            onClick={() => onOpenDialog(null, type)}
+            className="bg-gradient-to-r from-primary to-blue-600 text-white hover:from-primary/90 hover:to-blue-600/90"
+            disabled={isLoading || !canManage}
+          >
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Ajouter
+          </Button>
+        </div>
       </div>
 
       {/* KPI row */}
@@ -223,6 +265,7 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
     afficheurs: [],
     bucs: [],
     carrosseries: [],
+    alimentations: [],
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentEquipment, setCurrentEquipment] = useState(null);
@@ -241,6 +284,7 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
     afficheurs: '',
     bucs: '',
     carrosseries: '',
+    alimentations: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [modeleOptions, setModeleOptions] = useState([]);
@@ -248,7 +292,7 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
   const syncStatutsDepuisTerminaux = async () => {
     const { data: allTerminaux } = await supabase
       .from('terminaux')
-      .select('imprimante_reference, lecteur_reference, ecran_reference, afficheur_reference, buc_reference, carrosserie_reference');
+      .select('imprimante_reference, lecteur_reference, ecran_reference, afficheur_reference, buc_reference, carrosserie_reference, alimentation_reference');
 
     if (!allTerminaux?.length) return;
 
@@ -259,6 +303,7 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
       { field: 'afficheur_reference',   table: 'equipments_afficheurs' },
       { field: 'buc_reference',         table: 'equipments_bucs' },
       { field: 'carrosserie_reference', table: 'equipments_carrosseries' },
+      { field: 'alimentation_reference', table: 'equipments_alimentations' },
     ];
 
     const ops = [];
@@ -292,7 +337,15 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
       Object.keys(EQUIPMENT_TYPES).forEach((type, i) => {
         const { data, error } = eResults[i];
         if (error) {
-          toast({ title: `Erreur chargement ${EQUIPMENT_TYPES[type].label.toLowerCase()}`, description: error.message, variant: 'destructive' });
+          // Table absente ou cache de schéma PostgREST pas encore rafraîchi
+          // (juste après la création de la table) : on n'affiche pas d'erreur
+          // bloquante et on laisse la liste vide pour ce type.
+          if (isMissingTableError(error)) {
+            console.warn(`[EquipmentManager] Table ${EQUIPMENT_TYPES[type].table} indisponible :`, error.message);
+            setEquipments((prev) => ({ ...prev, [type]: [] }));
+          } else {
+            toast({ title: `Erreur chargement ${EQUIPMENT_TYPES[type].label.toLowerCase()}`, description: error.message, variant: 'destructive' });
+          }
         } else {
           setEquipments((prev) => ({ ...prev, [type]: data || [] }));
         }
@@ -408,6 +461,78 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
     );
   };
 
+  const EXPORT_HEADERS = ['reference', 'modele', 'marque', 'statut', 'description'];
+
+  const handleExportType = (type) => {
+    const config = EQUIPMENT_TYPES[type];
+    const rows = equipments[type] || [];
+    if (!rows.length) {
+      toast({ title: 'Export', description: `Aucun ${config.singular.toLowerCase()} à exporter.`, variant: 'destructive' });
+      return;
+    }
+    const csv = [
+      EXPORT_HEADERS.join(','),
+      ...rows.map((r) => EXPORT_HEADERS.map((h) => `"${String(r[h] ?? '').replace(/"/g, '""')}"`).join(',')),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${config.table}.csv`;
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: 'Export réussi', description: `${rows.length} ${config.label.toLowerCase()} exporté(s) au format CSV.`, className: 'bg-green-500 text-white' });
+  };
+
+  const handleImportType = (type, file) => {
+    if (!canManage) { showReadOnlyToast(); return; }
+    if (!file) return;
+    const config = EQUIPMENT_TYPES[type];
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        setIsLoading(true);
+        const text = event.target.result;
+        const lines = text.split('\n').filter((line) => line.trim() !== '');
+        if (lines.length < 2) throw new Error('Fichier CSV vide ou en-têtes manquants.');
+
+        const headers = lines[0].trim().split(',').map((h) => h.replace(/^"|"$/g, '').trim().toLowerCase());
+        const required = ['reference', 'modele', 'marque'];
+        if (!required.every((r) => headers.includes(r))) {
+          throw new Error(`En-têtes requis : ${required.join(', ')}. Présents : ${headers.join(', ')}`);
+        }
+
+        const dataToUpsert = lines.slice(1).map((line) => {
+          const values = line.split(',').map((v) => v.replace(/^"|"$/g, '').replace(/""/g, '"').trim());
+          const obj = {};
+          headers.forEach((h, i) => { obj[h] = values[i]; });
+          if (!obj.reference || !obj.modele || !obj.marque) return null;
+          return {
+            reference: obj.reference,
+            modele: obj.modele,
+            marque: obj.marque,
+            statut: STATUS_OPTIONS.includes(obj.statut) ? obj.statut : 'Disponible',
+            description: obj.description || null,
+          };
+        }).filter(Boolean);
+
+        if (!dataToUpsert.length) throw new Error('Aucune ligne valide trouvée dans le fichier.');
+
+        const { error } = await supabase.from(config.table).upsert(dataToUpsert, { onConflict: 'reference' });
+        if (error) throw error;
+        toast({ title: 'Import réussi', description: `${dataToUpsert.length} ${config.label.toLowerCase()} importé(s)/mis à jour.`, className: 'bg-green-500 text-white' });
+        loadEquipments();
+      } catch (err) {
+        toast({ title: "Erreur d'import", description: err.message, variant: 'destructive' });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+  };
+
   return (
     <div className="space-y-6">
       {readOnlyMessage ? (
@@ -421,12 +546,12 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader className="relative">
           <CardTitle className="text-2xl font-bold text-primary">Gestion de sous-ensembles</CardTitle>
-          <CardDescription>Gérez les imprimantes, écrans, lecteurs, afficheur client, BUC et carrosseries disponibles pour les terminaux.</CardDescription>
+          <CardDescription>Gérez les imprimantes, écrans, lecteurs, afficheur client, BUC, carrosseries et alimentations disponibles pour les terminaux.</CardDescription>
         </CardHeader>
       </Card>
 
       <Tabs defaultValue="imprimantes" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 md:grid-cols-6">
+        <TabsList className="grid w-full grid-cols-3 md:grid-cols-7">
           <TabsTrigger value="imprimantes" className="flex items-center gap-2">
             <Printer className="h-4 w-4" />
             Imprimantes
@@ -451,6 +576,10 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
             <Shield className="h-4 w-4" />
             Carrosseries
           </TabsTrigger>
+          <TabsTrigger value="alimentations" className="flex items-center gap-2">
+            <Plug className="h-4 w-4" />
+            Alimentation
+          </TabsTrigger>
         </TabsList>
 
         {Object.keys(EQUIPMENT_TYPES).map((type) => (
@@ -465,6 +594,8 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
               onSearchChange={handleSearchChange}
               onOpenDialog={openDialog}
               onDelete={handleDelete}
+              onExport={handleExportType}
+              onImport={handleImportType}
               isLoading={isLoading}
               canManage={canManage}
             />

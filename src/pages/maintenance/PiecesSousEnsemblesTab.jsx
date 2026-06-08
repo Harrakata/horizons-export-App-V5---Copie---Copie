@@ -23,6 +23,7 @@ const SOUS_ENSEMBLE_LABELS = {
   afficheur: 'Afficheur client',
   buc: 'BUC',
   carrosserie: 'Carrosserie',
+  alimentation: 'Alimentation',
 };
 
 const DEFAULT_PIECE = { nom: '', reference: '', prix_unitaire_ht: 0, sous_ensemble: 'imprimante', type_terminal: 'tous', commentaire: '', photo_url: '', description_aide: '' };
