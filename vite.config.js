@@ -189,7 +189,7 @@ export default defineConfig({
 		addTransformIndexHtml,
 		VitePWA({
 			registerType: 'autoUpdate',
-			includeAssets: ['carrus-logo.png', 'pwa-icon.svg'],
+			includeAssets: ['carrus-logo.png', 'pwa-icon.svg', 'apple-touch-icon.png'],
 			manifest: {
 				name: 'Star3000+ — Gestion PDV',
 				short_name: 'Star3000+',
@@ -202,8 +202,10 @@ export default defineConfig({
 				start_url: '/',
 				scope: '/',
 				icons: [
+					{ src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+					{ src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+					{ src: '/pwa-maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
 					{ src: '/pwa-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
-					{ src: '/pwa-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
 				],
 			},
 			workbox: {
