@@ -8,6 +8,7 @@ import NotificationBell from '@/components/NotificationBell';
 import { useSpaceNotifications } from '@/hooks/useSpaceNotifications';
 import MobileTabBar from '@/components/mobile/MobileTabBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
+import SwipeTabs from '@/components/mobile/SwipeTabs';
 
 const GUICHETIERE_TAB_LABELS = {
   'mon-planning': 'Planning',
@@ -637,6 +638,7 @@ const EspaceGuichetierePage = () => {
       </motion.aside>
 
       <main className="app-space-main has-tabbar flex-1 min-w-0 overflow-visible md:overflow-hidden">
+        <SwipeTabs items={menuItems.map((item) => ({ key: item.path, active: isMenuItemActive(item.path), onClick: () => navigate(`/espace-guichetiere/${item.path}`) }))}>
         <PullToRefresh onRefresh={handlePullRefresh}>
         <motion.div
           key={`${location.pathname}:${refreshKey}`}
@@ -662,6 +664,7 @@ const EspaceGuichetierePage = () => {
           )}
         </motion.div>
         </PullToRefresh>
+        </SwipeTabs>
       </main>
 
       <MobileTabBar

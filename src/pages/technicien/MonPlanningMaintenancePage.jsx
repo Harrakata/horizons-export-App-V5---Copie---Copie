@@ -570,54 +570,55 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
       <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
-        <CardHeader className="relative pb-0">
-          <CardTitle className="flex items-center gap-2 text-xl font-semibold text-primary">
-            <CalendarDays className="h-5 w-5" />
+        <CardHeader className="relative px-3 pb-0 pt-3 sm:px-6 sm:pt-6">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold text-primary sm:text-xl">
+            <CalendarDays className="h-4 w-4 sm:h-5 sm:w-5" />
             Calendrier de maintenance
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="hidden sm:block">
             Naviguez par mois ou par semaine. Cliquez sur une intervention planifiée pour envoyer une demande de modification.
           </CardDescription>
         </CardHeader>
         {/* Barre de contrôle unifiée */}
-        <div className="relative flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <div className="flex flex-wrap items-center gap-1.5">
+        <div className="relative flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
+          <div className="flex items-center gap-1 sm:gap-1.5">
             <Button
-              variant="ghost" size="icon" className="h-8 w-8"
+              variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8"
               onClick={() => setCurrentMonth((prev) => viewMode === 'month' ? subMonths(prev, 1) : subWeeks(prev, 1))}
               disabled={isLoading}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="min-w-[120px] text-center text-sm font-semibold text-foreground whitespace-nowrap">
+            <span className="min-w-[84px] text-center text-xs font-semibold capitalize text-foreground whitespace-nowrap sm:min-w-[120px] sm:text-sm">
               {format(currentMonth, viewMode === 'month' ? 'MMMM yyyy' : "'Sem.' dd MMM", { locale: fr })}
             </span>
             <Button
-              variant="ghost" size="icon" className="h-8 w-8"
+              variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8"
               onClick={() => setCurrentMonth((prev) => viewMode === 'month' ? addMonths(prev, 1) : addWeeks(prev, 1))}
               disabled={isLoading}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
             <Button
-              variant="outline" size="sm" className="h-7 px-2.5 text-xs"
+              variant="outline" size="sm" className="h-7 px-2 text-[0.7rem] sm:px-2.5 sm:text-xs"
               onClick={() => setCurrentMonth(new Date())}
               disabled={isLoading}
             >
-              Aujourd'hui
+              Auj.
             </Button>
+            {/* Sélecteur de date masqué sur mobile (redondant avec les flèches) */}
             <input
               type="date"
               disabled={isLoading}
               value={format(currentMonth, 'yyyy-MM-dd')}
               onChange={(e) => { if (e.target.value) setCurrentMonth(parseISO(e.target.value)); }}
-              className="h-7 rounded-md border border-input bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              className="hidden h-7 rounded-md border border-input bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 sm:block"
               title="Aller à une date"
             />
           </div>
           <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5">
-            <Button size="sm" variant={viewMode === 'month' ? 'default' : 'ghost'} className="h-7 px-3 text-xs" onClick={() => setViewMode('month')} disabled={isLoading}>Mois</Button>
-            <Button size="sm" variant={viewMode === 'week' ? 'default' : 'ghost'} className="h-7 px-3 text-xs" onClick={() => setViewMode('week')} disabled={isLoading}>Semaine</Button>
+            <Button size="sm" variant={viewMode === 'month' ? 'default' : 'ghost'} className="h-7 px-2.5 text-xs sm:px-3" onClick={() => setViewMode('month')} disabled={isLoading}>Mois</Button>
+            <Button size="sm" variant={viewMode === 'week' ? 'default' : 'ghost'} className="h-7 px-2.5 text-xs sm:px-3" onClick={() => setViewMode('week')} disabled={isLoading}>Semaine</Button>
           </div>
         </div>
         <CardContent className="relative p-2 md:p-4">

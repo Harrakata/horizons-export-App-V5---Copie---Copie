@@ -200,6 +200,7 @@ const MaintenanceTab = ({ technicien }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState({
     region: '',
+    secteur: '',
     agence: '',
     terminal: '',
     sousEnsemble: '',
@@ -291,7 +292,7 @@ const MaintenanceTab = ({ technicien }) => {
         // Agences
         supabase
           .from('agences')
-          .select('id, nom, nbreTerminaux, codePDV, region')
+          .select('id, nom, nbreTerminaux, codePDV, region, secteur')
           .eq('is_current', true)
           .order('nom', { ascending: true }),
         // Codes de pannes
@@ -718,11 +719,18 @@ const MaintenanceTab = ({ technicien }) => {
       : agences.filter((a) => a.region).map((a) => ({ nom: a.region, codeRegion: '' }))
   );
 
-  const filteredAgences = form.region
-    ? agences.filter(
-        (agence) => normalizeRegionText(agence.region) === normalizeRegionText(form.region)
-      )
-    : agences;
+  const filteredAgences = (form.region
+    ? agences.filter((agence) => normalizeRegionText(agence.region) === normalizeRegionText(form.region))
+    : agences
+  ).filter((agence) => !form.secteur || normalizeRegionText(agence.secteur) === normalizeRegionText(form.secteur));
+
+  // Secteurs disponibles pour la région choisie (dérivés des agences)
+  const secteurOptions = Array.from(new Set(
+    agences
+      .filter((agence) => !form.region || normalizeRegionText(agence.region) === normalizeRegionText(form.region))
+      .map((agence) => agence.secteur)
+      .filter(Boolean)
+  )).sort((a, b) => a.localeCompare(b)).map((s) => ({ value: s, label: s }));
 
   const agencesOptions = filteredAgences.map(a => ({
     value: String(a.id),
@@ -2205,7 +2213,7 @@ const MaintenanceTab = ({ technicien }) => {
                   <Combobox
                     options={regionsOptions}
                     value={form.region}
-                    onSelect={handleChange('region')}
+                    onSelect={(v) => setForm((f) => ({ ...f, region: v, secteur: '', agence: '', terminal: '' }))}
                     placeholder="Choisir une région"
                     searchPlaceholder="Rechercher une région..."
                     emptyText="Aucune région trouvée."
@@ -2214,11 +2222,27 @@ const MaintenanceTab = ({ technicien }) => {
             </div>
 
             <div className="space-y-2">
+                  <Label htmlFor="secteur">Secteur</Label>
+                  <Combobox
+                    options={secteurOptions}
+                    value={form.secteur}
+                    onSelect={(v) => setForm((f) => ({ ...f, secteur: v, agence: '', terminal: '' }))}
+                    placeholder={form.region ? 'Choisir un secteur' : "Choisissez d'abord une région"}
+                    searchPlaceholder="Rechercher un secteur..."
+                    emptyText="Aucun secteur pour cette région."
+                    disabled={isLoading || !form.region}
+                  />
+            </div>
+
+            <div className="space-y-2">
                   <Label htmlFor="agence">Agence *</Label>
                   <Combobox
                     options={agencesOptions}
                     value={form.agence}
-                    onSelect={handleChange('agence')}
+                    onSelect={(v) => {
+                      const a = agences.find((x) => String(x.id) === String(v));
+                      setForm((f) => ({ ...f, agence: v, region: a?.region || f.region, secteur: a?.secteur || f.secteur, terminal: '' }));
+                    }}
                     placeholder="Choisir une agence"
                     searchPlaceholder="Rechercher une agence..."
                     emptyText="Aucune agence trouvée."
@@ -2332,7 +2356,7 @@ const MaintenanceTab = ({ technicien }) => {
           {step === 2 && (
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-primary">Détails de l'Intervention</h3>
-              <div className="space-y-4">
+              <div className="mobile-inline-fields space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="sousEnsembleDetails">Sous-ensemble concerné *</Label>
                   <Combobox

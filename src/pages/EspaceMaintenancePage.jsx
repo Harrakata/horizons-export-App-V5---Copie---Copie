@@ -12,6 +12,7 @@ import NotificationBell from '@/components/NotificationBell';
 import { useSpaceNotifications } from '@/hooks/useSpaceNotifications';
 import MobileTabBar from '@/components/mobile/MobileTabBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
+import SwipeTabs from '@/components/mobile/SwipeTabs';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
@@ -457,6 +458,7 @@ const EspaceMaintenancePage = () => {
       />
 
       <main className="app-space-main has-tabbar min-w-0 flex-1 overflow-visible">
+        <SwipeTabs items={menuItems.map((item) => ({ key: item.key, active: activeSection === item.key, onClick: () => setActiveSection(item.key) }))}>
         <PullToRefresh onRefresh={handlePullRefresh}>
         <motion.div
           key={`${activeSection}:${refreshKey}`}
@@ -506,6 +508,7 @@ const EspaceMaintenancePage = () => {
           </Suspense>
         </motion.div>
         </PullToRefresh>
+        </SwipeTabs>
       </main>
 
       <MobileTabBar

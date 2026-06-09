@@ -9,6 +9,7 @@ import NotificationBell from '@/components/NotificationBell';
 import { useSpaceNotifications } from '@/hooks/useSpaceNotifications';
 import MobileTabBar from '@/components/mobile/MobileTabBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
+import SwipeTabs from '@/components/mobile/SwipeTabs';
 
 const CHEF_AGENCE_TAB_LABELS = {
   'mon-planning': 'Planning',
@@ -1110,6 +1111,7 @@ const EspaceChefAgencePage = () => {
         </div>
       </motion.aside>
       <main className="app-space-main has-tabbar flex-1 min-w-0 overflow-visible md:overflow-x-hidden">
+        <SwipeTabs items={menuItems.map((item) => ({ key: item.path, active: isMenuItemActive(item.path), onClick: () => navigate(`/espace-chef-agence/${item.path}`) }))}>
         <PullToRefresh onRefresh={handlePullRefresh}>
         <motion.div
           key={`${location.pathname}:${refreshKey}`}
@@ -1135,6 +1137,7 @@ const EspaceChefAgencePage = () => {
           )}
         </motion.div>
         </PullToRefresh>
+        </SwipeTabs>
       </main>
 
       <MobileTabBar

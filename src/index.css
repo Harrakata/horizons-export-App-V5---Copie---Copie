@@ -393,19 +393,29 @@ aside,
   }
 
   /* Champs compacts : libellé et champ sur la même ligne (opt-in via .mobile-inline-fields) */
-  .mobile-inline-fields > .space-y-2 {
+  .mobile-inline-fields .space-y-2 {
     display: grid;
     grid-template-columns: minmax(4.5rem, 7rem) 1fr;
     align-items: center;
-    gap: 0.4rem 0.6rem;
+    gap: 0.35rem 0.6rem;
   }
-  .mobile-inline-fields > .space-y-2 > :not([hidden]) ~ :not([hidden]) {
+  .mobile-inline-fields .space-y-2 > :not([hidden]) ~ :not([hidden]) {
     margin-top: 0 !important;
   }
-  .mobile-inline-fields > .space-y-2 > label {
+  .mobile-inline-fields .space-y-2 > label {
+    grid-column: 1;
     margin: 0;
     font-size: 0.78rem;
     line-height: 1.15;
+  }
+  /* Les textes d'aide / messages passent en pleine largeur sous le champ */
+  .mobile-inline-fields .space-y-2 > p {
+    grid-column: 1 / -1;
+    font-size: 0.7rem;
+  }
+  /* Les blocs contenant une zone de texte restent empilés (pleine largeur) */
+  .mobile-inline-fields .space-y-2:has(textarea) {
+    display: block;
   }
 
   /* Bouton menu de l'espace : identique au bouton du menu de navigation */

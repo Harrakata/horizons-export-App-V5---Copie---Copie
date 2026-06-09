@@ -46,6 +46,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { PointagesSecteurSection, MaintenanceSecteurSection, PaiementsSecteurSection } from '@/components/chef_secteur/SecteurSupervision';
 import MobileTabBar from '@/components/mobile/MobileTabBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
+import SwipeTabs from '@/components/mobile/SwipeTabs';
 
 const SECTEUR_TAB_LABELS = { agences: 'Agences', pointages: 'Pointages', maintenance: 'Maint.', paiements: 'Paiements' };
 
@@ -362,6 +363,7 @@ const EspaceChefSecteurPage = () => {
       </motion.aside>
 
       <main className="app-space-main has-tabbar min-w-0 flex-1 overflow-visible">
+        <SwipeTabs items={visibleNavItems.map((item) => ({ key: item.key, active: activeSection === item.key, onClick: () => setActiveSection(item.key) }))}>
         <PullToRefresh onRefresh={handlePullRefresh}>
         <motion.div
           key={`${activeSection}:${refreshKey}`}
@@ -375,6 +377,7 @@ const EspaceChefSecteurPage = () => {
           {activeSection === 'paiements' && <PaiementsSecteurSection chef={chef} />}
         </motion.div>
         </PullToRefresh>
+        </SwipeTabs>
       </main>
 
       <MobileTabBar

@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CalendarCheck, Users, BarChart3, Settings, LogIn } from 'lucide-react';
+import InstallAppButton from '@/components/InstallAppButton';
 import {
   APP_SPACE_SETTINGS_KEY,
   buildDefaultAppSpaceFunctionalities,
@@ -90,6 +91,10 @@ const HomePage = () => {
                 </Button>
               </div>
             )}
+            {/* Installation PWA (s'affiche seulement si installable et pas déjà installée) */}
+            <div className="mt-4 flex justify-center">
+              <InstallAppButton />
+            </div>
           </CardContent>
         </Card>
       </motion.header>
