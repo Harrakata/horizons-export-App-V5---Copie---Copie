@@ -12,11 +12,14 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase, publicSupabase } from '@/lib/supabaseClient';
 import { motion } from 'framer-motion';
 import SignatureCanvas from 'react-signature-canvas';
-import { Building2, CalendarClock, Globe, Wrench, ClipboardList, PlusCircle, Trash2 } from 'lucide-react';
+import { Building2, CalendarClock, Globe, Wrench, ClipboardList, PlusCircle, Trash2, MapPin, AlertTriangle } from 'lucide-react';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { ajouterAuStockDefectueux } from '@/lib/stockDefectueux';
 import { fetchRegions, buildRegionOptions, normalizeRegionText } from '@/lib/regions';
 import { fetchSecteurs, buildSecteurOptions } from '@/lib/secteurs';
+import { APP_SPACE_SETTINGS_KEY } from '@/lib/exploitationProfiles';
+import { getCurrentPosition, checkAgencyProximity, formatDistance, GEO_DEFAULT_RADIUS_M, GEO_FEATURE_KEY } from '@/lib/geolocation';
+import { enqueueOffline, OFFLINE_FEATURE_KEY } from '@/lib/offlineQueue';
 import { isSupabaseAuthError } from '@/lib/guichetiereSpace';
 
 const normalizeMaintenanceText = (value) =>
@@ -220,6 +223,21 @@ const MaintenanceTab = ({ technicien }) => {
   const [regions, setRegions] = useState([]);
   const [agences, setAgences] = useState([]);
   const [secteurs, setSecteurs] = useState([]);
+  // Vérification GPS sur site (fonctionnalité activable, OFF par défaut)
+  const [geoEnabled, setGeoEnabled] = useState(false);
+  const [offlineEnabled, setOfflineEnabled] = useState(false);
+  const geoDataRef = useRef(null);
+  const geoJustifyResolveRef = useRef(null);
+  const [geoWarn, setGeoWarn] = useState(null); // { distance } quand hors rayon
+  const [geoJustification, setGeoJustification] = useState('');
+  useEffect(() => {
+    supabase.from('app_settings').select('value').eq('key', APP_SPACE_SETTINGS_KEY).maybeSingle()
+      .then(({ data }) => {
+        setGeoEnabled(data?.value?.[GEO_FEATURE_KEY] === true);
+        setOfflineEnabled(data?.value?.[OFFLINE_FEATURE_KEY] === true);
+      })
+      .catch(() => {});
+  }, []);
   const [terminaux, setTerminaux] = useState([]);
   const [codesPannes, setCodesPannes] = useState([]);
   const [codesInterventions, setCodesInterventions] = useState([]);
@@ -1659,7 +1677,8 @@ const MaintenanceTab = ({ technicien }) => {
         equipement_remplace: interventionData.remplace === 'oui',
         reference_remplacement: interventionData.remplacement || null,
         statut: 'Terminée',
-        date_fin: new Date().toISOString()
+        date_fin: new Date().toISOString(),
+        ...(geoDataRef.current || {}),
       };
 
       // Ajouter les références selon le type d'intervention
@@ -1685,6 +1704,12 @@ const MaintenanceTab = ({ technicien }) => {
         if (piece) {
           dataToInsert.piece_remplacee_id = piece.id;
         }
+      }
+
+      // Hors-ligne (si la fonctionnalité est activée) : on met l'intervention en file.
+      if (offlineEnabled && typeof navigator !== 'undefined' && !navigator.onLine) {
+        await enqueueOffline({ type: 'maintenance', table: 'interventions_maintenance', payload: dataToInsert });
+        return { id: `offline-${Date.now()}-${Math.random().toString(36).slice(2)}`, __offline: true };
       }
 
       let insertResult = await supabase
@@ -1782,6 +1807,33 @@ const MaintenanceTab = ({ technicien }) => {
   const saveInterventions = async (itemsToSave) => {
     setIsLoading(true);
     try {
+      // ── Vérification GPS sur site (si la fonctionnalité est activée) ──
+      if (geoEnabled) {
+        const agency = agences.find((a) => String(a.id) === String(form.agence));
+        let geoData = null;
+        try {
+          const pos = await getCurrentPosition();
+          const res = checkAgencyProximity(pos, agency, GEO_DEFAULT_RADIUS_M);
+          geoData = { latitude: pos.latitude, longitude: pos.longitude, geo_distance_m: res.distance, geo_verified: res.verified };
+          if (res.hasReference && !res.ok) {
+            // Hors rayon → avertir et demander une justification
+            const justification = await new Promise((resolve) => {
+              geoJustifyResolveRef.current = resolve;
+              setGeoJustification('');
+              setGeoWarn({ distance: res.distance });
+            });
+            if (justification == null) { setIsLoading(false); return []; } // annulé
+            geoData.geo_justification = justification;
+          }
+        } catch (err) {
+          toast({ title: 'GPS indisponible', description: `${err.message} — enregistrement sans position.`, variant: 'destructive' });
+          geoData = null;
+        }
+        geoDataRef.current = geoData;
+      } else {
+        geoDataRef.current = null;
+      }
+
       const sousEnsembles = itemsToSave.map((item) => String(item.sousEnsemble || '').trim()).filter(Boolean);
       const duplicateSousEnsemble = sousEnsembles.find((value, index) => sousEnsembles.indexOf(value) !== index);
 
@@ -1805,10 +1857,13 @@ const MaintenanceTab = ({ technicien }) => {
         savedInterventions.push(savedIntervention);
       }
 
+      const savedOffline = savedInterventions.some((i) => i?.__offline);
       toast({
-        title: 'Succès',
-        description: `${savedInterventions.length} intervention(s) enregistrée(s) avec succès.`,
-        className: 'bg-green-500 text-white',
+        title: savedOffline ? 'Enregistré hors-ligne' : 'Succès',
+        description: savedOffline
+          ? `${savedInterventions.length} intervention(s) enregistrée(s) localement. Synchronisation automatique au retour de la connexion.`
+          : `${savedInterventions.length} intervention(s) enregistrée(s) avec succès.`,
+        className: savedOffline ? 'bg-blue-600 text-white' : 'bg-green-500 text-white',
       });
 
       return savedInterventions;
@@ -2812,6 +2867,44 @@ const MaintenanceTab = ({ technicien }) => {
           )}
       </CardFooter>
     </Card>
+
+    {geoWarn && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+        <div className="w-full max-w-md rounded-xl border bg-background p-5 shadow-2xl">
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-amber-600">
+            <AlertTriangle className="h-5 w-5" /> Hors de la zone de l'agence
+          </h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Votre position est à <strong className="text-foreground">{formatDistance(geoWarn.distance)}</strong> de l'agence
+            (tolérance {GEO_DEFAULT_RADIUS_M} m). Indiquez un motif pour valider quand même.
+          </p>
+          <textarea
+            value={geoJustification}
+            onChange={(e) => setGeoJustification(e.target.value)}
+            rows={3}
+            placeholder="Motif (accès, déplacement du terminal, imprécision GPS…)"
+            className="mt-3 w-full rounded-md border border-input bg-background p-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => { geoJustifyResolveRef.current?.(null); setGeoWarn(null); }}
+              className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              disabled={!geoJustification.trim()}
+              onClick={() => { geoJustifyResolveRef.current?.(geoJustification.trim()); setGeoWarn(null); }}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              Valider malgré tout
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </motion.div>
   );
 };

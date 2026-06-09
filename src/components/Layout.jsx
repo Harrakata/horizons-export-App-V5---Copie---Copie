@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Toaster } from '@/components/ui/toaster';
+import OfflineSyncIndicator from '@/components/OfflineSyncIndicator';
 import { Home, Briefcase, Users, Settings, BarChart3, LogIn, Sun, Moon, Menu, Wrench, ShieldCheck, Wallet, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
@@ -224,6 +225,7 @@ const Layout = () => {
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
+            <OfflineSyncIndicator />
             <button
               onClick={toggleTheme}
               aria-label="Toggle theme"
@@ -235,6 +237,7 @@ const Layout = () => {
           </nav>
           
           <div className="md:hidden flex items-center gap-2">
+            <OfflineSyncIndicator />
             <button
               onClick={toggleTheme}
               aria-label="Toggle theme"

@@ -48,6 +48,7 @@ const ParametresPage                        = lazy(() => import('@/pages/exploit
 const ChiffresDaffairesPage                 = lazy(() => import('@/pages/exploitation/ChiffresDaffairesPage'));
 const EtatPlanningGeneralPage               = lazy(() => import('@/pages/exploitation/EtatPlanningGeneralPage'));
 const SuiviPointageExploitationPage         = lazy(() => import('@/pages/exploitation/SuiviPointagePage'));
+const EcartsGpsPage                         = lazy(() => import('@/pages/exploitation/EcartsGpsPage'));
 const ActivitesUtilisateursPage             = lazy(() => import('@/pages/exploitation/ActivitesUtilisateursPage'));
 const JournalAuditPage                      = lazy(() => import('@/pages/exploitation/JournalAuditPage'));
 const TableauDeBordPage                     = lazy(() => import('@/pages/exploitation/TableauDeBordPage'));
@@ -123,6 +124,7 @@ const App = () => (
             <Route path="techniciens"                 element={<LazyRoute><TechniciensPage /></LazyRoute>} />
             <Route path="maintenance-terminaux"       element={<LazyRoute><MaintenanceTerminauxExploitationPage /></LazyRoute>} />
             <Route path="suivi-pointage"              element={<LazyRoute><SuiviPointageExploitationPage /></LazyRoute>} />
+            <Route path="controle-presence"          element={<LazyRoute><EcartsGpsPage /></LazyRoute>} />
             <Route path="terminaux-mobi"              element={<LazyRoute><TerminauxMobiPage /></LazyRoute>} />
             <Route path="points-vente-mobi"           element={<LazyRoute><PointsVenteMobiPage /></LazyRoute>} />
             <Route path="regions"                     element={<LazyRoute><RegionsPage /></LazyRoute>} />

@@ -76,10 +76,15 @@
     width: 100%;
     max-width: 100vw;
   }
+  /* On bloque le débordement horizontal sur #root (l'app) et NON sur body :
+     les popovers Radix sont portalisés dans body — mettre overflow-x:hidden sur body
+     casse la détection du viewport (floating-ui) et fait déborder les popovers. */
+  #root {
+    overflow-x: hidden;
+  }
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
-    overflow-x: hidden;
   }
 
   img,
@@ -143,14 +148,12 @@ aside,
   z-index: 1;
 }
 
-/* Les éléments flottants (dialog, dropdown, select, popover) gardent leur position fixed/absolute
-   même si glassmorphism leur est appliqué — on réimpose via data-attributes Radix */
-[data-radix-popper-content-wrapper],
+/* Les DIALOGS gardent leur position fixed (centrage écran) même avec glassmorphism.
+   IMPORTANT : on NE force PLUS la position des popovers/dropdowns/selects.
+   Ils sont positionnés par Radix (wrapper + transform + collision) ; tout override
+   `position` cassait leur placement et les faisait déborder hors de l'écran. */
 [role="dialog"][data-state],
-[data-radix-dialog-content],
-[data-radix-dropdown-menu-content],
-[data-radix-select-content],
-[data-radix-popover-content] {
+[data-radix-dialog-content] {
   position: fixed !important;
 }
 

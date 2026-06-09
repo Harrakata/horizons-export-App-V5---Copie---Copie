@@ -4,6 +4,9 @@ import { format, parseISO, isWithinInterval, isValid } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '@/lib/supabaseClient';
 import { isSupabaseAuthError } from '@/lib/guichetiereSpace';
+import { APP_SPACE_SETTINGS_KEY } from '@/lib/exploitationProfiles';
+import { getCurrentPosition, checkAgencyProximity, formatDistance, GEO_DEFAULT_RADIUS_M, GEO_FEATURE_KEY } from '@/lib/geolocation';
+import { enqueueOffline, OFFLINE_FEATURE_KEY } from '@/lib/offlineQueue';
 
 const logPointageLoadError = (message, error) => {
   if (isSupabaseAuthError(error)) {
@@ -30,6 +33,16 @@ export const usePointageLogic = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [matricule, setMatricule] = useState('');
   const [identifiedGuichetiere, setIdentifiedGuichetiere] = useState(null);
+  const [geoEnabled, setGeoEnabled] = useState(false);
+  const [offlineEnabled, setOfflineEnabled] = useState(false);
+  useEffect(() => {
+    supabase.from('app_settings').select('value').eq('key', APP_SPACE_SETTINGS_KEY).maybeSingle()
+      .then(({ data }) => {
+        setGeoEnabled(data?.value?.[GEO_FEATURE_KEY] === true);
+        setOfflineEnabled(data?.value?.[OFFLINE_FEATURE_KEY] === true);
+      })
+      .catch(() => {});
+  }, []);
   const [signature, setSignature] = useState(null);
   
   const [creneauxPointageSettings, setCreneauxPointageSettings] = useState([]);
@@ -434,18 +447,48 @@ export const usePointageLogic = () => {
       return;
     }
     setIsLoading(true);
-    
-    const newPointage = { 
+
+    // ── Vérification GPS sur site (si activée) : capture + enregistrement + avertissement ──
+    let geoFields = {};
+    if (geoEnabled) {
+      try {
+        const pos = await getCurrentPosition();
+        const { data: ag } = await supabase.from('agences').select('latitude, longitude').eq('nom', nomAgenceAffichee).eq('is_current', true).maybeSingle();
+        const res = checkAgencyProximity(pos, ag, GEO_DEFAULT_RADIUS_M);
+        geoFields = { latitude: pos.latitude, longitude: pos.longitude, geo_distance_m: res.distance, geo_verified: res.verified };
+        if (res.hasReference && !res.ok) {
+          toast({ title: 'Pointage hors zone agence', description: `Vous êtes à ${formatDistance(res.distance)} de l'agence (toléré ${GEO_DEFAULT_RADIUS_M} m). Le pointage est enregistré et signalé pour contrôle.`, variant: 'destructive' });
+        }
+      } catch (err) {
+        toast({ title: 'GPS indisponible', description: `${err.message} — pointage enregistré sans position.`, variant: 'destructive' });
+      }
+    }
+
+    const newPointage = {
       guichetiereMatricule: identifiedGuichetiere.matricule,
       date: todayDateStr,
-      time: new Date().toISOString(), 
-      type: 'standard', 
+      time: new Date().toISOString(),
+      type: 'standard',
       agence: nomAgenceAffichee,
-      creneauIndex: currentCreneauIndex
+      creneauIndex: currentCreneauIndex,
+      ...geoFields,
     };
-    
+
+    // Hors-ligne (si la fonctionnalité est activée) : on met en file et on synchronisera à la reconnexion.
+    if (offlineEnabled && typeof navigator !== 'undefined' && !navigator.onLine) {
+      try {
+        await enqueueOffline({ type: 'pointage', table: 'pointages', payload: newPointage });
+        toast({ title: 'Pointage enregistré hors-ligne', description: 'Il sera synchronisé automatiquement dès le retour de la connexion.', className: 'bg-blue-600 text-white' });
+        resetProcess();
+      } catch (e) {
+        toast({ title: 'Erreur', description: "Impossible d'enregistrer le pointage hors-ligne.", variant: 'destructive' });
+      }
+      setIsLoading(false);
+      return;
+    }
+
     const { error } = await supabase.from('pointages').insert(newPointage);
-    
+
     if (error) {
       toast({ title: 'Erreur de validation', description: error.message, variant: 'destructive' });
     } else {
