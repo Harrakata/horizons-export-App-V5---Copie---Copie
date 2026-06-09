@@ -7,6 +7,7 @@ import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 import NotificationBell from '@/components/NotificationBell';
 import { useSpaceNotifications } from '@/hooks/useSpaceNotifications';
 import MobileTabBar from '@/components/mobile/MobileTabBar';
+import PullToRefresh from '@/components/mobile/PullToRefresh';
 
 const GUICHETIERE_TAB_LABELS = {
   'mon-planning': 'Planning',
@@ -246,6 +247,8 @@ const EspaceGuichetierePage = () => {
     JSON.parse(localStorage.getItem(GUICHETIERE_AUTH_KEY))?.guichetiereDetails || null
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const handlePullRefresh = async () => { setRefreshKey((k) => k + 1); await new Promise((r) => setTimeout(r, 500)); };
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
     try {
@@ -634,8 +637,9 @@ const EspaceGuichetierePage = () => {
       </motion.aside>
 
       <main className="app-space-main has-tabbar flex-1 min-w-0 overflow-visible md:overflow-hidden">
+        <PullToRefresh onRefresh={handlePullRefresh}>
         <motion.div
-          key={location.pathname}
+          key={`${location.pathname}:${refreshKey}`}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
@@ -657,6 +661,7 @@ const EspaceGuichetierePage = () => {
             />
           )}
         </motion.div>
+        </PullToRefresh>
       </main>
 
       <MobileTabBar

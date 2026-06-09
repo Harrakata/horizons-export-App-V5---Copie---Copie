@@ -45,6 +45,7 @@ import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PointagesSecteurSection, MaintenanceSecteurSection, PaiementsSecteurSection } from '@/components/chef_secteur/SecteurSupervision';
 import MobileTabBar from '@/components/mobile/MobileTabBar';
+import PullToRefresh from '@/components/mobile/PullToRefresh';
 
 const SECTEUR_TAB_LABELS = { agences: 'Agences', pointages: 'Pointages', maintenance: 'Maint.', paiements: 'Paiements' };
 
@@ -210,6 +211,8 @@ const EspaceChefSecteurPage = () => {
   const [chef, setChef] = useState(null);
   const [activeSection, setActiveSection] = useState('agences');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const handlePullRefresh = async () => { setRefreshKey((k) => k + 1); await new Promise((r) => setTimeout(r, 500)); };
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => buildDefaultAppSpaceTabFunctionalities());
   const [spaceUserProfiles, setSpaceUserProfiles] = useState(() => buildDefaultAppSpaceUserProfiles());
@@ -359,8 +362,9 @@ const EspaceChefSecteurPage = () => {
       </motion.aside>
 
       <main className="app-space-main has-tabbar min-w-0 flex-1 overflow-visible">
+        <PullToRefresh onRefresh={handlePullRefresh}>
         <motion.div
-          key={activeSection}
+          key={`${activeSection}:${refreshKey}`}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
@@ -370,6 +374,7 @@ const EspaceChefSecteurPage = () => {
           {activeSection === 'maintenance' && <MaintenanceSecteurSection chef={chef} />}
           {activeSection === 'paiements' && <PaiementsSecteurSection chef={chef} />}
         </motion.div>
+        </PullToRefresh>
       </main>
 
       <MobileTabBar

@@ -11,6 +11,7 @@ import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 import NotificationBell from '@/components/NotificationBell';
 import { useSpaceNotifications } from '@/hooks/useSpaceNotifications';
 import MobileTabBar from '@/components/mobile/MobileTabBar';
+import PullToRefresh from '@/components/mobile/PullToRefresh';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
@@ -188,6 +189,8 @@ const EspaceMaintenancePage = () => {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [activeSection, setActiveSection] = useState('maintenance');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const handlePullRefresh = async () => { setRefreshKey((k) => k + 1); await new Promise((r) => setTimeout(r, 500)); };
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
     try {
@@ -454,8 +457,9 @@ const EspaceMaintenancePage = () => {
       />
 
       <main className="app-space-main has-tabbar min-w-0 flex-1 overflow-visible">
+        <PullToRefresh onRefresh={handlePullRefresh}>
         <motion.div
-          key={activeSection}
+          key={`${activeSection}:${refreshKey}`}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
@@ -501,6 +505,7 @@ const EspaceMaintenancePage = () => {
           )}
           </Suspense>
         </motion.div>
+        </PullToRefresh>
       </main>
 
       <MobileTabBar

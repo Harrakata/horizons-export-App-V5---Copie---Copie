@@ -8,6 +8,7 @@ import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 import NotificationBell from '@/components/NotificationBell';
 import { useSpaceNotifications } from '@/hooks/useSpaceNotifications';
 import MobileTabBar from '@/components/mobile/MobileTabBar';
+import PullToRefresh from '@/components/mobile/PullToRefresh';
 
 const CHEF_AGENCE_TAB_LABELS = {
   'mon-planning': 'Planning',
@@ -617,6 +618,8 @@ const EspaceChefAgencePage = () => {
   );
   const [chefDetails, setChefDetails] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const handlePullRefresh = async () => { setRefreshKey((k) => k + 1); await new Promise((r) => setTimeout(r, 500)); };
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [sessionDurationMinutes, setSessionDurationMinutes] = useState(30);
   const [spaceFunctionalities, setSpaceFunctionalities] = useState(() => {
@@ -1107,8 +1110,9 @@ const EspaceChefAgencePage = () => {
         </div>
       </motion.aside>
       <main className="app-space-main has-tabbar flex-1 min-w-0 overflow-visible md:overflow-x-hidden">
+        <PullToRefresh onRefresh={handlePullRefresh}>
         <motion.div
-          key={location.pathname}
+          key={`${location.pathname}:${refreshKey}`}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
@@ -1130,6 +1134,7 @@ const EspaceChefAgencePage = () => {
             />
           )}
         </motion.div>
+        </PullToRefresh>
       </main>
 
       <MobileTabBar
