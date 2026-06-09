@@ -133,6 +133,7 @@ const ConfigurationTab = ({
   });
   const [agenceId, setAgenceId] = useState('');
   const [formRegion, setFormRegion] = useState('');
+  const [formSecteur, setFormSecteur] = useState('');
   const [terminaux, setTerminaux] = useState([]);
   const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
   const [editingTerminalId, setEditingTerminalId] = useState(null);
@@ -140,6 +141,7 @@ const ConfigurationTab = ({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [parkFilters, setParkFilters] = useState({
     region: ALL_FILTER_VALUE,
+    secteur: ALL_FILTER_VALUE,
     agenceId: ALL_FILTER_VALUE,
     type: ALL_FILTER_VALUE,
     statut: ALL_FILTER_VALUE,
@@ -164,7 +166,7 @@ const ConfigurationTab = ({
         alimentationsResponse,
       ] = await Promise.all([
         fetchRegions(),
-        supabase.from('agences').select('id, nom, nbreTerminaux, codePDV, region').eq('is_current', true).order('nom', { ascending: true }),
+        supabase.from('agences').select('id, nom, nbreTerminaux, codePDV, region, secteur').eq('is_current', true).order('nom', { ascending: true }),
         supabase
           .from('terminaux')
           .select(
@@ -384,10 +386,21 @@ const ConfigurationTab = ({
       return resolvedLockedAgence ? [resolvedLockedAgence] : [];
     }
 
-    return agences.filter(
-      (agence) => normalizeRegionText(agence.region) === normalizeRegionText(formRegion)
-    );
-  }, [agences, formRegion, resolvedLockedAgence]);
+    return agences
+      .filter((agence) => normalizeRegionText(agence.region) === normalizeRegionText(formRegion))
+      .filter((agence) => !formSecteur || normalizeRegionText(agence.secteur) === normalizeRegionText(formSecteur));
+  }, [agences, formRegion, formSecteur, resolvedLockedAgence]);
+
+  // Secteurs disponibles pour la région choisie (dérivés des agences)
+  const secteurOptionsForForm = useMemo(
+    () => Array.from(new Set(
+      agences
+        .filter((agence) => !formRegion || normalizeRegionText(agence.region) === normalizeRegionText(formRegion))
+        .map((agence) => agence.secteur)
+        .filter(Boolean)
+    )).sort((a, b) => a.localeCompare(b)),
+    [agences, formRegion]
+  );
 
   const agencesOptions = useMemo(
     () =>
@@ -685,6 +698,7 @@ const ConfigurationTab = ({
     setEditingTerminalId(terminal.id);
     setAgenceId(String(terminal.agence_id));
     setFormRegion(agency?.region || '');
+    setFormSecteur(agency?.secteur || '');
     setFormData({
       ref: terminal.reference || '',
       type: terminal.type_terminal || '2020',
@@ -769,9 +783,15 @@ const ConfigurationTab = ({
           agenceNom: agency?.nom || 'Agence inconnue',
           agenceCode: agency?.codePDV || '',
           regionNom: agency?.region || '',
+          secteurNom: agency?.secteur || '',
         };
       }),
     [agenciesById, terminaux]
+  );
+
+  const parkSecteurOptions = useMemo(
+    () => Array.from(new Set(parkTerminalRows.map((t) => t.secteurNom).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [parkTerminalRows]
   );
 
   const filteredParkTerminalRows = useMemo(() => {
@@ -782,6 +802,11 @@ const ConfigurationTab = ({
         (terminal) =>
           parkFilters.region === ALL_FILTER_VALUE ||
           normalizeRegionText(terminal.regionNom) === normalizeRegionText(parkFilters.region)
+      )
+      .filter(
+        (terminal) =>
+          parkFilters.secteur === ALL_FILTER_VALUE ||
+          normalizeRegionText(terminal.secteurNom) === normalizeRegionText(parkFilters.secteur)
       )
       .filter(
         (terminal) =>
@@ -838,7 +863,7 @@ const ConfigurationTab = ({
             Un sous-ensemble déjà configuré sur un terminal ne peut pas être réaffecté à un autre tant qu’il n’a pas été libéré.
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             {!resolvedLockedAgence && (
               <div className="space-y-2">
                 <Label>Région</Label>
@@ -847,12 +872,30 @@ const ConfigurationTab = ({
                   value={formRegion}
                   onSelect={(value) => {
                     setFormRegion(value);
+                    setFormSecteur('');
                     setAgenceId('');
                   }}
                   placeholder="Choisir une région"
                   searchPlaceholder="Rechercher une région..."
                   emptyText="Aucune région trouvée."
                   disabled={isLoading}
+                />
+              </div>
+            )}
+            {!resolvedLockedAgence && (
+              <div className="space-y-2">
+                <Label>Secteur</Label>
+                <Combobox
+                  options={secteurOptionsForForm.map((s) => ({ value: s, label: s }))}
+                  value={formSecteur}
+                  onSelect={(value) => {
+                    setFormSecteur(value);
+                    setAgenceId('');
+                  }}
+                  placeholder={formRegion ? 'Choisir un secteur' : "Choisissez d'abord une région"}
+                  searchPlaceholder="Rechercher un secteur..."
+                  emptyText="Aucun secteur pour cette région."
+                  disabled={isLoading || !formRegion}
                 />
               </div>
             )}
@@ -867,6 +910,9 @@ const ConfigurationTab = ({
                     const nextAgency = agenciesById[String(value)];
                     if (nextAgency?.region) {
                       setFormRegion(nextAgency.region);
+                    }
+                    if (nextAgency?.secteur) {
+                      setFormSecteur(nextAgency.secteur);
                     }
                   }}
                   placeholder="Choisir une agence"
@@ -1076,7 +1122,7 @@ const ConfigurationTab = ({
             </CardDescription>
           </div>
 
-          <div className={resolvedLockedAgence ? 'grid gap-4 md:grid-cols-3' : 'grid gap-4 md:grid-cols-2 xl:grid-cols-5'}>
+          <div className={resolvedLockedAgence ? 'grid gap-4 md:grid-cols-3' : 'grid gap-4 md:grid-cols-2 xl:grid-cols-6'}>
             {!resolvedLockedAgence && (
               <div className="space-y-2">
                 <Label>Région</Label>
@@ -1087,12 +1133,33 @@ const ConfigurationTab = ({
                     setParkFilters((previousState) => ({
                       ...previousState,
                       region: value || ALL_FILTER_VALUE,
+                      secteur: ALL_FILTER_VALUE,
                       agenceId: ALL_FILTER_VALUE,
                     }))
                   }
                   placeholder="Toutes les régions"
                   searchPlaceholder="Rechercher une région..."
                   emptyText="Aucune région trouvée."
+                  disabled={isLoading}
+                />
+              </div>
+            )}
+            {!resolvedLockedAgence && (
+              <div className="space-y-2">
+                <Label>Secteur</Label>
+                <Combobox
+                  options={[{ value: ALL_FILTER_VALUE, label: 'Tous les secteurs' }, ...parkSecteurOptions.map((s) => ({ value: s, label: s }))]}
+                  value={parkFilters.secteur}
+                  onSelect={(value) =>
+                    setParkFilters((previousState) => ({
+                      ...previousState,
+                      secteur: value || ALL_FILTER_VALUE,
+                      agenceId: ALL_FILTER_VALUE,
+                    }))
+                  }
+                  placeholder="Tous les secteurs"
+                  searchPlaceholder="Rechercher un secteur..."
+                  emptyText="Aucun secteur trouvé."
                   disabled={isLoading}
                 />
               </div>

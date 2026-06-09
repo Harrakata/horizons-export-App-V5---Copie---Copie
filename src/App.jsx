@@ -22,6 +22,7 @@ const PointagePage                          = lazy(() => import('@/pages/Pointag
 const EspaceExploitationPage                = lazy(() => import('@/pages/EspaceExploitationPage'));
 const EspaceValidationPaiementGainPage      = lazy(() => import('@/pages/EspaceValidationPaiementGainPage'));
 const EspaceChefAgencePage                  = lazy(() => import('@/pages/EspaceChefAgencePage'));
+const EspaceChefSecteurPage                 = lazy(() => import('@/pages/EspaceChefSecteurPage'));
 const EspaceGuichetierePage                 = lazy(() => import('@/pages/EspaceGuichetierePage'));
 const EspaceMaintenancePage                 = lazy(() => import('@/pages/EspaceMaintenancePage'));
 const PaiementGrosGainPage                  = lazy(() => import('@/pages/PaiementGrosGainPage'));
@@ -36,6 +37,8 @@ const TechniciensPage                       = lazy(() => import('@/pages/exploit
 const TerminauxMobiPage                     = lazy(() => import('@/pages/exploitation/TerminauxMobiPage'));
 const PointsVenteMobiPage                   = lazy(() => import('@/pages/exploitation/PointsVenteMobiPage'));
 const RegionsPage                           = lazy(() => import('@/pages/exploitation/RegionsPage'));
+const SecteursPage                          = lazy(() => import('@/pages/exploitation/SecteursPage'));
+const ChefsSecteurPage                      = lazy(() => import('@/pages/exploitation/ChefsSecteurPage'));
 const MaintenanceTerminauxExploitationPage  = lazy(() => import('@/pages/exploitation/MaintenanceTerminauxPage'));
 const ValidationPaiementGainPage            = lazy(() => import('@/pages/exploitation/ValidationPaiementGainPage'));
 const AutorisationsPaiementGainPage         = lazy(() => import('@/pages/exploitation/AutorisationsPaiementGainPage'));
@@ -123,6 +126,8 @@ const App = () => (
             <Route path="terminaux-mobi"              element={<LazyRoute><TerminauxMobiPage /></LazyRoute>} />
             <Route path="points-vente-mobi"           element={<LazyRoute><PointsVenteMobiPage /></LazyRoute>} />
             <Route path="regions"                     element={<LazyRoute><RegionsPage /></LazyRoute>} />
+            <Route path="secteurs"                    element={<LazyRoute><SecteursPage /></LazyRoute>} />
+            <Route path="chefs-secteur"               element={<LazyRoute><ChefsSecteurPage /></LazyRoute>} />
             <Route path="validation-paiement-gain"    element={<LazyRoute><ValidationPaiementGainPage /></LazyRoute>} />
             <Route path="autorisation-paiement-gain"  element={<LazyRoute><AutorisationsPaiementGainPage /></LazyRoute>} />
             <Route path="referentiel-parametres"      element={<LazyRoute><ReferentielParametresPage /></LazyRoute>} />
@@ -143,6 +148,8 @@ const App = () => (
             <Route path="points-vente-mobi"       element={<LazyRoute><PointsVenteMobiChefPage /></LazyRoute>} />
             <Route path="paiement-gros-gain"      element={<LazyRoute><PaiementGrosGainPage /></LazyRoute>} />
           </Route>
+
+          <Route path="/espace-chef-secteur" element={<LazyRoute><EspaceChefSecteurPage /></LazyRoute>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

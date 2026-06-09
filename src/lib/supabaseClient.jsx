@@ -87,6 +87,7 @@ const exploitationSupabase = createScopedClient('pmu-supabase-auth-exploitation'
 const technicienSupabase = createScopedClient('pmu-supabase-auth-technicien')
 const guichetiereSupabase = createScopedClient('pmu-supabase-auth-guichetiere')
 const chefAgenceSupabase = createScopedClient('pmu-supabase-auth-chef-agence')
+const chefSecteurSupabase = createScopedClient('pmu-supabase-auth-chef-secteur')
 const validationGainSupabase = createScopedClient('pmu-supabase-auth-validation-gain')
 const directeurGeneralSupabase = createScopedClient('pmu-supabase-auth-directeur-general')
 const pointageSupabase = createScopedClient('pmu-supabase-auth-pointage')
@@ -118,6 +119,9 @@ export const getCurrentSupabaseClient = () => {
   if (pathname.startsWith('/espace-directeur-general')) {
     return directeurGeneralSupabase
   }
+  if (pathname.startsWith('/espace-chef-secteur')) {
+    return chefSecteurSupabase
+  }
   if (pathname.startsWith('/pointage')) {
     return pointageSupabase
   }
@@ -148,6 +152,9 @@ export const getCurrentSupabaseAuthClient = () => {
   if (pathname.startsWith('/espace-directeur-general')) {
     return directeurGeneralSupabase
   }
+  if (pathname.startsWith('/espace-chef-secteur')) {
+    return chefSecteurSupabase
+  }
   if (pathname.startsWith('/pointage')) {
     return pointageSupabase
   }
@@ -173,6 +180,7 @@ export {
   technicienSupabase,
   guichetiereSupabase,
   chefAgenceSupabase,
+  chefSecteurSupabase,
   validationGainSupabase,
   directeurGeneralSupabase,
   pointageSupabase,
