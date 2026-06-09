@@ -399,7 +399,7 @@ const EspaceMaintenancePage = () => {
               <div className="mt-1 border-t pt-1">
                 <button
                   type="button"
-                  onClick={() => setIsProfileDialogOpen(true)}
+                  onClick={() => { setIsProfileDialogOpen(true); setIsMobileMenuOpen(false); }}
                   className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-all hover:bg-primary/10 hover:text-primary"
                 >
                   <UserCog className="h-4 w-4 shrink-0" />
