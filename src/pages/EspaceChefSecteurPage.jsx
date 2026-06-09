@@ -359,10 +359,17 @@ const EspaceChefSecteurPage = () => {
       </motion.aside>
 
       <main className="app-space-main has-tabbar min-w-0 flex-1 overflow-visible">
-        {activeSection === 'agences' && <AgencesSecteurSection chef={chef} />}
-        {activeSection === 'pointages' && <PointagesSecteurSection chef={chef} />}
-        {activeSection === 'maintenance' && <MaintenanceSecteurSection chef={chef} />}
-        {activeSection === 'paiements' && <PaiementsSecteurSection chef={chef} />}
+        <motion.div
+          key={activeSection}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+        >
+          {activeSection === 'agences' && <AgencesSecteurSection chef={chef} />}
+          {activeSection === 'pointages' && <PointagesSecteurSection chef={chef} />}
+          {activeSection === 'maintenance' && <MaintenanceSecteurSection chef={chef} />}
+          {activeSection === 'paiements' && <PaiementsSecteurSection chef={chef} />}
+        </motion.div>
       </main>
 
       <MobileTabBar

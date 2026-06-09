@@ -364,6 +364,10 @@ aside,
     background: hsl(var(--primary) / 0.1);
   }
 
+  .mobile-tabbar-item:active {
+    transform: scale(0.92);
+  }
+
   .mobile-tabbar-label {
     max-width: 100%;
     overflow: hidden;
@@ -374,6 +378,12 @@ aside,
   /* Le contenu laisse la place à la barre d'onglets en bas */
   .app-space-main.has-tabbar {
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Quand une barre d'onglets est présente (espaces terrain), le bouton-toggle
+     flottant devient redondant avec l'onglet « Plus » → on le masque. */
+  body:has(.mobile-tabbar) .app-space-menu-toggle {
+    display: none !important;
   }
 
   /* Bouton menu de l'espace : identique au bouton du menu de navigation */
