@@ -1,6 +1,7 @@
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
 import { createLogger, defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 const configHorizonsViteErrorHandler = `
 const observer = new MutationObserver((mutations) => {
@@ -183,7 +184,37 @@ logger.error = (msg, options) => {
 
 export default defineConfig({
 	customLogger: logger,
-	plugins: [react(), addTransformIndexHtml],
+	plugins: [
+		react(),
+		addTransformIndexHtml,
+		VitePWA({
+			registerType: 'autoUpdate',
+			includeAssets: ['carrus-logo.png', 'pwa-icon.svg'],
+			manifest: {
+				name: 'Star3000+ — Gestion PDV',
+				short_name: 'Star3000+',
+				description: 'Gestion de planning, pointage, paiements et maintenance des points de vente.',
+				lang: 'fr',
+				theme_color: '#2563eb',
+				background_color: '#ffffff',
+				display: 'standalone',
+				orientation: 'portrait',
+				start_url: '/',
+				scope: '/',
+				icons: [
+					{ src: '/pwa-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+					{ src: '/pwa-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
+				],
+			},
+			workbox: {
+				navigateFallback: 'index.html',
+				// Ne pas intercepter le viewer Power BI ni les appels d'API
+				navigateFallbackDenylist: [/^\/pbi-viewer/],
+				globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2}'],
+				maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+			},
+		}),
+	],
 	server: {
 		cors: true,
 		headers: {

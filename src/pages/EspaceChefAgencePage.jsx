@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { UserCog, CalendarDays, ShieldCheck, LogOut, Loader2, Camera, RotateCcw, Timer, Wallet, Wrench, MapPin, ClipboardCheck, Menu, X } from 'lucide-react';
 import EditProfileDialog from '@/components/EditProfileDialog';
+import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
+import NotificationBell from '@/components/NotificationBell';
+import { useSpaceNotifications } from '@/hooks/useSpaceNotifications';
 import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -87,6 +90,7 @@ const LoginPageChef = ({ onLogin }) => {
   const [matricule, setMatricule] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
   const [authStep, setAuthStep] = useState('matricule');
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [capturedImage, setCapturedImage] = useState(null);
@@ -479,15 +483,21 @@ const LoginPageChef = ({ onLogin }) => {
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-5 w-5" />}
               {isLoading ? 'Connexion...' : 'Se connecter'}
             </Button>
-                <Button 
+                <Button
                   type="button"
-                  onClick={retourMatricule} 
-                  variant="ghost" 
+                  onClick={retourMatricule}
+                  variant="ghost"
                   disabled={isLoading}
                 >
                   Retour
                 </Button>
               </div>
+              <div className="text-center">
+                <button type="button" onClick={() => setIsForgotOpen(true)} className="text-sm font-medium text-primary hover:underline">
+                  Mot de passe oublié ?
+                </button>
+              </div>
+              <ForgotPasswordDialog open={isForgotOpen} onOpenChange={setIsForgotOpen} />
           </form>
           )}
 
@@ -631,6 +641,12 @@ const EspaceChefAgencePage = () => {
     spaceKey: 'espace-chef-agence',
     isAuthenticated,
     identity: chefAgenceInfo,
+  });
+
+  const { notifications: chefNotifications, totalCount: chefNotifCount } = useSpaceNotifications({
+    spaceKey: 'espace-chef-agence',
+    enabled: isAuthenticated,
+    context: { chefId: chefDetails?.id || chefAgenceInfo?.id, agenceNom: chefAgenceInfo?.nomAgence },
   });
 
   // Charger les paramètres de session
@@ -994,6 +1010,11 @@ const EspaceChefAgencePage = () => {
                   <p className="mt-0.5 truncate text-sm font-bold text-foreground">{chefAgenceInfo?.nomChef}</p>
                   <p className="text-[0.68rem] text-muted-foreground">Agence : {chefAgenceInfo?.nomAgence}</p>
                 </div>
+                <NotificationBell
+                  notifications={chefNotifications}
+                  totalCount={chefNotifCount}
+                  onNavigate={() => setIsMobileMenuOpen(false)}
+                />
               </div>
             </CardContent>
           </Card>

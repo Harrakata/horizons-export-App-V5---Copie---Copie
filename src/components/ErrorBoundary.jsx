@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { captureError } from '@/lib/monitoring';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -13,6 +14,8 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     this.setState({ errorInfo });
+    // Remontée vers Sentry (no-op si non configuré).
+    captureError(error, { componentStack: errorInfo?.componentStack });
     if (import.meta.env.DEV) {
       console.error('ErrorBoundary caught:', error, errorInfo);
     }

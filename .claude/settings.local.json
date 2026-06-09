@@ -7,7 +7,9 @@
       "Bash(cd '/c/Users/ar.kader/OneDrive - GROUPE CARRUS/Documents/Web App/horizons-export-App-V5---Copie---Copie' && find src -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" -o -name \"*.jsx\" -o -name \"*.js\" \\\\\\) | head -50)",
       "Read(//c/c/Users/ar.kader/OneDrive - GROUPE CARRUS/Documents/Web App/horizons-export-App-V5---Copie---Copie/**)",
       "Bash(npm run *)",
-      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\)\")"
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\)\")",
+      "Bash(git rm *)",
+      "Bash(grep -nE \"const ConfigurationTab|function ConfigurationTab|useOutletContext|props\\\\.|actor|currentUser|technicien|spaceKey|=> \\\\{$\" src/pages/maintenance/ConfigurationTab.jsx)"
     ]
   }
 }

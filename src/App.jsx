@@ -26,6 +26,7 @@ const EspaceGuichetierePage                 = lazy(() => import('@/pages/EspaceG
 const EspaceMaintenancePage                 = lazy(() => import('@/pages/EspaceMaintenancePage'));
 const PaiementGrosGainPage                  = lazy(() => import('@/pages/PaiementGrosGainPage'));
 const PbiViewerPage                         = lazy(() => import('@/pages/PbiViewerPage'));
+const ResetPasswordPage                     = lazy(() => import('@/pages/ResetPasswordPage'));
 
 // Exploitation
 const AgencesPage                           = lazy(() => import('@/pages/exploitation/AgencesPage'));
@@ -45,6 +46,8 @@ const ChiffresDaffairesPage                 = lazy(() => import('@/pages/exploit
 const EtatPlanningGeneralPage               = lazy(() => import('@/pages/exploitation/EtatPlanningGeneralPage'));
 const SuiviPointageExploitationPage         = lazy(() => import('@/pages/exploitation/SuiviPointagePage'));
 const ActivitesUtilisateursPage             = lazy(() => import('@/pages/exploitation/ActivitesUtilisateursPage'));
+const JournalAuditPage                      = lazy(() => import('@/pages/exploitation/JournalAuditPage'));
+const TableauDeBordPage                     = lazy(() => import('@/pages/exploitation/TableauDeBordPage'));
 
 // Chef d'agence
 const MesGuichetieresPage                   = lazy(() => import('@/pages/chef_agence/MesGuichetieresPage'));
@@ -88,6 +91,7 @@ const App = () => (
         <Route path="/pbi-viewer" element={<LazyRoute><PbiViewerPage /></LazyRoute>} />
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/reset-password" element={<LazyRoute><ResetPasswordPage /></LazyRoute>} />
           <Route path="/pointage"                          element={<LazyRoute><PointagePage /></LazyRoute>} />
           <Route path="/paiement-gros-gain"                element={<LazyRoute><PaiementGrosGainPage /></LazyRoute>} />
           <Route path="/maintenance-terminaux"             element={<Navigate to="/espace-technicien" replace />} />
@@ -109,6 +113,7 @@ const App = () => (
 
           <Route path="/espace-exploitation" element={<LazyRoute><EspaceExploitationPage /></LazyRoute>}>
             <Route index                              element={<Navigate to="maintenance-terminaux" replace />} />
+            <Route path="tableau-de-bord"             element={<LazyRoute><TableauDeBordPage /></LazyRoute>} />
             <Route path="agences"                     element={<LazyRoute><AgencesPage /></LazyRoute>} />
             <Route path="chefs-agence"                element={<LazyRoute><ChefsAgencePage /></LazyRoute>} />
             <Route path="guichetieres"                element={<LazyRoute><GuichetieresPageExploitation /></LazyRoute>} />
@@ -123,6 +128,7 @@ const App = () => (
             <Route path="referentiel-parametres"      element={<LazyRoute><ReferentielParametresPage /></LazyRoute>} />
             <Route path="etat-planning-general"       element={<LazyRoute><EtatPlanningGeneralPage /></LazyRoute>} />
             <Route path="activites-utilisateurs"      element={<LazyRoute><ActivitesUtilisateursPage /></LazyRoute>} />
+            <Route path="journal-audit"               element={<LazyRoute><JournalAuditPage /></LazyRoute>} />
             <Route path="chiffres-daffaires"          element={<LazyRoute><ChiffresDaffairesPage /></LazyRoute>} />
             <Route path="parametres"                  element={<LazyRoute><ParametresPage /></LazyRoute>} />
             <Route path="profils-exploitation"        element={<LazyRoute><ProfilsExploitationPage /></LazyRoute>} />

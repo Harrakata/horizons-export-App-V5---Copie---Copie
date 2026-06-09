@@ -30,6 +30,9 @@ import { useToast } from '@/components/ui/use-toast';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { useActivityTracker } from '@/hooks/useActivityTracker';
 import EditProfileDialog from '@/components/EditProfileDialog';
+import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
+import NotificationBell from '@/components/NotificationBell';
+import { logAudit, AUDIT_ACTIONS, AUDIT_ENTITIES } from '@/lib/auditLog';
 import RegionalMaintenanceSection from '@/components/directeur_regional/RegionalMaintenanceSection';
 import RegionalPointageSection from '@/components/directeur_regional/RegionalPointageSection';
 import CcopePage from '@/pages/exploitation/CcopePage';
@@ -92,6 +95,7 @@ const LoginPage = ({ onLogin, spaceConfig }) => {
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (event) => {
@@ -211,9 +215,15 @@ const LoginPage = ({ onLogin, spaceConfig }) => {
                 'Se connecter'
               )}
             </Button>
+            <div className="text-center">
+              <button type="button" onClick={() => setIsForgotOpen(true)} className="text-sm font-medium text-primary hover:underline">
+                Mot de passe oublié ?
+              </button>
+            </div>
           </form>
         </CardContent>
       </Card>
+      <ForgotPasswordDialog open={isForgotOpen} onOpenChange={setIsForgotOpen} defaultEmail={email} />
     </motion.div>
   );
 };
@@ -501,6 +511,22 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
     }
 
     const actorName = buildFullName(validator.prenom, validator.nom);
+    logAudit({
+      space: currentSpaceKey,
+      actorId: validator.id,
+      actorName,
+      actorRole: validator.fonction,
+      action: decision === 'approve' ? AUDIT_ACTIONS.VALIDATE : AUDIT_ACTIONS.REFUSE,
+      entity: AUDIT_ENTITIES.PAIEMENT_GAIN,
+      entityId: selectedDemande.id,
+      entityLabel: selectedDemande.codeDemande,
+      details: {
+        montant: selectedDemande.montantGain,
+        de: statusBefore,
+        vers: nextStatus,
+        commentaire: updates.commentaireDerniereAction,
+      },
+    });
     await recordPaiementGainEvent({
       demandeId: selectedDemande.id,
       codeDemande: selectedDemande.codeDemande,
@@ -1089,6 +1115,13 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
                       : `Région : ${validator.regionAssignee || 'Non assignée'}`}
                   </p>
                 </div>
+                <NotificationBell
+                  notifications={pendingRequests.length > 0
+                    ? [{ key: 'pay', count: pendingRequests.length, title: 'Paiements de gain à valider', description: 'En attente de votre validation', severity: 'blue' }]
+                    : []}
+                  totalCount={pendingRequests.length}
+                  onNavigate={() => setIsMobileMenuOpen(false)}
+                />
               </div>
             </CardContent>
           </Card>

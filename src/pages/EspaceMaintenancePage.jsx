@@ -7,6 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Wrench, Loader2, LogOut, CalendarDays, AtSign, UserCog, Menu, X } from 'lucide-react';
 import EditProfileDialog from '@/components/EditProfileDialog';
+import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
+import NotificationBell from '@/components/NotificationBell';
+import { useSpaceNotifications } from '@/hooks/useSpaceNotifications';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
@@ -52,6 +55,7 @@ const LoginPage = ({ onLogin }) => {
   const { toast } = useToast();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -163,9 +167,15 @@ const LoginPage = ({ onLogin }) => {
             <Button type="submit" className="w-full bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90" disabled={isLoading}>
               {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Connexion...</>) : 'Se connecter'}
             </Button>
+            <div className="text-center">
+              <button type="button" onClick={() => setIsForgotOpen(true)} className="text-sm font-medium text-primary hover:underline">
+                Mot de passe oublié ?
+              </button>
+            </div>
           </form>
         </CardContent>
       </Card>
+      <ForgotPasswordDialog open={isForgotOpen} onOpenChange={setIsForgotOpen} defaultEmail={identifier.includes('@') ? identifier : ''} />
     </motion.div>
   );
 };
@@ -201,6 +211,12 @@ const EspaceMaintenancePage = () => {
     spaceKey: 'espace-technicien',
     isAuthenticated,
     identity: userData,
+  });
+
+  const { notifications: technicienNotifications, totalCount: technicienNotifCount } = useSpaceNotifications({
+    spaceKey: 'espace-technicien',
+    enabled: isAuthenticated,
+    context: { technicienId: userData?.id },
   });
 
   // Restauration de la session : si l'utilisateur a déjà un JWT Supabase valide,
@@ -368,6 +384,11 @@ const EspaceMaintenancePage = () => {
                   <p className="mt-0.5 truncate text-sm font-bold text-foreground">{userData?.prenom} {userData?.nom}</p>
                   <p className="text-[0.68rem] text-muted-foreground">Technicien de maintenance</p>
                 </div>
+                <NotificationBell
+                  notifications={technicienNotifications}
+                  totalCount={technicienNotifCount}
+                  onNavigate={() => setIsMobileMenuOpen(false)}
+                />
               </div>
             </CardContent>
           </Card>

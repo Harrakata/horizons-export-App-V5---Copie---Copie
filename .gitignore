@@ -10,3 +10,8 @@ src/lib/supabaseClient.jsx
 .env
 .env.local
 .env.*.local
+
+# Logs de dev / build
+*.log
+vite-dev.out.log
+vite-dev.err.log

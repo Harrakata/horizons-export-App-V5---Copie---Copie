@@ -3,6 +3,9 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CalendarDays, LogOut, MapPin, FileText, ShieldCheck, Wallet, AtSign, Loader2, UserCog, Menu, X } from 'lucide-react';
 import EditProfileDialog from '@/components/EditProfileDialog';
+import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
+import NotificationBell from '@/components/NotificationBell';
+import { useSpaceNotifications } from '@/hooks/useSpaceNotifications';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -83,6 +86,7 @@ const LoginPageGuichetiere = ({ onLogin }) => {
   const { toast } = useToast();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (event) => {
@@ -207,9 +211,15 @@ const LoginPageGuichetiere = ({ onLogin }) => {
             >
               {isLoading ? 'Connexion...' : 'Se connecter'}
             </Button>
+            <div className="text-center">
+              <button type="button" onClick={() => setIsForgotOpen(true)} className="text-sm font-medium text-primary hover:underline">
+                Mot de passe oublié ?
+              </button>
+            </div>
           </form>
         </CardContent>
       </Card>
+      <ForgotPasswordDialog open={isForgotOpen} onOpenChange={setIsForgotOpen} defaultEmail={identifier.includes('@') ? identifier : ''} />
     </motion.div>
   );
 };
@@ -252,6 +262,12 @@ const EspaceGuichetierePage = () => {
     spaceKey: 'espace-guichetiere',
     isAuthenticated,
     identity: guichetiereInfo,
+  });
+
+  const { notifications: guichetiereNotifications, totalCount: guichetiereNotifCount } = useSpaceNotifications({
+    spaceKey: 'espace-guichetiere',
+    enabled: isAuthenticated,
+    context: { matricule: guichetiereInfo?.matricule },
   });
 
   useEffect(() => {
@@ -530,6 +546,11 @@ const EspaceGuichetierePage = () => {
                   <p className="mt-0.5 truncate text-sm font-bold text-foreground">{guichetiereInfo?.nomComplet}</p>
                   <p className="text-[0.68rem] text-muted-foreground">Agence : {guichetiereInfo?.nomAgence}</p>
                 </div>
+                <NotificationBell
+                  notifications={guichetiereNotifications}
+                  totalCount={guichetiereNotifCount}
+                  onNavigate={() => setIsMobileMenuOpen(false)}
+                />
               </div>
             </CardContent>
           </Card>
