@@ -457,7 +457,7 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-3">
         <KpiStatCard
           icon={Wrench}
           label="Maintenances planifiées"

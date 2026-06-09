@@ -386,6 +386,28 @@ aside,
     display: none !important;
   }
 
+  /* Toute grille de cartes KPI passe en 2 colonnes sur mobile (densité « app ») */
+  .grid:has(> .kpi-stat-card) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.5rem !important;
+  }
+
+  /* Champs compacts : libellé et champ sur la même ligne (opt-in via .mobile-inline-fields) */
+  .mobile-inline-fields > .space-y-2 {
+    display: grid;
+    grid-template-columns: minmax(4.5rem, 7rem) 1fr;
+    align-items: center;
+    gap: 0.4rem 0.6rem;
+  }
+  .mobile-inline-fields > .space-y-2 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0 !important;
+  }
+  .mobile-inline-fields > .space-y-2 > label {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.15;
+  }
+
   /* Bouton menu de l'espace : identique au bouton du menu de navigation */
   .app-space-menu-toggle {
     position: sticky;

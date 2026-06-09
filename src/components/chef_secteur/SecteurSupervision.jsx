@@ -87,7 +87,7 @@ export const PointagesSecteurSection = ({ chef }) => {
     <SectionShell icon={ClipboardCheck} title="Pointages du secteur" secteurName={chef.secteurEnCharge}>
       {agLoading ? <p className="py-8 text-center text-muted-foreground">Chargement…</p> : names.length === 0 ? <EmptyAgences /> : (
         <>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-3">
             <KpiStatCard icon={ClipboardCheck} label="Pointages (7 j)" value={rows.length} tone="primary" />
             <KpiStatCard icon={Clock} label="Aujourd'hui" value={todayCount} tone="emerald" />
             <KpiStatCard icon={Users} label="Guichetières actives" value={distinctGuichetieres} tone="blue" />
@@ -147,7 +147,7 @@ export const MaintenanceSecteurSection = ({ chef }) => {
     <SectionShell icon={Wrench} title="Maintenance des terminaux" secteurName={chef.secteurEnCharge}>
       {agLoading ? <p className="py-8 text-center text-muted-foreground">Chargement…</p> : ids.length === 0 ? <EmptyAgences /> : (
         <>
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-4">
             <KpiStatCard icon={Smartphone} label="Terminaux" value={terminaux.length} tone="primary" />
             <KpiStatCard icon={CheckCircle2} label="En service" value={enService} tone="emerald" />
             <KpiStatCard icon={AlertTriangle} label="Hors service / panne" value={horsService} tone="red" />
@@ -215,7 +215,7 @@ export const PaiementsSecteurSection = ({ chef }) => {
     <SectionShell icon={Wallet} title="Paiements de gain du secteur" secteurName={chef.secteurEnCharge}>
       {agLoading ? <p className="py-8 text-center text-muted-foreground">Chargement…</p> : names.length === 0 ? <EmptyAgences /> : (
         <>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-3">
             <KpiStatCard icon={Wallet} label="Demandes" value={rows.length} tone="primary" />
             <KpiStatCard icon={Clock} label="En attente" value={enCours} tone="amber" />
             <KpiStatCard icon={CheckCircle2} label="Montant cumulé" value={fmtMontant(montantTotal)} tone="emerald" />

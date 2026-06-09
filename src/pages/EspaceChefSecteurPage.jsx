@@ -166,7 +166,7 @@ const AgencesSecteurSection = ({ chef }) => {
           <CardDescription>Secteur : <span className="font-semibold">{chef.secteurEnCharge || '—'}</span></CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-3">
             <KpiStatCard icon={Building} label="Agences" value={agences.length} tone="primary" />
             <KpiStatCard icon={Smartphone} label="Terminaux déclarés" value={totalTerminaux} tone="violet" />
             <KpiStatCard icon={Globe} label="Région" value={agences[0]?.region || chef.region || '—'} tone="blue" />

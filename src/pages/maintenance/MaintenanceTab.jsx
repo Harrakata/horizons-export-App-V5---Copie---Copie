@@ -2135,7 +2135,7 @@ const MaintenanceTab = ({ technicien }) => {
         </CardHeader>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-4 xl:grid-cols-4">
         <KpiStatCard
           icon={Globe}
           label="Régions disponibles"
@@ -2199,7 +2199,7 @@ const MaintenanceTab = ({ technicien }) => {
         {step === 1 && (
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-primary">Sélection du Terminal</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="mobile-inline-fields grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
                   <Label htmlFor="region">Région</Label>
                   <Combobox
