@@ -6,6 +6,14 @@ import EditProfileDialog from '@/components/EditProfileDialog';
 import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 import NotificationBell from '@/components/NotificationBell';
 import { useSpaceNotifications } from '@/hooks/useSpaceNotifications';
+import MobileTabBar from '@/components/mobile/MobileTabBar';
+
+const GUICHETIERE_TAB_LABELS = {
+  'mon-planning': 'Planning',
+  'mes-pointages': 'Pointages',
+  'mes-points-vente-mobi': 'PDV',
+  'etat-caisse': 'Caisse',
+};
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -625,7 +633,7 @@ const EspaceGuichetierePage = () => {
         </div>
       </motion.aside>
 
-      <main className="app-space-main flex-1 min-w-0 overflow-visible md:overflow-hidden">
+      <main className="app-space-main has-tabbar flex-1 min-w-0 overflow-visible md:overflow-hidden">
         <motion.div
           key={location.pathname}
           initial={{ opacity: 0, y: 20 }}
@@ -650,6 +658,18 @@ const EspaceGuichetierePage = () => {
           )}
         </motion.div>
       </main>
+
+      <MobileTabBar
+        items={menuItems.map((item) => ({
+          key: item.path,
+          label: GUICHETIERE_TAB_LABELS[item.path] || item.label,
+          icon: item.icon,
+          active: isMenuItemActive(item.path),
+          onClick: () => navigate(`/espace-guichetiere/${item.path}`),
+        }))}
+        onMore={() => setIsMobileMenuOpen(true)}
+        moreActive={isMobileMenuOpen}
+      />
     </div>
   );
 };

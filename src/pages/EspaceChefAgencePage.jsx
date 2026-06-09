@@ -7,6 +7,16 @@ import EditProfileDialog from '@/components/EditProfileDialog';
 import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 import NotificationBell from '@/components/NotificationBell';
 import { useSpaceNotifications } from '@/hooks/useSpaceNotifications';
+import MobileTabBar from '@/components/mobile/MobileTabBar';
+
+const CHEF_AGENCE_TAB_LABELS = {
+  'mon-planning': 'Planning',
+  'mes-guichetieres': 'Guichet.',
+  'maintenance-terminaux': 'Maint.',
+  'suivi-pointage': 'Pointage',
+  'points-vente-mobi': 'PDV',
+  'paiement-gros-gain': 'Gains',
+};
 import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1096,7 +1106,7 @@ const EspaceChefAgencePage = () => {
           )}
         </div>
       </motion.aside>
-      <main className="app-space-main flex-1 min-w-0 overflow-visible md:overflow-x-hidden">
+      <main className="app-space-main has-tabbar flex-1 min-w-0 overflow-visible md:overflow-x-hidden">
         <motion.div
           key={location.pathname}
           initial={{ opacity: 0, y: 20 }}
@@ -1121,6 +1131,18 @@ const EspaceChefAgencePage = () => {
           )}
         </motion.div>
       </main>
+
+      <MobileTabBar
+        items={menuItems.map((item) => ({
+          key: item.path,
+          label: CHEF_AGENCE_TAB_LABELS[item.path] || item.label,
+          icon: item.icon,
+          active: isMenuItemActive(item.path),
+          onClick: () => navigate(`/espace-chef-agence/${item.path}`),
+        }))}
+        onMore={() => setIsMobileMenuOpen(true)}
+        moreActive={isMobileMenuOpen}
+      />
     </div>
   );
 };

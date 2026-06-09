@@ -10,6 +10,7 @@ import EditProfileDialog from '@/components/EditProfileDialog';
 import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 import NotificationBell from '@/components/NotificationBell';
 import { useSpaceNotifications } from '@/hooks/useSpaceNotifications';
+import MobileTabBar from '@/components/mobile/MobileTabBar';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
@@ -452,7 +453,7 @@ const EspaceMaintenancePage = () => {
         onSaved={(fields) => setUserData((prev) => ({ ...(prev || {}), ...fields }))}
       />
 
-      <main className="app-space-main min-w-0 flex-1 overflow-visible">
+      <main className="app-space-main has-tabbar min-w-0 flex-1 overflow-visible">
         <motion.div
           key={activeSection}
           initial={{ opacity: 0, y: 20 }}
@@ -501,6 +502,18 @@ const EspaceMaintenancePage = () => {
           </Suspense>
         </motion.div>
       </main>
+
+      <MobileTabBar
+        items={menuItems.map((item) => ({
+          key: item.key,
+          label: item.label,
+          icon: item.icon,
+          active: activeSection === item.key,
+          onClick: () => setActiveSection(item.key),
+        }))}
+        onMore={() => setIsMobileMenuOpen(true)}
+        moreActive={isMobileMenuOpen}
+      />
     </div>
   );
 };

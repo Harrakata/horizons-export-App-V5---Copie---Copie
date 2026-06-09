@@ -44,6 +44,9 @@ import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PointagesSecteurSection, MaintenanceSecteurSection, PaiementsSecteurSection } from '@/components/chef_secteur/SecteurSupervision';
+import MobileTabBar from '@/components/mobile/MobileTabBar';
+
+const SECTEUR_TAB_LABELS = { agences: 'Agences', pointages: 'Pointages', maintenance: 'Maint.', paiements: 'Paiements' };
 
 const AUTH_KEY = 'chefSecteurAuth';
 
@@ -355,12 +358,24 @@ const EspaceChefSecteurPage = () => {
         </div>
       </motion.aside>
 
-      <main className="app-space-main min-w-0 flex-1 overflow-visible">
+      <main className="app-space-main has-tabbar min-w-0 flex-1 overflow-visible">
         {activeSection === 'agences' && <AgencesSecteurSection chef={chef} />}
         {activeSection === 'pointages' && <PointagesSecteurSection chef={chef} />}
         {activeSection === 'maintenance' && <MaintenanceSecteurSection chef={chef} />}
         {activeSection === 'paiements' && <PaiementsSecteurSection chef={chef} />}
       </main>
+
+      <MobileTabBar
+        items={visibleNavItems.map((item) => ({
+          key: item.key,
+          label: SECTEUR_TAB_LABELS[item.key] || item.label,
+          icon: React.createElement(item.icon),
+          active: activeSection === item.key,
+          onClick: () => setActiveSection(item.key),
+        }))}
+        onMore={() => setIsMobileMenuOpen(true)}
+        moreActive={isMobileMenuOpen}
+      />
 
       <EditProfileDialog
         open={isProfileDialogOpen}
