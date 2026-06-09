@@ -16,6 +16,7 @@ import { Building2, CalendarClock, Globe, Wrench, ClipboardList, PlusCircle, Tra
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { ajouterAuStockDefectueux } from '@/lib/stockDefectueux';
 import { fetchRegions, buildRegionOptions, normalizeRegionText } from '@/lib/regions';
+import { fetchSecteurs, buildSecteurOptions } from '@/lib/secteurs';
 import { isSupabaseAuthError } from '@/lib/guichetiereSpace';
 
 const normalizeMaintenanceText = (value) =>
@@ -218,6 +219,7 @@ const MaintenanceTab = ({ technicien }) => {
   // États pour stocker les données chargées depuis Supabase
   const [regions, setRegions] = useState([]);
   const [agences, setAgences] = useState([]);
+  const [secteurs, setSecteurs] = useState([]);
   const [terminaux, setTerminaux] = useState([]);
   const [codesPannes, setCodesPannes] = useState([]);
   const [codesInterventions, setCodesInterventions] = useState([]);
@@ -283,6 +285,7 @@ const MaintenanceTab = ({ technicien }) => {
       const [
         regionsResponse,
         { data: agencesData, error: agencesError },
+        { data: secteursData },
         { data: pannesData, error: pannesError },
         { data: interventionsData, error: interventionsError },
         { data: piecesData, error: piecesError },
@@ -295,6 +298,8 @@ const MaintenanceTab = ({ technicien }) => {
           .select('id, nom, nbreTerminaux, codePDV, region, secteur')
           .eq('is_current', true)
           .order('nom', { ascending: true }),
+        // Secteurs (table dédiée)
+        fetchSecteurs(),
         // Codes de pannes
         supabase
           .from('codes_pannes')
@@ -314,6 +319,7 @@ const MaintenanceTab = ({ technicien }) => {
       ]);
 
       if (!regionsResponse.error) setRegions(regionsResponse.data || []);
+      setSecteurs(secteursData || []);
 
       if (agencesError) {
         if (!isSupabaseAuthError(agencesError)) {
@@ -724,13 +730,8 @@ const MaintenanceTab = ({ technicien }) => {
     : agences
   ).filter((agence) => !form.secteur || normalizeRegionText(agence.secteur) === normalizeRegionText(form.secteur));
 
-  // Secteurs disponibles pour la région choisie (dérivés des agences)
-  const secteurOptions = Array.from(new Set(
-    agences
-      .filter((agence) => !form.region || normalizeRegionText(agence.region) === normalizeRegionText(form.region))
-      .map((agence) => agence.secteur)
-      .filter(Boolean)
-  )).sort((a, b) => a.localeCompare(b)).map((s) => ({ value: s, label: s }));
+  // Secteurs disponibles pour la région choisie (depuis la table secteurs)
+  const secteurOptions = buildSecteurOptions(secteurs, { region: form.region || null });
 
   const agencesOptions = filteredAgences.map(a => ({
     value: String(a.id),

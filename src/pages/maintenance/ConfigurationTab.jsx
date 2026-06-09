@@ -12,6 +12,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { buildRegionOptions, fetchRegions, normalizeRegionText } from '@/lib/regions';
+import { fetchSecteurs, buildSecteurOptions } from '@/lib/secteurs';
 import { supabase } from '@/lib/supabaseClient';
 import { isSupabaseAuthError } from '@/lib/guichetiereSpace';
 import EquipmentManager from './EquipmentManager';
@@ -122,6 +123,7 @@ const ConfigurationTab = ({
   const { toast } = useToast();
   const [regions, setRegions] = useState([]);
   const [agences, setAgences] = useState([]);
+  const [secteurs, setSecteurs] = useState([]);
   const [equipments, setEquipments] = useState({
     imprimantes: [],
     ecrans: [],
@@ -156,6 +158,7 @@ const ConfigurationTab = ({
       const [
         regionsResponse,
         agencesResponse,
+        secteursResponse,
         terminauxResponse,
         imprimantesResponse,
         ecransResponse,
@@ -167,6 +170,7 @@ const ConfigurationTab = ({
       ] = await Promise.all([
         fetchRegions(),
         supabase.from('agences').select('id, nom, nbreTerminaux, codePDV, region, secteur').eq('is_current', true).order('nom', { ascending: true }),
+        fetchSecteurs(),
         supabase
           .from('terminaux')
           .select(
@@ -204,6 +208,10 @@ const ConfigurationTab = ({
         }
       } else {
         setAgences(agencesResponse.data || []);
+      }
+
+      if (!secteursResponse?.error) {
+        setSecteurs(secteursResponse.data || []);
       }
 
       if (terminauxResponse.error) {
@@ -391,15 +399,10 @@ const ConfigurationTab = ({
       .filter((agence) => !formSecteur || normalizeRegionText(agence.secteur) === normalizeRegionText(formSecteur));
   }, [agences, formRegion, formSecteur, resolvedLockedAgence]);
 
-  // Secteurs disponibles pour la région choisie (dérivés des agences)
+  // Secteurs disponibles pour la région choisie (depuis la table secteurs)
   const secteurOptionsForForm = useMemo(
-    () => Array.from(new Set(
-      agences
-        .filter((agence) => !formRegion || normalizeRegionText(agence.region) === normalizeRegionText(formRegion))
-        .map((agence) => agence.secteur)
-        .filter(Boolean)
-    )).sort((a, b) => a.localeCompare(b)),
-    [agences, formRegion]
+    () => buildSecteurOptions(secteurs, { region: formRegion || null }),
+    [secteurs, formRegion]
   );
 
   const agencesOptions = useMemo(
@@ -886,7 +889,7 @@ const ConfigurationTab = ({
               <div className="space-y-2">
                 <Label>Secteur</Label>
                 <Combobox
-                  options={secteurOptionsForForm.map((s) => ({ value: s, label: s }))}
+                  options={secteurOptionsForForm}
                   value={formSecteur}
                   onSelect={(value) => {
                     setFormSecteur(value);

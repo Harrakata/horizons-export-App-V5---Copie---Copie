@@ -47,17 +47,17 @@ const KpiStatCard = ({ icon, label, value, helper = '', tone = 'primary' }) => {
 
   return (
     <Card className={`kpi-stat-card relative overflow-hidden border bg-white/92 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur ${toneStyle.border}`}>
-      <div className={`pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${toneStyle.rail}`} />
+      <div className={`pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r sm:h-1.5 ${toneStyle.rail}`} />
       <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${toneStyle.accent}`} />
-      <CardContent className="relative px-2.5 py-2 sm:px-4 sm:py-3">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ring-1 sm:h-10 sm:w-10 sm:rounded-xl ${toneStyle.iconWrap} shadow-[0_8px_16px_-10px_rgba(15,23,42,0.35)]`}>
-            {isIconElement ? React.cloneElement(icon, { className: 'h-4 w-4 sm:h-5 sm:w-5' }) : null}
-            {Icon ? <Icon className="h-4 w-4 sm:h-5 sm:w-5" /> : null}
+      <CardContent className="relative px-2 py-1.5 sm:px-4 sm:py-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
+          <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ring-1 sm:h-10 sm:w-10 sm:rounded-xl ${toneStyle.iconWrap} shadow-[0_8px_16px_-10px_rgba(15,23,42,0.35)]`}>
+            {isIconElement ? React.cloneElement(icon, { className: 'h-3.5 w-3.5 sm:h-5 sm:w-5' }) : null}
+            {Icon ? <Icon className="h-3.5 w-3.5 sm:h-5 sm:w-5" /> : null}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[0.6rem] font-semibold uppercase tracking-[0.04em] text-muted-foreground/80 leading-none sm:text-[0.7rem]">{label}</p>
-            <p className="mt-0.5 text-lg font-black tracking-tight text-foreground leading-none sm:mt-1 sm:text-2xl">{value}</p>
+            <p className="truncate text-[0.58rem] font-semibold uppercase tracking-[0.03em] text-muted-foreground/80 leading-tight sm:text-[0.7rem]">{label}</p>
+            <p className="text-base font-black tracking-tight text-foreground leading-none sm:mt-1 sm:text-2xl">{value}</p>
             {/* La phrase d'aide n'apparaît qu'à partir de sm (gain de place sur mobile) */}
             {helper ? <p className="mt-1 hidden text-[0.66rem] leading-3.5 text-muted-foreground sm:block sm:text-[0.7rem] sm:leading-4">{helper}</p> : null}
           </div>
