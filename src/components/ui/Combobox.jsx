@@ -12,11 +12,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+import AnchoredPopover from "@/components/ui/AnchoredPopover"
 
 const normalizeValue = (value) => String(value ?? "").trim().toLowerCase();
 const getSearchableValue = (option) => String(
@@ -56,8 +52,15 @@ const Combobox = ({ options, value, onSelect, placeholder, searchPlaceholder, em
     };
 
     return (
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
+      <AnchoredPopover
+        open={open}
+        onOpenChange={setOpen}
+        disabled={disabled}
+        align="start"
+        matchTriggerWidth
+        triggerWrapClassName="block w-full"
+        panelClassName="p-0"
+        trigger={
           <Button
             variant="outline"
             role="combobox"
@@ -68,14 +71,8 @@ const Combobox = ({ options, value, onSelect, placeholder, searchPlaceholder, em
             <span className="truncate">{triggerLabel}</span>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          className="p-0"
-          style={{ width: 'var(--radix-popover-trigger-width)' }}
-          align="start"
-          sideOffset={4}
-          avoidCollisions
-        >
+        }
+      >
           <Command>
             <CommandInput placeholder={searchPlaceholder} />
             <CommandList className="max-h-56 overflow-y-auto">
@@ -103,8 +100,7 @@ const Combobox = ({ options, value, onSelect, placeholder, searchPlaceholder, em
               </CommandGroup>
             </CommandList>
           </Command>
-        </PopoverContent>
-      </Popover>
+      </AnchoredPopover>
     );
   }
 
@@ -114,8 +110,15 @@ const Combobox = ({ options, value, onSelect, placeholder, searchPlaceholder, em
   );
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <AnchoredPopover
+      open={open}
+      onOpenChange={setOpen}
+      disabled={disabled}
+      align="start"
+      matchTriggerWidth
+      triggerWrapClassName="block w-full"
+      panelClassName="p-0"
+      trigger={
         <Button
           variant="outline"
           role="combobox"
@@ -126,14 +129,8 @@ const Combobox = ({ options, value, onSelect, placeholder, searchPlaceholder, em
           <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="p-0"
-        style={{ width: 'var(--radix-popover-trigger-width)' }}
-        align="start"
-        sideOffset={4}
-        avoidCollisions
-      >
+      }
+    >
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList className="max-h-56 overflow-y-auto">
@@ -160,8 +157,7 @@ const Combobox = ({ options, value, onSelect, placeholder, searchPlaceholder, em
             </CommandGroup>
           </CommandList>
         </Command>
-      </PopoverContent>
-    </Popover>
+    </AnchoredPopover>
   )
 }
 

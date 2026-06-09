@@ -1023,6 +1023,7 @@ const MaintenanceTab = ({ technicien }) => {
 <html lang="fr">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Validation intervention maintenance</title>
     <style>
       @page {
@@ -1330,7 +1331,7 @@ const MaintenanceTab = ({ technicien }) => {
       }
 
       .signature-visual {
-        height: 88px;
+        min-height: 120px;
         border: 1px dashed #cbd5e1;
         border-radius: 10px;
         background: #ffffff;
@@ -1341,8 +1342,9 @@ const MaintenanceTab = ({ technicien }) => {
       }
 
       .signature-visual img {
-        max-width: 100%;
-        max-height: 72px;
+        display: block;
+        width: 100%;
+        max-height: 104px;
         object-fit: contain;
       }
 
@@ -1378,6 +1380,7 @@ const MaintenanceTab = ({ technicien }) => {
 
       .intervention-table {
         width: 100%;
+        table-layout: fixed;
         border-collapse: collapse;
         overflow: hidden;
         border-radius: 12px;
@@ -1391,6 +1394,8 @@ const MaintenanceTab = ({ technicien }) => {
         padding: 8px;
         text-align: left;
         vertical-align: top;
+        word-break: break-word;
+        overflow-wrap: anywhere;
       }
 
       .intervention-table th {
@@ -1940,9 +1945,10 @@ const MaintenanceTab = ({ technicien }) => {
     try {
       const { data, error } = await supabase.storage
         .from('pmu-mali-storage')
-        .upload(filePath, new Blob([fileContent], { type: 'text/html;charset=utf-8;' }), {
-          contentType: 'text/html',
+        .upload(filePath, fileContent, {
+          contentType: 'text/html; charset=utf-8',
           upsert: true,
+          cacheControl: '3600',
         });
 
       if (error) {
@@ -2103,7 +2109,7 @@ const MaintenanceTab = ({ technicien }) => {
               <div><strong>N° Intervention :</strong> {recap.interventionId}</div>
               <div><strong>Chef d'agence :</strong> {recap.chefAgence?.prenom} {recap.chefAgence?.nom}</div>
 
-              <div className="md:col-span-2 overflow-hidden rounded-lg border bg-white">
+              <div className="md:col-span-2 overflow-x-auto rounded-lg border bg-white">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -2299,10 +2305,10 @@ const MaintenanceTab = ({ technicien }) => {
                       const a = agences.find((x) => String(x.id) === String(v));
                       setForm((f) => ({ ...f, agence: v, region: a?.region || f.region, secteur: a?.secteur || f.secteur, terminal: '' }));
                     }}
-                    placeholder="Choisir une agence"
+                    placeholder={!form.region ? "Choisissez d'abord une région" : (!form.secteur ? "Choisissez d'abord un secteur" : 'Choisir une agence')}
                     searchPlaceholder="Rechercher une agence..."
                     emptyText="Aucune agence trouvée."
-                    disabled={isLoading}
+                    disabled={isLoading || !form.region || !form.secteur}
                   />
             </div>
                 
@@ -2312,7 +2318,7 @@ const MaintenanceTab = ({ technicien }) => {
                     options={terminauxOptions}
                     value={form.terminal}
                     onSelect={handleChange('terminal')}
-                    placeholder="Choisir un terminal"
+                    placeholder={form.agence ? 'Choisir un terminal' : "Choisissez d'abord une agence"}
                     searchPlaceholder="Rechercher un terminal..."
                     emptyText="Aucun terminal trouvé pour cette agence."
                     disabled={!form.agence || isLoading}
@@ -2325,7 +2331,7 @@ const MaintenanceTab = ({ technicien }) => {
                     options={sousEnsemblesOptions}
                     value={form.sousEnsemble}
                     onSelect={handleChange('sousEnsemble')}
-                    placeholder="Choisir un sous-ensemble"
+                    placeholder={form.terminal ? 'Choisir un sous-ensemble' : "Choisissez d'abord un terminal"}
                     searchPlaceholder="Rechercher un équipement..."
                     emptyText="Aucun équipement associé à ce terminal."
                     disabled={!form.terminal || isLoading}

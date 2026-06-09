@@ -3,19 +3,36 @@ import { createPortal } from 'react-dom';
 
 /**
  * Popover positionné manuellement (indépendant de Radix / floating-ui).
- * - Le panneau est rendu en `position: fixed` via un portail dans <body>.
- * - Position calculée depuis le bouton déclencheur puis bornée au viewport
- *   (jamais coupé hors écran), aligné à droite par défaut.
+ * - Panneau rendu en `position: fixed` via un portail dans <body>.
+ * - Position calculée depuis le bouton puis bornée au viewport (jamais hors écran).
  *
- * @param {React.ReactNode} trigger  élément déclencheur (bouton)
- * @param {React.ReactNode} children contenu du panneau
+ * Peut être non-contrôlé (clic sur le trigger ouvre/ferme) ou contrôlé via `open`/`onOpenChange`.
+ *
+ * @param {React.ReactNode} trigger
+ * @param {React.ReactNode} children
  * @param {'start'|'end'} [align='end']
- * @param {number} [width=256]
+ * @param {number} [width=256]            largeur du panneau (ignorée si matchTriggerWidth)
+ * @param {boolean} [matchTriggerWidth]   le panneau prend la largeur du bouton
  * @param {string} [maxHeight='28rem']
  * @param {string} [panelClassName]
+ * @param {boolean} [disabled]
+ * @param {boolean} [open]                mode contrôlé
+ * @param {(o:boolean)=>void} [onOpenChange]
  */
-const AnchoredPopover = ({ trigger, children, align = 'end', width = 256, maxHeight = '28rem', panelClassName = '' }) => {
-  const [open, setOpen] = useState(false);
+const AnchoredPopover = ({
+  trigger, children, align = 'end', width = 256, matchTriggerWidth = false,
+  maxHeight = '28rem', panelClassName = '', disabled = false, open: openProp, onOpenChange,
+  triggerWrapClassName = 'inline-flex',
+}) => {
+  const isControlled = openProp !== undefined;
+  const [openState, setOpenState] = useState(false);
+  const open = isControlled ? openProp : openState;
+  const setOpen = (v) => {
+    const next = typeof v === 'function' ? v(open) : v;
+    if (!isControlled) setOpenState(next);
+    onOpenChange?.(next);
+  };
+
   const [pos, setPos] = useState(null);
   const triggerRef = useRef(null);
   const panelRef = useRef(null);
@@ -24,10 +41,10 @@ const AnchoredPopover = ({ trigger, children, align = 'end', width = 256, maxHei
     const r = triggerRef.current?.getBoundingClientRect();
     if (!r) return;
     const margin = 8;
-    const w = Math.min(width, window.innerWidth - margin * 2);
+    const w = Math.min(matchTriggerWidth ? r.width : width, window.innerWidth - margin * 2);
     let left = align === 'end' ? r.right - w : r.left;
     left = Math.max(margin, Math.min(left, window.innerWidth - w - margin));
-    setPos({ top: Math.round(r.bottom + 4), left: Math.round(left), width: w });
+    setPos({ top: Math.round(r.bottom + 4), left: Math.round(left), width: Math.round(w) });
   };
 
   useLayoutEffect(() => {
@@ -59,7 +76,11 @@ const AnchoredPopover = ({ trigger, children, align = 'end', width = 256, maxHei
 
   return (
     <>
-      <span ref={triggerRef} className="inline-flex" onClick={() => setOpen((o) => !o)}>
+      <span
+        ref={triggerRef}
+        className={triggerWrapClassName}
+        onClick={() => { if (!disabled) setOpen((o) => !o); }}
+      >
         {trigger}
       </span>
       {open && pos && createPortal(
