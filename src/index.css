@@ -386,6 +386,12 @@ aside,
     display: none !important;
   }
 
+  /* Les descriptions d'en-tête de carte sont masquées sur mobile (densité « app »).
+     N'affecte pas les aides de champ (qui ne sont pas des CardDescription). */
+  .app-space-main .card-description {
+    display: none;
+  }
+
   /* Toute grille de cartes KPI passe en 2 colonnes sur mobile (densité « app ») */
   .grid:has(> .kpi-stat-card) {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
