@@ -211,7 +211,8 @@ aside,
     display: none;
   }
 
-  /* Menu ouvert en mobile = panneau flottant translucide (format du menu de nav) */
+  /* Menu ouvert en mobile = tiroir flottant qui reprend le rendu DESKTOP
+     (cartes séparées avec bordure / ombre / rail), sur un panneau clair. */
   .app-space-sidebar.is-open {
     position: fixed !important;
     top: 4.25rem;
@@ -220,17 +221,16 @@ aside,
     height: auto !important;
     max-height: calc(100vh - 5.25rem);
     z-index: 70;
-    width: min(80vw, 17.5rem) !important;
-    max-width: 80vw !important;
+    width: min(88vw, 19.5rem) !important;
+    max-width: 88vw !important;
     margin: 0 !important;
-    /* Caractéristiques identiques au menu de la barre de navigation */
-    background: hsl(var(--primary) / 0.06);
-    border: 1px solid hsl(var(--primary) / 0.2);
-    border-radius: 0.75rem;
-    box-shadow: 0 8px 30px -8px rgba(15, 23, 42, 0.2);
+    background: rgba(241, 245, 249, 0.98);
+    border: 1px solid hsl(var(--primary) / 0.18);
+    border-radius: 1rem;
+    box-shadow: 0 18px 44px -16px rgba(15, 23, 42, 0.30);
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 0.4rem;
+    padding: 0.6rem;
     animation: app-space-drawer-in 0.22s ease;
     backdrop-filter: blur(16px) saturate(1.4);
     -webkit-backdrop-filter: blur(16px) saturate(1.4);
@@ -262,60 +262,8 @@ aside,
     padding: 0 !important;
   }
 
-  /* Cartes internes aplaties : tout repose sur l'unique panneau translucide
-     (rendu identique au menu de la barre de navigation, qui est une liste plate) */
-  .app-space-sidebar.is-open .app-space-sidebar-scroll > *,
-  .app-space-sidebar.is-open .app-space-sidebar-scroll nav > * {
-    width: 100%;
-    max-width: 100%;
-    margin-bottom: 0.15rem !important;
-    background: transparent !important;
-    border: 0 !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    border-radius: 0.65rem;
-  }
-
-  /* Le conteneur <nav> ne doit pas être frosté (sinon cartes emboîtées) */
-  .app-space-sidebar.is-open .app-space-sidebar-scroll nav {
-    background: transparent !important;
-    border: 0 !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    padding: 0 !important;
-    margin: 0 0 0.35rem !important;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  /* On masque les voiles dégradés internes (inset-0)… */
-  .app-space-sidebar.is-open .app-space-sidebar-scroll .pointer-events-none {
-    display: none !important;
-  }
-
-  /* …mais on garde la BARRE HORIZONTALE en haut de chaque menu (rail top-0) */
-  .app-space-sidebar.is-open .app-space-sidebar-scroll .pointer-events-none.top-0 {
-    display: block !important;
-    height: 3px !important;
-    border-radius: 3px 3px 0 0;
-  }
-
-  /* Carte profil : plus compacte, avatar réduit */
-  .app-space-sidebar.is-open .app-space-sidebar-scroll .p-4 {
-    padding: 0.45rem !important;
-  }
-
-  .app-space-sidebar.is-open .app-space-sidebar-scroll .p-3 {
-    padding: 0.45rem !important;
-  }
-
-  .app-space-sidebar.is-open .app-space-sidebar-scroll .h-12.w-12 {
-    height: 2.4rem !important;
-    width: 2.4rem !important;
-  }
+  /* Rendu DESKTOP conservé dans le tiroir : les cartes gardent bordure / ombre /
+     rail / fond. L'espacement vient du `space-y-3` natif (comme en desktop). */
 
   /* Zone de capture des taps pour fermer le menu — sans assombrir la page
      (comme le menu de la barre de navigation, qui ne grise pas le fond) */
@@ -329,20 +277,49 @@ aside,
   /* ── Barre d'onglets mobile (bottom tab bar) — ressenti app native ── */
   .mobile-tabbar {
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: calc(0.4rem + env(safe-area-inset-bottom, 0px));
     z-index: 40;
     display: flex;
     align-items: stretch;
     justify-content: space-around;
     gap: 0.15rem;
-    padding: 0.3rem 0.4rem calc(0.3rem + env(safe-area-inset-bottom, 0px));
-    background: hsl(var(--card) / 0.92);
-    border-top: 1px solid hsl(var(--primary) / 0.14);
-    box-shadow: 0 -8px 28px -14px rgba(15, 23, 42, 0.35);
-    backdrop-filter: blur(18px) saturate(1.4);
-    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    padding: 0.3rem 0.4rem;
+    /* Aspect translucide « verre » teinté (comme le popover Espaces) */
+    background:
+      linear-gradient(180deg, hsl(var(--primary) / 0.10), hsl(var(--primary) / 0.03) 55%),
+      hsl(var(--card) / 0.62);
+    border: 1px solid hsl(var(--primary) / 0.18);
+    border-radius: 1.15rem;
+    box-shadow: 0 12px 34px -14px rgba(15, 23, 42, 0.40), inset 0 1px 0 hsl(0 0% 100% / 0.45);
+    backdrop-filter: blur(22px) saturate(1.7);
+    -webkit-backdrop-filter: blur(22px) saturate(1.7);
+  }
+
+  /* Barre du haut translucide « verre » teinté sur mobile (comme le popover Espaces) */
+  .app-top-header {
+    background:
+      linear-gradient(180deg, hsl(var(--primary) / 0.12) 0%, hsl(var(--card) / 0.80) 62%) !important;
+    backdrop-filter: blur(26px) saturate(1.85);
+    -webkit-backdrop-filter: blur(26px) saturate(1.85);
+    border-bottom: 1px solid hsl(var(--primary) / 0.20) !important;
+    box-shadow: 0 8px 26px -12px rgba(15, 23, 42, 0.28) !important;
+  }
+
+  /* Liseré dégradé du bas de l'en-tête, un peu plus marqué sur mobile */
+  .app-top-header > .pointer-events-none.bottom-0 {
+    height: 2.5px !important;
+    opacity: 0.95;
+  }
+
+  /* Boutons d'en-tête (thème / menu) : pastilles « verre » assorties */
+  .app-top-header .md\:hidden button {
+    border-radius: 0.7rem;
+    border-color: hsl(var(--primary) / 0.22);
+    background: hsl(var(--primary) / 0.08);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
 
   .mobile-tabbar-item {

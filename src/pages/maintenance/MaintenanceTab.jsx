@@ -313,7 +313,7 @@ const MaintenanceTab = ({ technicien }) => {
         // Agences
         supabase
           .from('agences')
-          .select('id, nom, nbreTerminaux, codePDV, region, secteur')
+          .select('id, nom, nbreTerminaux, codePDV, region, secteur, latitude, longitude')
           .eq('is_current', true)
           .order('nom', { ascending: true }),
         // Secteurs (table dédiée)

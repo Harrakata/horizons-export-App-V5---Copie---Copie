@@ -578,10 +578,10 @@ const EspaceGuichetierePage = () => {
                     <Link
                       key={item.path}
                       to={item.path}
-                      className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
+                      className={`flex items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-sm font-semibold transition-all ${
                         isActive
                           ? 'bg-primary text-primary-foreground shadow-sm'
-                          : 'text-muted-foreground hover:bg-black/5 hover:text-foreground'
+                          : 'text-foreground/80 hover:bg-primary/10 hover:text-primary'
                       }`}
                     >
                       {React.cloneElement(item.icon, { className: 'h-4 w-4 shrink-0' })}
@@ -594,7 +594,7 @@ const EspaceGuichetierePage = () => {
                 <button
                   type="button"
                   onClick={() => { setIsProfileDialogOpen(true); setIsMobileMenuOpen(false); }}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-all hover:bg-primary/10 hover:text-primary"
+                  className="flex w-full items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-sm font-semibold text-foreground/80 transition-all hover:bg-primary/10 hover:text-primary"
                 >
                   <UserCog className="h-4 w-4 shrink-0" />
                   Modifier mon profil
@@ -602,7 +602,7 @@ const EspaceGuichetierePage = () => {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-red-500 transition-all hover:bg-red-50 hover:text-red-600"
+                  className="flex w-full items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-sm font-semibold text-red-500 transition-all hover:bg-red-50 hover:text-red-600"
                 >
                   <LogOut className="h-4 w-4 shrink-0" />
                   Se déconnecter

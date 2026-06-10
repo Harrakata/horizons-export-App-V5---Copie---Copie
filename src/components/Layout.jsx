@@ -148,16 +148,16 @@ const Layout = () => {
 
   return (
     <div className="flex min-h-screen flex-col bg-white dark:bg-slate-900">
-      <header className="sticky top-0 z-40 w-full relative overflow-hidden border-b border-primary/20 bg-background/95 shadow-[0_4px_24px_-6px_rgba(15,23,42,0.14)] backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <header className="app-top-header sticky top-0 z-40 w-full relative overflow-hidden border-b border-primary/20 bg-background/95 shadow-[0_4px_24px_-6px_rgba(15,23,42,0.14)] backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/8 via-primary/4 to-transparent" />
-        <div className="relative flex h-16 w-full items-center justify-between px-4 sm:px-6 lg:px-10">
+        <div className="relative flex h-14 w-full items-center justify-between px-4 sm:h-16 sm:px-6 lg:px-10">
           <Link to="/" className="flex items-center group">
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>
               <img
                 src="/carrus-logo.png"
                 alt="CARRUS Betting Solutions & Services"
-                className="h-16 w-auto object-contain drop-shadow-sm sm:h-20"
+                className="h-11 w-auto object-contain drop-shadow-sm sm:h-20"
               />
             </motion.div>
           </Link>

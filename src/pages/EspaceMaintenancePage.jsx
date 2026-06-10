@@ -402,7 +402,7 @@ const EspaceMaintenancePage = () => {
             <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
             <CardContent className="relative p-3">
-              <nav className="space-y-0.5">
+              <nav className="space-y-1">
                 {menuItems.map((item) => {
                   const isActive = activeSection === item.key;
                   return (
@@ -410,10 +410,10 @@ const EspaceMaintenancePage = () => {
                       key={item.key}
                       type="button"
                       onClick={() => setActiveSection(item.key)}
-                      className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
+                      className={`flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all ${
                         isActive
-                          ? 'bg-primary text-primary-foreground shadow-sm'
-                          : 'text-muted-foreground hover:bg-black/5 hover:text-foreground'
+                          ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                          : 'border-transparent text-foreground/80 hover:bg-primary/10 hover:text-primary'
                       }`}
                     >
                       {React.cloneElement(item.icon, { className: 'h-4 w-4 shrink-0' })}
@@ -422,11 +422,11 @@ const EspaceMaintenancePage = () => {
                   );
                 })}
               </nav>
-              <div className="mt-1 border-t pt-1">
+              <div className="mt-2 border-t pt-2 space-y-1">
                 <button
                   type="button"
                   onClick={() => { setIsProfileDialogOpen(true); setIsMobileMenuOpen(false); }}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-all hover:bg-primary/10 hover:text-primary"
+                  className="flex w-full items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-sm font-semibold text-foreground/80 transition-all hover:bg-primary/10 hover:text-primary"
                 >
                   <UserCog className="h-4 w-4 shrink-0" />
                   Modifier mon profil
@@ -434,7 +434,7 @@ const EspaceMaintenancePage = () => {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-red-500 transition-all hover:bg-red-50 hover:text-red-600"
+                  className="flex w-full items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-sm font-semibold text-red-500 transition-all hover:bg-red-50 hover:text-red-600"
                 >
                   <LogOut className="h-4 w-4 shrink-0" />
                   Se déconnecter
