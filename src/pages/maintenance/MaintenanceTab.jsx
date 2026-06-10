@@ -20,6 +20,21 @@ import { fetchSecteurs, buildSecteurOptions } from '@/lib/secteurs';
 import { APP_SPACE_SETTINGS_KEY } from '@/lib/exploitationProfiles';
 import { getCurrentPosition, checkAgencyProximity, formatDistance, GEO_DEFAULT_RADIUS_M, GEO_FEATURE_KEY } from '@/lib/geolocation';
 import { enqueueOffline, OFFLINE_FEATURE_KEY } from '@/lib/offlineQueue';
+
+// Ouvre une fiche HTML stockée en la RENDANT (et non en affichant la source),
+// quel que soit le type MIME avec lequel le storage la sert.
+const openStoredFiche = async (url) => {
+  if (!url) return;
+  const win = window.open('', '_blank');
+  try {
+    const res = await fetch(url);
+    const html = await res.text();
+    if (win) { win.document.open(); win.document.write(html); win.document.close(); }
+    else { window.location.href = url; }
+  } catch {
+    if (win) win.location.href = url; else window.open(url, '_blank');
+  }
+};
 import { isSupabaseAuthError } from '@/lib/guichetiereSpace';
 
 const normalizeMaintenanceText = (value) =>
@@ -2163,9 +2178,9 @@ const MaintenanceTab = ({ technicien }) => {
                   {recap.validationFile.publicUrl && (
                     <>
                       {' '}-
-                      <a href={recap.validationFile.publicUrl} target="_blank" rel="noreferrer" className="ml-1 text-primary underline">
+                      <button type="button" onClick={() => openStoredFiche(recap.validationFile.publicUrl)} className="ml-1 text-primary underline">
                         Ouvrir la fiche enregistrée
-                      </a>
+                      </button>
                     </>
                   )}
                 </div>
@@ -2769,14 +2784,13 @@ const MaintenanceTab = ({ technicien }) => {
                       <p className="font-medium text-emerald-800">Derniere fiche preparee</p>
                       <p className="mt-2 break-words text-emerald-900">{savedValidationFile.fileName}</p>
                       {savedValidationFile.publicUrl && (
-                        <a
-                          href={savedValidationFile.publicUrl}
-                          target="_blank"
-                          rel="noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => openStoredFiche(savedValidationFile.publicUrl)}
                           className="mt-3 inline-flex text-primary underline"
                         >
                           Ouvrir la version enregistree
-                        </a>
+                        </button>
                       )}
                     </div>
                   )}

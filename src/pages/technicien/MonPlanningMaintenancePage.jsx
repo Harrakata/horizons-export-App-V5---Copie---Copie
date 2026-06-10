@@ -21,11 +21,13 @@ import { fr } from 'date-fns/locale';
 import {
   AlertTriangle,
   CalendarDays,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
   ChevronUp,
   Edit3,
+  FileText,
   HelpCircle,
   Package,
   Wrench,
@@ -57,6 +59,7 @@ import { formatDisplayDate, formatDisplayDateTime } from '@/lib/guichetiereSpace
 import { APP_SPACE_TAB_SETTINGS_KEY, isAppSpaceUserTabAllowed, normalizeAppSpaceTabFunctionalities } from '@/lib/exploitationProfiles';
 import {
   getMaintenancePlanningShiftLabel,
+  getMaintenanceShiftFromDateTime,
 } from '@/lib/maintenancePlanning';
 import {
   isMissingMaintenancePlanningRequestTableError,
@@ -108,6 +111,8 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
     && isAppSpaceUserTabAllowed(technicien?.appSpaceProfile, key);
   const [planningEntries, setPlanningEntries] = useState([]);
   const [performedInterventions, setPerformedInterventions] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [ficheDialog, setFicheDialog] = useState({ open: false, html: '', loading: false });
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRequestTableMissing, setIsRequestTableMissing] = useState(false);
@@ -207,21 +212,45 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
 
     // Interventions effectuées par le technicien ce mois (statut Validée / Refusée)
     try {
+      // On récupère toutes les interventions du technicien puis on filtre par mois
+      // côté client sur une DATE EFFECTIVE (date_fin, sinon date_intervention, sinon created_at),
+      // car certaines interventions n'ont pas de date_fin → elles seraient sinon invisibles.
       const { data: ivData } = await supabase
         .from('interventions_maintenance')
-        .select('id, terminal_id, sous_ensemble, type_intervention, date_fin, geo_refused, geo_verified')
+        .select('id, terminal_id, sous_ensemble, type_intervention, description_panne, commentaire, date_intervention, date_fin, created_at, fiche_url, geo_refused, geo_verified, geo_distance_m, geo_justification')
         .eq('technicien_id', String(technicien.id))
-        .gte('date_fin', format(monthStart, 'yyyy-MM-dd'))
-        .lte('date_fin', `${format(monthEnd, 'yyyy-MM-dd')}T23:59:59`)
-        .order('date_fin', { ascending: false });
-      const ivs = ivData || [];
+        .order('date_fin', { ascending: false })
+        .limit(1000);
+      const effectiveDate = (i) => i.date_fin || i.date_intervention || i.created_at || null;
+      const monthStartTime = monthStart.getTime();
+      const monthEndTime = monthEnd.getTime() + 24 * 60 * 60 * 1000; // inclut tout le dernier jour
+      const ivs = (ivData || []).filter((i) => {
+        const d = effectiveDate(i);
+        if (!d) return false;
+        const t = new Date(d).getTime();
+        return Number.isFinite(t) && t >= monthStartTime && t < monthEndTime;
+      });
       const termMap = {};
+      const agMap = {};
       const termIds = [...new Set(ivs.map((i) => i.terminal_id).filter(Boolean))];
       if (termIds.length) {
-        const { data: termData } = await supabase.from('terminaux').select('id, reference').in('id', termIds);
-        (termData || []).forEach((t) => { termMap[t.id] = t.reference; });
+        const { data: termData } = await supabase.from('terminaux').select('id, reference, agence_id').in('id', termIds);
+        (termData || []).forEach((t) => { termMap[t.id] = t; });
+        const agIds = [...new Set((termData || []).map((t) => t.agence_id).filter(Boolean))];
+        if (agIds.length) {
+          const { data: agData } = await supabase.from('agences').select('id, nom').in('id', agIds);
+          (agData || []).forEach((a) => { agMap[a.id] = a.nom; });
+        }
       }
-      setPerformedInterventions(ivs.map((i) => ({ ...i, terminalRef: termMap[i.terminal_id] || '—' })));
+      setPerformedInterventions(ivs.map((i) => {
+        const term = termMap[i.terminal_id];
+        return {
+          ...i,
+          terminalRef: term?.reference || '—',
+          agenceNom: (term && agMap[term.agence_id]) || 'Agence',
+          effectiveDate: effectiveDate(i),
+        };
+      }));
     } catch {
       setPerformedInterventions([]);
     }
@@ -244,6 +273,38 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
       }, {}),
     [planningEntries]
   );
+
+  // Interventions réalisées regroupées par jour PUIS par agence (clé = date locale)
+  const performedByDate = useMemo(() => {
+    const byDate = {};
+    performedInterventions.forEach((iv) => {
+      const d = iv.effectiveDate || iv.date_fin;
+      if (!d) return;
+      const dateKey = format(new Date(d), 'yyyy-MM-dd');
+      const agKey = iv.agenceNom || 'Agence';
+      if (!byDate[dateKey]) byDate[dateKey] = {};
+      if (!byDate[dateKey][agKey]) byDate[dateKey][agKey] = { agenceNom: agKey, dateKey, interventions: [] };
+      byDate[dateKey][agKey].interventions.push(iv);
+    });
+    return Object.fromEntries(
+      Object.entries(byDate).map(([k, byAg]) => [k, Object.values(byAg).sort((a, b) => a.agenceNom.localeCompare(b.agenceNom, 'fr'))])
+    );
+  }, [performedInterventions]);
+
+  // Ouvre la fiche de validation en la rendant comme HTML, quel que soit le
+  // type MIME avec lequel elle a été stockée (anciennes fiches servies en texte brut).
+  const openFiche = useCallback(async (url) => {
+    if (!url) return;
+    setFicheDialog({ open: true, html: '', loading: true });
+    try {
+      const res = await fetch(url);
+      const html = await res.text();
+      setFicheDialog({ open: true, html, loading: false });
+    } catch {
+      setFicheDialog({ open: false, html: '', loading: false });
+      window.open(url, '_blank', 'noreferrer');
+    }
+  }, []);
 
   const requestByPlanningId = useMemo(
     () =>
@@ -728,6 +789,30 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
                             );
                           })}
                         </AnimatePresence>
+                        {/* Interventions réalisées ce jour, regroupées par agence */}
+                        {(performedByDate[dateStr] || []).map((grp) => {
+                          const realizedCount = grp.interventions.filter((i) => i.geo_refused !== true).length;
+                          const refusedCount = grp.interventions.length - realizedCount;
+                          const hasRealized = realizedCount > 0;
+                          return (
+                            <div
+                              key={`grp-${grp.agenceNom}`}
+                              className="flex cursor-pointer items-center gap-1 transition-opacity hover:opacity-70"
+                              onClick={() => setSelectedGroup(grp)}
+                            >
+                              <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-white ${hasRealized ? 'bg-emerald-500' : 'bg-red-500'}`}>
+                                <CheckCircle2 className="h-2.5 w-2.5" />
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className={`truncate text-[0.6rem] font-medium leading-tight ${!isCurrentMonthDay ? 'text-muted-foreground/40' : 'text-foreground'}`}>{grp.agenceNom}</p>
+                                <p className="truncate text-[0.55rem] font-semibold leading-tight text-emerald-600">
+                                  {realizedCount} réalisée(s)
+                                  {refusedCount ? <span className="text-red-600"> · {refusedCount} refusée(s)</span> : null}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -760,8 +845,8 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
                 </TableHeader>
                 <TableBody>
                   {performedInterventions.map((iv) => (
-                    <TableRow key={iv.id}>
-                      <TableCell className="whitespace-nowrap">{iv.date_fin ? format(new Date(iv.date_fin), 'dd/MM/yyyy') : '—'}</TableCell>
+                    <TableRow key={iv.id} className="cursor-pointer hover:bg-muted/40" onClick={() => setSelectedGroup({ agenceNom: iv.agenceNom, dateKey: (iv.effectiveDate || iv.date_fin) ? format(new Date(iv.effectiveDate || iv.date_fin), 'yyyy-MM-dd') : '', interventions: [iv] })}>
+                      <TableCell className="whitespace-nowrap">{(iv.effectiveDate || iv.date_fin) ? format(new Date(iv.effectiveDate || iv.date_fin), 'dd/MM/yyyy') : '—'}</TableCell>
                       <TableCell className="font-medium">{iv.terminalRef}</TableCell>
                       <TableCell>{iv.sous_ensemble || '—'}</TableCell>
                       <TableCell>{iv.type_intervention === 'curative' ? 'Curative' : 'Préventive'}</TableCell>
@@ -902,6 +987,86 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
               Envoyer la demande
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!selectedGroup} onOpenChange={(o) => { if (!o) setSelectedGroup(null); }}>
+        <DialogContent className="sm:max-w-lg glassmorphism max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-primary">Interventions réalisées</DialogTitle>
+            <DialogDescription>
+              {selectedGroup
+                ? `${selectedGroup.agenceNom} • ${selectedGroup.dateKey ? format(new Date(selectedGroup.dateKey), 'dd/MM/yyyy') : ''} • ${selectedGroup.interventions.length} intervention(s)`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {(selectedGroup?.interventions || []).map((iv) => {
+              const isCurative = iv.type_intervention === 'curative';
+              const dt = iv.effectiveDate || iv.date_fin;
+              const creneauLabel = getMaintenancePlanningShiftLabel(getMaintenanceShiftFromDateTime(dt));
+              return (
+                <div key={iv.id} className={`space-y-2 rounded-xl border p-4 shadow-sm ${isCurative ? 'border-red-100 bg-red-50/40' : 'border-blue-100 bg-blue-50/40'}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-semibold text-slate-800">{iv.terminalRef}</p>
+                    <span className="text-sm text-muted-foreground">{dt ? format(new Date(dt), 'dd/MM/yyyy HH:mm') : '—'}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className={isCurative ? 'border-red-200 bg-red-50 text-red-700' : 'border-blue-200 bg-blue-50 text-blue-700'}>
+                      {isCurative ? 'Curative' : 'Préventive'}
+                    </Badge>
+                    <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">{creneauLabel}</Badge>
+                    {iv.geo_refused ? (
+                      <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">Refusée (hors zone)</Badge>
+                    ) : (
+                      <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">Validée</Badge>
+                    )}
+                    {iv.sous_ensemble && (
+                      <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">{iv.sous_ensemble}</Badge>
+                    )}
+                  </div>
+                  {iv.description_panne && <p className="text-sm text-muted-foreground">{iv.description_panne}</p>}
+                  {iv.commentaire && <p className="border-t pt-2 text-sm italic text-slate-700">{iv.commentaire}</p>}
+                  {iv.geo_refused && (Number.isFinite(Number(iv.geo_distance_m)) || iv.geo_justification) && (
+                    <p className="text-xs text-red-700">Hors zone{Number.isFinite(Number(iv.geo_distance_m)) ? ` · ${iv.geo_distance_m} m de l'agence` : ''}{iv.geo_justification ? ` — ${iv.geo_justification}` : ''}</p>
+                  )}
+                  {iv.fiche_url && (
+                    <div className="border-t pt-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => openFiche(iv.fiche_url)} className="gap-2">
+                        <FileText className="h-4 w-4" /> Voir la fiche d&apos;intervention
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setSelectedGroup(null)}>Fermer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={ficheDialog.open} onOpenChange={(open) => !open && setFicheDialog({ open: false, html: '', loading: false })}>
+        <DialogContent className="flex h-[90vh] w-full max-w-4xl flex-col p-0">
+          <DialogHeader className="shrink-0 border-b px-5 pb-3 pt-4">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-4 w-4 text-primary" />
+              Fiche d&apos;intervention
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden">
+            {ficheDialog.loading ? (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Chargement de la fiche...</div>
+            ) : (
+              <iframe
+                srcDoc={ficheDialog.html}
+                className="h-full w-full border-0"
+                title="Fiche d'intervention"
+                sandbox="allow-same-origin"
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
         </TabsContent>

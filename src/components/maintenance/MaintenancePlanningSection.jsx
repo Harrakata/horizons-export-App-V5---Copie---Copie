@@ -163,7 +163,7 @@ const MaintenancePlanningSection = ({
       supabase.from('terminaux').select('id, agence_id, reference, type_terminal, position').order('reference', { ascending: true }),
       supabase
         .from('interventions_maintenance')
-        .select('id, terminal_id, technicien_id, type_intervention, sous_ensemble, statut, commentaire, date_intervention, date_fin, fiche_url')
+        .select('id, terminal_id, technicien_id, type_intervention, sous_ensemble, statut, commentaire, date_intervention, date_fin, fiche_url, geo_refused')
         .order('date_intervention', { ascending: false }),
       supabase
         .from('planning_maintenance')
@@ -278,6 +278,13 @@ const MaintenancePlanningSection = ({
     }));
   }, [lockedRegion, lockedTechnicienId, resolvedLockedAgency]);
 
+  // Les interventions refusées (hors zone) sont annulées : exclues de la couche
+  // « réalisée » et de l'appariement avec les créneaux planifiés.
+  const validInterventions = useMemo(
+    () => (interventions || []).filter((i) => i.geo_refused !== true),
+    [interventions]
+  );
+
   const planningRows = useMemo(
     () =>
       buildMaintenancePlanningRows({
@@ -285,9 +292,9 @@ const MaintenancePlanningSection = ({
         agencesById,
         techniciensById,
         terminauxById,
-        interventions,
+        interventions: validInterventions,
       }),
-    [agencesById, interventions, planningEntries, techniciensById, terminauxById]
+    [agencesById, validInterventions, planningEntries, techniciensById, terminauxById]
   );
 
   const regionOptions = useMemo(
@@ -446,6 +453,7 @@ const MaintenancePlanningSection = ({
 
     (interventions || []).forEach((intervention) => {
       if (intervention.statut === 'Annulée') return;
+      // Les refusées (hors zone) RESTENT affichées mais ne seront pas comptées (cf. rendu).
       if (matchedInterventionIds.has(String(intervention.id))) return;
 
       const terminal = terminauxById[String(intervention.terminal_id)] || null;
@@ -453,7 +461,9 @@ const MaintenancePlanningSection = ({
       const agenceId = agence ? String(agence.id) : '';
       const agenceNom = agence?.nom || 'Agence non renseignée';
       const regionNom = agence?.region || '';
-      const dateKey = extractMaintenancePlanningDateKey(intervention.date_intervention);
+      // Date LOCALE (cohérente avec l'affichage des cartes) — éviter le décalage UTC.
+      const refDate = intervention.date_intervention || intervention.date_fin;
+      const dateKey = refDate ? format(new Date(refDate), 'yyyy-MM-dd') : '';
       if (!dateKey) return;
       const creneau = getMaintenanceShiftFromDateTime(intervention.date_intervention);
 
@@ -1127,8 +1137,9 @@ const MaintenancePlanningSection = ({
                         ))}
 
                         {activeLegendStatuses.has('effectuee') && (realizedByDate[dateKey] || []).map((item) => {
-                          const curatives = item.interventions.filter((i) => i.type_intervention === 'curative').length;
-                          const preventives = item.interventions.length - curatives;
+                          const realizedCount = item.interventions.filter((i) => i.geo_refused !== true).length;
+                          const refusedCount = item.interventions.length - realizedCount;
+                          const hasRealized = realizedCount > 0;
                           return (
                             <motion.div
                               key={item.key}
@@ -1136,7 +1147,7 @@ const MaintenancePlanningSection = ({
                               animate={{ opacity: 1 }}
                               role="button"
                               tabIndex={0}
-                              title={`${item.agenceNom} • ${item.interventions.length} réalisée(s)${curatives ? ` • ${curatives} curative(s)` : ''}${preventives ? ` • ${preventives} préventive(s)` : ''}`}
+                              title={`${item.agenceNom} • ${realizedCount} réalisée(s)${refusedCount ? ` • ${refusedCount} refusée(s)` : ''}`}
                               onClick={() => setRealizedDetail(item)}
                               onKeyDown={(event) => {
                                 if (event.key === 'Enter' || event.key === ' ') {
@@ -1146,7 +1157,7 @@ const MaintenancePlanningSection = ({
                               }}
                               className="flex cursor-pointer items-center gap-1 transition-opacity hover:opacity-70"
                             >
-                              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-[0.5rem] font-bold text-white">
+                              <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[0.5rem] font-bold text-white ${hasRealized ? 'bg-emerald-500' : 'bg-red-500'}`}>
                                 <CheckCircle2 className="h-2.5 w-2.5" />
                               </span>
                               <div className="min-w-0 flex-1">
@@ -1154,7 +1165,8 @@ const MaintenancePlanningSection = ({
                                   {showAgenceColumn ? item.agenceNom : 'Réalisée'}
                                 </p>
                                 <p className="truncate text-[0.55rem] leading-tight text-emerald-700/80">
-                                  {item.interventions.length} réalisée(s)
+                                  {realizedCount} réalisée(s)
+                                  {refusedCount ? <span className="text-red-600"> · {refusedCount} refusée(s)</span> : null}
                                 </p>
                               </div>
                             </motion.div>
@@ -1403,9 +1415,11 @@ const MaintenancePlanningSection = ({
                     <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
                       {creneauLabel}
                     </Badge>
-                    <Badge variant="outline" className="border-slate-200 bg-slate-100 text-slate-700">
-                      {intervention.statut}
-                    </Badge>
+                    {intervention.geo_refused === true ? (
+                      <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">Refusée (hors zone)</Badge>
+                    ) : (
+                      <Badge variant="outline" className="border-slate-200 bg-slate-100 text-slate-700">{intervention.statut}</Badge>
+                    )}
                     {intervention.sous_ensemble && (
                       <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">
                         {intervention.sous_ensemble}
