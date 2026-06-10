@@ -112,7 +112,8 @@ const RegionalPointageSection = ({ regionName = '', allowAllRegions = false, hid
         .select('*')
         .gte('date', historyStart)
         .lte('date', historyEnd)
-        .in('agence', agenceNames),
+        .in('agence', agenceNames)
+        .not('geo_refused', 'is', true),
       supabase.from('app_settings').select('value').eq('key', 'general').single(),
     ]);
 

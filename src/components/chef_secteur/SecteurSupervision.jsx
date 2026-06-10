@@ -71,7 +71,7 @@ export const PointagesSecteurSection = ({ chef }) => {
       const since = new Date(); since.setDate(since.getDate() - 7);
       const sinceIso = since.toISOString().slice(0, 10);
       const { data } = await supabase
-        .from('pointages').select('*').in('agence', names).gte('date', sinceIso).order('date', { ascending: false }).limit(300);
+        .from('pointages').select('*').in('agence', names).gte('date', sinceIso).not('geo_refused', 'is', true).order('date', { ascending: false }).limit(300);
       if (!cancelled) { setRows(data || []); setIsLoading(false); }
     })();
     return () => { cancelled = true; };

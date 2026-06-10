@@ -123,6 +123,7 @@ const SuiviPointagePage = () => {
           .select('*')
           .gte('date', historyStart)
           .lte('date', selectedDate)
+          .not('geo_refused', 'is', true)
           .order('date', { ascending: false })
           .order('time', { ascending: false });
         return agencyNames.length > 1

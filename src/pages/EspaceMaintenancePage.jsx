@@ -224,6 +224,18 @@ const EspaceMaintenancePage = () => {
     context: { technicienId: userData?.id },
   });
 
+  // Acquitte les interventions refusées (hors zone) une fois le technicien dans son espace.
+  useEffect(() => {
+    const tid = userData?.id;
+    if (!isAuthenticated || !tid) return;
+    supabase.from('interventions_maintenance')
+      .update({ geo_refusal_ack: true })
+      .eq('technicien_id', tid)
+      .eq('geo_refused', true)
+      .not('geo_refusal_ack', 'is', true)
+      .then(() => {}, () => {});
+  }, [isAuthenticated, userData?.id]);
+
   // Restauration de la session : si l'utilisateur a déjà un JWT Supabase valide,
   // on re-fetch son profil technicien sans demander de re-login.
   useEffect(() => {

@@ -46,6 +46,7 @@ const MesPointagesPage = () => {
         .from('pointages')
         .select('*')
         .eq('guichetiereMatricule', guichetiereInfo.matricule)
+        .not('geo_refused', 'is', true)
         .order('date', { ascending: false })
         .order('time', { ascending: false }),
       supabase.from('app_settings').select('value').eq('key', 'general').single(),
@@ -89,6 +90,18 @@ const MesPointagesPage = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Acquitte les pointages refusés (hors zone) : la notification se dissipe une fois la page vue.
+  useEffect(() => {
+    const matricule = guichetiereInfo?.matricule;
+    if (!matricule) return;
+    supabase.from('pointages')
+      .update({ geo_refusal_ack: true })
+      .eq('guichetiereMatricule', matricule)
+      .eq('geo_refused', true)
+      .not('geo_refusal_ack', 'is', true)
+      .then(() => {}, () => {});
+  }, [guichetiereInfo?.matricule]);
 
   const currentMonthPlanningCount = planningEntries.length;
   const currentMonthPointages = pointages.filter((pointage) => {

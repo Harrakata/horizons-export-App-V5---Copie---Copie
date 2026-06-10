@@ -107,6 +107,7 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
     spaceTabFunctionalities?.['espace-technicien']?.[key] !== false
     && isAppSpaceUserTabAllowed(technicien?.appSpaceProfile, key);
   const [planningEntries, setPlanningEntries] = useState([]);
+  const [performedInterventions, setPerformedInterventions] = useState([]);
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRequestTableMissing, setIsRequestTableMissing] = useState(false);
@@ -202,6 +203,27 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
         .neq('statut', 'repare')
         .order('date_entree', { ascending: false });
       setAssignedDefectueux(defData || []);
+    }
+
+    // Interventions effectuées par le technicien ce mois (statut Validée / Refusée)
+    try {
+      const { data: ivData } = await supabase
+        .from('interventions_maintenance')
+        .select('id, terminal_id, sous_ensemble, type_intervention, date_fin, geo_refused, geo_verified')
+        .eq('technicien_id', String(technicien.id))
+        .gte('date_fin', format(monthStart, 'yyyy-MM-dd'))
+        .lte('date_fin', `${format(monthEnd, 'yyyy-MM-dd')}T23:59:59`)
+        .order('date_fin', { ascending: false });
+      const ivs = ivData || [];
+      const termMap = {};
+      const termIds = [...new Set(ivs.map((i) => i.terminal_id).filter(Boolean))];
+      if (termIds.length) {
+        const { data: termData } = await supabase.from('terminaux').select('id, reference').in('id', termIds);
+        (termData || []).forEach((t) => { termMap[t.id] = t.reference; });
+      }
+      setPerformedInterventions(ivs.map((i) => ({ ...i, terminalRef: termMap[i.terminal_id] || '—' })));
+    } catch {
+      setPerformedInterventions([]);
     }
 
     setIsLoading(false);
@@ -711,6 +733,49 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
                   );
                 })}
               </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-xl glassmorphism">
+        <CardHeader>
+          <CardTitle className="text-2xl text-primary">Mes interventions effectuées</CardTitle>
+          <CardDescription>Interventions réalisées ce mois et leur statut de contrôle (présence sur site).</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {performedInterventions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucune intervention effectuée ce mois.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Terminal</TableHead>
+                    <TableHead>Sous-ensemble</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Statut</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {performedInterventions.map((iv) => (
+                    <TableRow key={iv.id}>
+                      <TableCell className="whitespace-nowrap">{iv.date_fin ? format(new Date(iv.date_fin), 'dd/MM/yyyy') : '—'}</TableCell>
+                      <TableCell className="font-medium">{iv.terminalRef}</TableCell>
+                      <TableCell>{iv.sous_ensemble || '—'}</TableCell>
+                      <TableCell>{iv.type_intervention === 'curative' ? 'Curative' : 'Préventive'}</TableCell>
+                      <TableCell>
+                        {iv.geo_refused === true ? (
+                          <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">Refusée</span>
+                        ) : (
+                          <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">Validée</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>

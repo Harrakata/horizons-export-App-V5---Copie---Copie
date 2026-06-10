@@ -2568,10 +2568,12 @@ const MaintenanceTab = ({ technicien }) => {
                   <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
                     <div className="border-b bg-slate-50 px-4 py-3">
                       <p className="font-medium text-primary">Sous-ensembles préparés</p>
+                      {/* le tableau interne défile horizontalement */}
                       <p className="text-sm text-muted-foreground">
                         {interventionItems.length} intervention(s) seront insérées dans la validation finale.
                       </p>
                     </div>
+                    <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -2610,6 +2612,7 @@ const MaintenanceTab = ({ technicien }) => {
                         ))}
                       </TableBody>
                     </Table>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2672,7 +2675,7 @@ const MaintenanceTab = ({ technicien }) => {
 
                     <div className="space-y-3">
                       <h5 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Interventions à valider</h5>
-                      <div className="overflow-hidden rounded-xl border">
+                      <div className="overflow-x-auto rounded-xl border">
                         <Table>
                           <TableHeader>
                             <TableRow>

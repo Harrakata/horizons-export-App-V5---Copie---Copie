@@ -23,6 +23,23 @@ const countRows = async (table, filters = []) => {
   }
 };
 
+// Compte les enregistrements REFUSÉS (hors zone) non encore acquittés par le concerné.
+const countRefused = async (table, idCol, idVal) => {
+  if (!idVal) return 0;
+  try {
+    const { count, error } = await supabase
+      .from(table)
+      .select('id', { count: 'exact', head: true })
+      .eq(idCol, idVal)
+      .eq('geo_refused', true)
+      .not('geo_refusal_ack', 'is', true);
+    if (error) return 0;
+    return count || 0;
+  } catch {
+    return 0;
+  }
+};
+
 /**
  * Construit la liste des alertes (notifications) pertinentes selon l'espace/rôle,
  * dérivées en direct des données existantes. Pas de table dédiée.
@@ -77,17 +94,23 @@ export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }
     }
 
     else if (spaceKey === 'espace-guichetiere') {
-      const pdv = await countRows('points_vente_mobi_change_requests', [['guichetiere_matricule', ctx.matricule], ['statut', REQUEST_STATUS.PENDING]]);
+      const [pdv, geoRefused] = await Promise.all([
+        countRows('points_vente_mobi_change_requests', [['guichetiere_matricule', ctx.matricule], ['statut', REQUEST_STATUS.PENDING]]),
+        countRefused('pointages', 'guichetiereMatricule', ctx.matricule),
+      ]);
       if (pdv > 0) list.push({ key: 'pdv', count: pdv, title: 'Votre demande de point de vente', description: 'En attente de traitement', to: '/espace-guichetiere/mes-points-vente-mobi', severity: 'amber' });
+      if (geoRefused > 0) list.push({ key: 'geo-refused', count: geoRefused, title: 'Pointage(s) refusé(s)', description: 'Hors zone agence — annulé(s)', to: '/espace-guichetiere/mes-pointages', severity: 'red' });
     }
 
     else if (spaceKey === 'espace-technicien') {
-      const [chefStep, expStep] = await Promise.all([
+      const [chefStep, expStep, geoRefused] = await Promise.all([
         countRows('planning_maintenance_modification_requests', [['technicien_id', ctx.technicienId], ['statut', MAINTENANCE_REQUEST_STATUSES.PENDING_CHEF]]),
         countRows('planning_maintenance_modification_requests', [['technicien_id', ctx.technicienId], ['statut', MAINTENANCE_REQUEST_STATUSES.PENDING_EXPLOITATION]]),
+        countRefused('interventions_maintenance', 'technicien_id', ctx.technicienId),
       ]);
       const total = chefStep + expStep;
       if (total > 0) list.push({ key: 'demande', count: total, title: 'Vos demandes de planning', description: 'En cours de traitement', to: '/espace-technicien', severity: 'amber' });
+      if (geoRefused > 0) list.push({ key: 'geo-refused', count: geoRefused, title: 'Intervention(s) refusée(s)', description: 'Hors zone agence — annulée(s)', to: '/espace-technicien', severity: 'red' });
     }
 
     return list;
