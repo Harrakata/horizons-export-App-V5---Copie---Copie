@@ -498,14 +498,15 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
         const lines = text.split('\n').filter((line) => line.trim() !== '');
         if (lines.length < 2) throw new Error('Fichier CSV vide ou en-têtes manquants.');
 
-        const headers = lines[0].trim().split(',').map((h) => h.replace(/^"|"$/g, '').trim().toLowerCase());
+        const delimiter = lines[0].includes(';') ? ';' : ',';
+        const headers = lines[0].trim().split(delimiter).map((h) => h.replace(/^"|"$/g, '').trim().toLowerCase());
         const required = ['reference', 'modele', 'marque'];
         if (!required.every((r) => headers.includes(r))) {
           throw new Error(`En-têtes requis : ${required.join(', ')}. Présents : ${headers.join(', ')}`);
         }
 
         const dataToUpsert = lines.slice(1).map((line) => {
-          const values = line.split(',').map((v) => v.replace(/^"|"$/g, '').replace(/""/g, '"').trim());
+          const values = line.split(delimiter).map((v) => v.replace(/^"|"$/g, '').replace(/""/g, '"').trim());
           const obj = {};
           headers.forEach((h, i) => { obj[h] = values[i]; });
           if (!obj.reference || !obj.modele || !obj.marque) return null;

@@ -15,3 +15,10 @@ src/lib/supabaseClient.jsx
 *.log
 vite-dev.out.log
 vite-dev.err.log
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
