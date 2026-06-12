@@ -279,7 +279,7 @@ const EspaceGuichetierePage = () => {
   const { notifications: guichetiereNotifications, totalCount: guichetiereNotifCount } = useSpaceNotifications({
     spaceKey: 'espace-guichetiere',
     enabled: isAuthenticated,
-    context: { matricule: guichetiereInfo?.matricule },
+    context: { matricule: guichetiereInfo?.matricule, agenceNom: guichetiereInfo?.nomAgence },
   });
 
   useEffect(() => {
@@ -562,6 +562,7 @@ const EspaceGuichetierePage = () => {
                   notifications={guichetiereNotifications}
                   totalCount={guichetiereNotifCount}
                   onNavigate={() => setIsMobileMenuOpen(false)}
+                  storageKey={guichetiereInfo?.matricule ? `g_${guichetiereInfo.matricule}` : null}
                 />
               </div>
             </CardContent>

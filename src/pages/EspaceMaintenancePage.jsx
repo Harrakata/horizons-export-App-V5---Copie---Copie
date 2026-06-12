@@ -405,6 +405,7 @@ const EspaceMaintenancePage = () => {
                   notifications={technicienNotifications}
                   totalCount={technicienNotifCount}
                   onNavigate={() => setIsMobileMenuOpen(false)}
+                  storageKey={userData?.id ? `t_${userData.id}` : null}
                 />
               </div>
             </CardContent>
