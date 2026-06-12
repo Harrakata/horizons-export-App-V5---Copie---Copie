@@ -51,6 +51,7 @@ const SuiviPointageExploitationPage         = lazy(() => import('@/pages/exploit
 const EcartsGpsPage                         = lazy(() => import('@/pages/exploitation/EcartsGpsPage'));
 const ActivitesEtAuditPage                  = lazy(() => import('@/pages/exploitation/ActivitesEtAuditPage'));
 const TableauDeBordPage                     = lazy(() => import('@/pages/exploitation/TableauDeBordPage'));
+const NotificationsExploitationPage         = lazy(() => import('@/pages/exploitation/NotificationsExploitationPage'));
 
 // Chef d'agence
 const MesGuichetieresPage                   = lazy(() => import('@/pages/chef_agence/MesGuichetieresPage'));
@@ -138,7 +139,8 @@ const App = () => (
             <Route path="journal-audit"               element={<Navigate to="/espace-exploitation/activites-et-audit" replace />} />
             <Route path="chiffres-daffaires"          element={<LazyRoute><ChiffresDaffairesPage /></LazyRoute>} />
             <Route path="parametres"                  element={<LazyRoute><ParametresPage /></LazyRoute>} />
-            <Route path="profils-exploitation"        element={<LazyRoute><ProfilsExploitationPage /></LazyRoute>} />
+            <Route path="profils-exploitation"              element={<LazyRoute><ProfilsExploitationPage /></LazyRoute>} />
+            <Route path="notifications-exploitation"        element={<LazyRoute><NotificationsExploitationPage /></LazyRoute>} />
           </Route>
 
           <Route path="/espace-chef-agence" element={<LazyRoute><EspaceChefAgencePage /></LazyRoute>}>

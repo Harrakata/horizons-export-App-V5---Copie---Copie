@@ -23,6 +23,59 @@ const countRows = async (table, filters = []) => {
   }
 };
 
+// Compte les messages actifs de l'exploitation destinés à un espace donné.
+// Filtre côté client pour supporter : agence, région, secteur, sélection individuelle.
+// ctx pour guichetière : { matricule, agenceNom }   (région/secteur déduits si besoin)
+// ctx pour technicien  : { technicienId }
+const countExploitationMessages = async (destinataire, ctx = {}) => {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('messages_exploitation')
+      .select('id, destinataires, agence_nom, region_nom, secteur_nom, guichetiere_matricules, technicien_ids')
+      .eq('actif', true)
+      .or(`expire_a.is.null,expire_a.gt.${now}`)
+      .limit(200);
+
+    if (error || !data) return 0;
+
+    const relevant = data.filter((m) => m.destinataires === destinataire || m.destinataires === 'tous');
+    if (!relevant.length) return 0;
+
+    // Récupération lazy de région/secteur si un message les utilise et qu'on ne les a pas
+    let regionNom  = ctx.regionNom  || null;
+    let secteurNom = ctx.secteurNom || null;
+    if (destinataire === 'guichetiere' && ctx.agenceNom && (!regionNom || !secteurNom)) {
+      const needsGeo = relevant.some((m) => m.region_nom || m.secteur_nom);
+      if (needsGeo) {
+        const { data: ag } = await supabase
+          .from('agences').select('region, secteur')
+          .eq('nom', ctx.agenceNom).eq('is_current', true).maybeSingle();
+        if (ag) { regionNom = ag.region; secteurNom = ag.secteur; }
+      }
+    }
+
+    return relevant.filter((m) => {
+      if (destinataire === 'guichetiere') {
+        if (m.guichetiere_matricules?.length > 0)
+          return (m.guichetiere_matricules).includes(ctx.matricule || '');
+        if (m.agence_nom)  return m.agence_nom  === ctx.agenceNom;
+        if (m.secteur_nom) return m.secteur_nom === secteurNom;
+        if (m.region_nom)  return m.region_nom  === regionNom;
+        return true; // broadcast sans filtre
+      }
+      if (destinataire === 'technicien') {
+        if (m.technicien_ids?.length > 0)
+          return (m.technicien_ids).map(Number).includes(Number(ctx.technicienId));
+        return true; // broadcast sans filtre
+      }
+      return false;
+    }).length;
+  } catch {
+    return 0;
+  }
+};
+
 // Compte les enregistrements REFUSÉS (hors zone) non encore acquittés par le concerné.
 const countRefused = async (table, idCol, idVal) => {
   if (!idVal) return 0;
@@ -94,23 +147,27 @@ export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }
     }
 
     else if (spaceKey === 'espace-guichetiere') {
-      const [pdv, geoRefused] = await Promise.all([
+      const [pdv, geoRefused, msgs] = await Promise.all([
         countRows('points_vente_mobi_change_requests', [['guichetiere_matricule', ctx.matricule], ['statut', REQUEST_STATUS.PENDING]]),
         countRefused('pointages', 'guichetiereMatricule', ctx.matricule),
+        countExploitationMessages('guichetiere', { matricule: ctx.matricule, agenceNom: ctx.agenceNom }),
       ]);
-      if (pdv > 0) list.push({ key: 'pdv', count: pdv, title: 'Votre demande de point de vente', description: 'En attente de traitement', to: '/espace-guichetiere/mes-points-vente-mobi', severity: 'amber' });
-      if (geoRefused > 0) list.push({ key: 'geo-refused', count: geoRefused, title: 'Pointage(s) refusé(s)', description: 'Hors zone agence — annulé(s)', to: '/espace-guichetiere/mes-pointages', severity: 'red' });
+      if (pdv > 0)        list.push({ key: 'pdv',        count: pdv,        title: 'Votre demande de point de vente',  description: 'En attente de traitement',      to: '/espace-guichetiere/mes-points-vente-mobi', severity: 'amber' });
+      if (geoRefused > 0) list.push({ key: 'geo-refused', count: geoRefused, title: 'Pointage(s) refusé(s)',            description: 'Hors zone agence — annulé(s)',  to: '/espace-guichetiere/mes-pointages',          severity: 'red'   });
+      if (msgs > 0)       list.push({ key: 'msg-expl',   count: msgs,       title: "Message(s) de l'exploitation",     description: 'Consultez vos notifications',   to: '/espace-guichetiere',                        severity: 'blue'  });
     }
 
     else if (spaceKey === 'espace-technicien') {
-      const [chefStep, expStep, geoRefused] = await Promise.all([
+      const [chefStep, expStep, geoRefused, msgs] = await Promise.all([
         countRows('planning_maintenance_modification_requests', [['technicien_id', ctx.technicienId], ['statut', MAINTENANCE_REQUEST_STATUSES.PENDING_CHEF]]),
         countRows('planning_maintenance_modification_requests', [['technicien_id', ctx.technicienId], ['statut', MAINTENANCE_REQUEST_STATUSES.PENDING_EXPLOITATION]]),
         countRefused('interventions_maintenance', 'technicien_id', ctx.technicienId),
+        countExploitationMessages('technicien', { technicienId: ctx.technicienId }),
       ]);
       const total = chefStep + expStep;
-      if (total > 0) list.push({ key: 'demande', count: total, title: 'Vos demandes de planning', description: 'En cours de traitement', to: '/espace-technicien', severity: 'amber' });
-      if (geoRefused > 0) list.push({ key: 'geo-refused', count: geoRefused, title: 'Intervention(s) refusée(s)', description: 'Hors zone agence — annulée(s)', to: '/espace-technicien', severity: 'red' });
+      if (total > 0)      list.push({ key: 'demande',    count: total,      title: 'Vos demandes de planning',         description: 'En cours de traitement',        to: '/espace-technicien',                         severity: 'amber' });
+      if (geoRefused > 0) list.push({ key: 'geo-refused', count: geoRefused, title: 'Intervention(s) refusée(s)',       description: 'Hors zone agence — annulée(s)', to: '/espace-technicien',                         severity: 'red'   });
+      if (msgs > 0)       list.push({ key: 'msg-expl',   count: msgs,       title: "Message(s) de l'exploitation",     description: 'Consultez vos notifications',   to: '/espace-technicien',                         severity: 'blue'  });
     }
 
     return list;
