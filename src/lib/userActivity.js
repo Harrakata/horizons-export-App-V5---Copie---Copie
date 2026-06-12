@@ -71,6 +71,7 @@ const PATH_LABEL_OVERRIDES = {
   'referentiel-parametres': 'Référentiel Paramètres',
   'profils-exploitation': 'Profil et Fonctionnalité',
   'activites-utilisateurs': 'Activités utilisateurs',
+  'activites-et-audit': 'Activités et Audit',
   'terminaux-mobi': 'Terminaux Mobi',
   'chefs-agence': "Chefs d'agence",
 };

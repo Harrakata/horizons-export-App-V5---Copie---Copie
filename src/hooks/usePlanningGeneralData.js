@@ -82,11 +82,11 @@ export const usePlanningGeneralData = (startDate, endDate) => {
     setIsLoading(true);
 
     try {
-      const { data: agencesData, error: agencesError } = await supabase.from('agences').select('*').eq('is_current', true);
+      const { data: agencesData, error: agencesError } = await supabase.from('agences').select('id, nom, codePDV, nbreTerminaux').eq('is_current', true);
       if (agencesError) throw agencesError;
       setAgences(agencesData || []);
 
-      const { data: chefsData, error: chefsError } = await supabase.from('chefs_agence').select('*').eq('is_current', true);
+      const { data: chefsData, error: chefsError } = await supabase.from('chefs_agence').select('id, nom, prenom, agenceEnCharge, codePDV').eq('is_current', true);
       if (chefsError) throw chefsError;
       setChefsAgence(chefsData || []);
 

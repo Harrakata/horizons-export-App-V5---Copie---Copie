@@ -49,8 +49,7 @@ const ChiffresDaffairesPage                 = lazy(() => import('@/pages/exploit
 const EtatPlanningGeneralPage               = lazy(() => import('@/pages/exploitation/EtatPlanningGeneralPage'));
 const SuiviPointageExploitationPage         = lazy(() => import('@/pages/exploitation/SuiviPointagePage'));
 const EcartsGpsPage                         = lazy(() => import('@/pages/exploitation/EcartsGpsPage'));
-const ActivitesUtilisateursPage             = lazy(() => import('@/pages/exploitation/ActivitesUtilisateursPage'));
-const JournalAuditPage                      = lazy(() => import('@/pages/exploitation/JournalAuditPage'));
+const ActivitesEtAuditPage                  = lazy(() => import('@/pages/exploitation/ActivitesEtAuditPage'));
 const TableauDeBordPage                     = lazy(() => import('@/pages/exploitation/TableauDeBordPage'));
 
 // Chef d'agence
@@ -134,8 +133,9 @@ const App = () => (
             <Route path="autorisation-paiement-gain"  element={<LazyRoute><AutorisationsPaiementGainPage /></LazyRoute>} />
             <Route path="referentiel-parametres"      element={<LazyRoute><ReferentielParametresPage /></LazyRoute>} />
             <Route path="etat-planning-general"       element={<LazyRoute><EtatPlanningGeneralPage /></LazyRoute>} />
-            <Route path="activites-utilisateurs"      element={<LazyRoute><ActivitesUtilisateursPage /></LazyRoute>} />
-            <Route path="journal-audit"               element={<LazyRoute><JournalAuditPage /></LazyRoute>} />
+            <Route path="activites-et-audit"          element={<LazyRoute><ActivitesEtAuditPage /></LazyRoute>} />
+            <Route path="activites-utilisateurs"      element={<Navigate to="/espace-exploitation/activites-et-audit" replace />} />
+            <Route path="journal-audit"               element={<Navigate to="/espace-exploitation/activites-et-audit" replace />} />
             <Route path="chiffres-daffaires"          element={<LazyRoute><ChiffresDaffairesPage /></LazyRoute>} />
             <Route path="parametres"                  element={<LazyRoute><ParametresPage /></LazyRoute>} />
             <Route path="profils-exploitation"        element={<LazyRoute><ProfilsExploitationPage /></LazyRoute>} />

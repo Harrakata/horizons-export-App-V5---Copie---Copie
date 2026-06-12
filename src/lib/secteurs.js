@@ -1,5 +1,10 @@
 import { supabase } from '@/lib/supabaseClient';
 
+const _cache = { data: null, ts: 0 };
+const TTL = 120_000;
+
+export const invalidateSecteursCache = () => { _cache.data = null; _cache.ts = 0; };
+
 export const normalizeSecteurText = (value) =>
   String(value ?? '')
     .trim()
@@ -15,8 +20,14 @@ const secteurMatchesValue = (secteur, value) => {
   );
 };
 
-export const fetchSecteurs = async () =>
-  supabase.from('secteurs').select('*').order('nom', { ascending: true });
+export const fetchSecteurs = async () => {
+  if (_cache.data && Date.now() - _cache.ts < TTL) {
+    return { data: _cache.data, error: null };
+  }
+  const result = await supabase.from('secteurs').select('id, nom, codeSecteur, region, attributaire').order('nom', { ascending: true });
+  if (!result.error) { _cache.data = result.data; _cache.ts = Date.now(); }
+  return result;
+};
 
 /**
  * Options de secteurs, optionnellement filtrées par région.

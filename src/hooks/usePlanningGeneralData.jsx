@@ -16,15 +16,15 @@ export const usePlanningGeneralData = (currentMonth) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: agencesData, error: agencesError } = await supabase.from('agences').select('*').eq('is_current', true);
+      const { data: agencesData, error: agencesError } = await supabase.from('agences').select('id, nom, codePDV, nbreTerminaux').eq('is_current', true);
       if (agencesError) toast({ title: "Erreur chargement agences", description: agencesError.message, variant: "destructive" });
       else setAgences(agencesData || []);
 
-      const { data: chefsData, error: chefsError } = await supabase.from('chefs_agence').select('*').eq('is_current', true);
+      const { data: chefsData, error: chefsError } = await supabase.from('chefs_agence').select('id, nom, prenom, agenceEnCharge, codePDV').eq('is_current', true);
       if (chefsError) toast({ title: "Erreur chargement chefs", description: chefsError.message, variant: "destructive" });
       else setChefsAgence(chefsData || []);
 
-      const { data: guichetieresData, error: guichetieresError } = await supabase.from('guichetieres').select('*').eq('is_current', true);
+      const { data: guichetieresData, error: guichetieresError } = await supabase.from('guichetieres').select('id, nom, prenom, matricule, agenceAssigne').eq('is_current', true);
       if (guichetieresError) toast({ title: "Erreur chargement guichetières", description: guichetieresError.message, variant: "destructive" });
       else setGuichetieres(guichetieresData || []);
       
@@ -33,7 +33,7 @@ export const usePlanningGeneralData = (currentMonth) => {
         const monthEnd = format(endOfMonth(currentMonth), 'yyyy-MM-dd');
         const { data: planning, error: planningError } = await supabase
           .from('planning')
-          .select('*')
+          .select('id, date, agenceNom, guichetiereId')
           .gte('date', monthStart)
           .lte('date', monthEnd);
         if (planningError) toast({ title: "Erreur chargement planning", description: planningError.message, variant: "destructive" });
