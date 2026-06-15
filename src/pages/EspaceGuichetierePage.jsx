@@ -670,7 +670,7 @@ const EspaceGuichetierePage = () => {
         </div>
       </motion.aside>
 
-      <main className="app-space-main flex-1 min-w-0 overflow-visible md:overflow-hidden">
+      <main className="app-space-main has-tabbar flex-1 min-w-0 overflow-visible md:overflow-hidden">
         <SwipeTabs items={menuItems.map((item) => ({ key: item.path, active: isMenuItemActive(item.path), onClick: () => navigate(`/espace-guichetiere/${item.path}`) }))}>
         <PullToRefresh onRefresh={handlePullRefresh}>
         <motion.div
@@ -700,6 +700,17 @@ const EspaceGuichetierePage = () => {
         </SwipeTabs>
       </main>
 
+      <MobileTabBar
+        items={menuItems.map((item) => ({
+          key: item.path,
+          label: GUICHETIERE_TAB_LABELS[item.path] || item.label,
+          icon: item.icon,
+          active: isMenuItemActive(item.path),
+          onClick: () => navigate(`/espace-guichetiere/${item.path}`),
+        }))}
+        onMore={() => setIsMobileMenuOpen(true)}
+        moreActive={isMobileMenuOpen}
+      />
     </div>
   );
 };

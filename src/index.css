@@ -458,19 +458,26 @@ aside,
     to { opacity: 1; }
   }
 
-  /* ── En-tête mobile de profil (remplace le bouton toggle flottant) ── */
+  /* ── Barre de navigation principale masquée dans les espaces sur mobile ──
+     La barre de profil de l'espace la remplace ; le logo reste visible
+     uniquement depuis l'accueil. */
+  body:has(.has-mobile-header) .app-top-header {
+    display: none;
+  }
+
+  /* ── En-tête mobile de profil : remonte tout en haut car la barre nav est masquée ── */
   .app-space-mobile-header {
     position: sticky;
-    top: 4.5rem;
+    top: 0;
     z-index: 80;
     padding: 0 0.25rem;
     margin-bottom: 0.25rem;
   }
 
-  /* Avec l'en-tête mobile, le tiroir s'ouvre en dessous de l'en-tête */
+  /* Tiroir : s'ouvre juste sous l'en-tête espace (~4 rem) */
   .has-mobile-header .app-space-sidebar.is-open {
-    top: 8.25rem;
-    max-height: calc(100vh - 9rem);
+    top: 4rem;
+    max-height: calc(100vh - 4.5rem);
   }
 
 

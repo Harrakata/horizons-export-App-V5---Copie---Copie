@@ -502,7 +502,7 @@ const EspaceMaintenancePage = () => {
         onSaved={(fields) => setUserData((prev) => ({ ...(prev || {}), ...fields }))}
       />
 
-      <main className="app-space-main min-w-0 flex-1 overflow-visible">
+      <main className="app-space-main has-tabbar min-w-0 flex-1 overflow-visible">
         <SwipeTabs items={menuItems.map((item) => ({ key: item.key, active: activeSection === item.key, onClick: () => setActiveSection(item.key) }))}>
         <PullToRefresh onRefresh={handlePullRefresh}>
         <motion.div
@@ -556,6 +556,17 @@ const EspaceMaintenancePage = () => {
         </SwipeTabs>
       </main>
 
+      <MobileTabBar
+        items={menuItems.map((item) => ({
+          key: item.key,
+          label: item.label,
+          icon: item.icon,
+          active: activeSection === item.key,
+          onClick: () => setActiveSection(item.key),
+        }))}
+        onMore={() => setIsMobileMenuOpen(true)}
+        moreActive={isMobileMenuOpen}
+      />
     </div>
   );
 };
