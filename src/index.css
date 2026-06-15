@@ -473,11 +473,6 @@ aside,
     max-height: calc(100vh - 9rem);
   }
 
-  /* Quand la barre d'onglets gère la navigation (onglet « Plus »),
-     le bouton menu intégré à l'en-tête devient redondant → masqué */
-  body:has(.mobile-tabbar) .app-space-header-toggle {
-    display: none !important;
-  }
 
   /* Tiroir mobile : plus compact, dans l'esprit du menu de la barre de navigation */
   .app-space-sidebar.is-open .app-space-sidebar-scroll {

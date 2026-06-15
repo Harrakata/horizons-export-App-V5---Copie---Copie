@@ -980,17 +980,42 @@ const EspaceChefAgencePage = () => {
   }
 
   return (
-    <div className="app-space-layout flex flex-col gap-4 md:flex-row lg:gap-8">
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        aria-label={isMobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
-        className="app-space-menu-toggle md:hidden"
-        onClick={() => setIsMobileMenuOpen((open) => !open)}
-      >
-        {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-      </Button>
+    <div className="app-space-layout has-mobile-header flex flex-col gap-4 md:flex-row lg:gap-8">
+
+      {/* En-tête mobile : profil + cloche + bouton menu */}
+      <div className="app-space-mobile-header md:hidden">
+        <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-white/95 px-3 py-2.5 shadow-[0_4px_20px_-8px_rgba(15,23,42,0.25)] backdrop-blur">
+          {(chefDetails?.photo_url || chefAgenceInfo?.photo_url) ? (
+            <img
+              src={chefDetails?.photo_url || chefAgenceInfo?.photo_url}
+              alt="Photo de profil"
+              className="h-10 w-10 shrink-0 rounded-[0.75rem] object-cover ring-1 ring-primary/20"
+            />
+          ) : (
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.75rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white text-primary ring-1 ring-primary/20">
+              <span className="text-sm font-black">{chefAgenceInfo?.nomChef?.split(' ').map(n => n[0]).join('') || 'CA'}</span>
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-[0.6rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground/70">Espace Chef d'Agence</p>
+            <p className="truncate text-sm font-bold text-foreground leading-tight">{chefAgenceInfo?.nomChef}</p>
+          </div>
+          <NotificationBell
+            notifications={chefNotifications}
+            totalCount={chefNotifCount}
+            onNavigate={() => setIsMobileMenuOpen(false)}
+          />
+          <button
+            type="button"
+            aria-label={isMobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            onClick={() => setIsMobileMenuOpen((open) => !open)}
+            className="app-space-header-toggle flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/5 text-primary transition-colors hover:bg-primary/10"
+          >
+            {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+
       {isMobileMenuOpen && (
         <div className="app-space-backdrop md:hidden" onClick={() => setIsMobileMenuOpen(false)} aria-hidden="true" />
       )}
@@ -1001,37 +1026,39 @@ const EspaceChefAgencePage = () => {
         className={`app-space-sidebar md:w-72 md:shrink-0 ${isMobileMenuOpen ? 'is-open' : ''}`}
       >
         <div className="app-space-sidebar-scroll sticky top-20 space-y-3 max-h-[calc(100vh-5.5rem)] overflow-y-auto pb-4 pr-1 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
-          <Card className="relative overflow-hidden border border-primary/20 bg-white/92 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
-            <CardContent className="relative p-4">
-              <div className="flex items-center gap-3">
-                {(chefDetails?.photo_url || chefAgenceInfo?.photo_url) ? (
-                  <img
-                    src={chefDetails?.photo_url || chefAgenceInfo?.photo_url}
-                    alt="Photo de profil"
-                    className="h-12 w-12 shrink-0 rounded-[1rem] object-cover ring-1 ring-primary/20 shadow-[0_8px_20px_-10px_rgba(15,23,42,0.35)]"
-                  />
-                ) : (
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white text-primary ring-1 ring-primary/20 shadow-[0_8px_20px_-10px_rgba(15,23,42,0.35)]">
-                    <span className="text-lg font-black">
-                      {chefAgenceInfo?.nomChef?.split(' ').map(n => n[0]).join('') || 'CA'}
-                    </span>
+          <div className="hidden md:block">
+            <Card className="relative overflow-hidden border border-primary/20 bg-white/92 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+              <CardContent className="relative p-4">
+                <div className="flex items-center gap-3">
+                  {(chefDetails?.photo_url || chefAgenceInfo?.photo_url) ? (
+                    <img
+                      src={chefDetails?.photo_url || chefAgenceInfo?.photo_url}
+                      alt="Photo de profil"
+                      className="h-12 w-12 shrink-0 rounded-[1rem] object-cover ring-1 ring-primary/20 shadow-[0_8px_20px_-10px_rgba(15,23,42,0.35)]"
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white text-primary ring-1 ring-primary/20 shadow-[0_8px_20px_-10px_rgba(15,23,42,0.35)]">
+                      <span className="text-lg font-black">
+                        {chefAgenceInfo?.nomChef?.split(' ').map(n => n[0]).join('') || 'CA'}
+                      </span>
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">Chef d'Agence</p>
+                    <p className="mt-0.5 truncate text-sm font-bold text-foreground">{chefAgenceInfo?.nomChef}</p>
+                    <p className="text-[0.68rem] text-muted-foreground">Agence : {chefAgenceInfo?.nomAgence}</p>
                   </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">Chef d'Agence</p>
-                  <p className="mt-0.5 truncate text-sm font-bold text-foreground">{chefAgenceInfo?.nomChef}</p>
-                  <p className="text-[0.68rem] text-muted-foreground">Agence : {chefAgenceInfo?.nomAgence}</p>
+                  <NotificationBell
+                    notifications={chefNotifications}
+                    totalCount={chefNotifCount}
+                    onNavigate={() => setIsMobileMenuOpen(false)}
+                  />
                 </div>
-                <NotificationBell
-                  notifications={chefNotifications}
-                  totalCount={chefNotifCount}
-                  onNavigate={() => setIsMobileMenuOpen(false)}
-                />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
 
           <Card className="relative overflow-hidden border border-primary/20 bg-white/92 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.18)] backdrop-blur">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
@@ -1110,7 +1137,7 @@ const EspaceChefAgencePage = () => {
           )}
         </div>
       </motion.aside>
-      <main className="app-space-main has-tabbar flex-1 min-w-0 overflow-visible md:overflow-x-hidden">
+      <main className="app-space-main flex-1 min-w-0 overflow-visible md:overflow-x-hidden">
         <SwipeTabs items={menuItems.map((item) => ({ key: item.path, active: isMenuItemActive(item.path), onClick: () => navigate(`/espace-chef-agence/${item.path}`) }))}>
         <PullToRefresh onRefresh={handlePullRefresh}>
         <motion.div
@@ -1140,17 +1167,6 @@ const EspaceChefAgencePage = () => {
         </SwipeTabs>
       </main>
 
-      <MobileTabBar
-        items={menuItems.map((item) => ({
-          key: item.path,
-          label: CHEF_AGENCE_TAB_LABELS[item.path] || item.label,
-          icon: item.icon,
-          active: isMenuItemActive(item.path),
-          onClick: () => navigate(`/espace-chef-agence/${item.path}`),
-        }))}
-        onMore={() => setIsMobileMenuOpen(true)}
-        moreActive={isMobileMenuOpen}
-      />
     </div>
   );
 };
