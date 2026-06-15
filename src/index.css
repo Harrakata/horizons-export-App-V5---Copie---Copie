@@ -458,6 +458,27 @@ aside,
     to { opacity: 1; }
   }
 
+  /* ── En-tête mobile de profil (remplace le bouton toggle flottant) ── */
+  .app-space-mobile-header {
+    position: sticky;
+    top: 4.5rem;
+    z-index: 80;
+    padding: 0 0.25rem;
+    margin-bottom: 0.25rem;
+  }
+
+  /* Avec l'en-tête mobile, le tiroir s'ouvre en dessous de l'en-tête */
+  .has-mobile-header .app-space-sidebar.is-open {
+    top: 8.25rem;
+    max-height: calc(100vh - 9rem);
+  }
+
+  /* Quand la barre d'onglets gère la navigation (onglet « Plus »),
+     le bouton menu intégré à l'en-tête devient redondant → masqué */
+  body:has(.mobile-tabbar) .app-space-header-toggle {
+    display: none !important;
+  }
+
   /* Tiroir mobile : plus compact, dans l'esprit du menu de la barre de navigation */
   .app-space-sidebar.is-open .app-space-sidebar-scroll {
     gap: 0.5rem;
