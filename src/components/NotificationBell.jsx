@@ -126,7 +126,12 @@ const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, stor
         </button>
       </PopoverTrigger>
 
-      <PopoverContent align="end" className="w-80 overflow-hidden p-0">
+      <PopoverContent
+        align="end"
+        sideOffset={4}
+        collisionPadding={8}
+        className="w-[calc(100vw-1rem)] max-w-[320px] overflow-hidden p-0"
+      >
         <span className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
 
         {/* En-tête */}

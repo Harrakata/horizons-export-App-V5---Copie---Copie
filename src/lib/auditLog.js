@@ -90,7 +90,14 @@ export async function logAudit({
 /**
  * Lit le journal d'audit (paginé, filtrable). Renvoie { rows, count }.
  */
-export async function fetchAuditLog({ page = 0, pageSize = 50, entity = null, action = null, search = null } = {}) {
+export async function fetchAuditLog({
+  page = 0,
+  pageSize = 50,
+  entity = null,
+  action = null,
+  search = null,
+  spaces = null,   // string[] | null — null = tous les espaces
+} = {}) {
   try {
     let query = supabase
       .from('audit_log')
@@ -98,9 +105,10 @@ export async function fetchAuditLog({ page = 0, pageSize = 50, entity = null, ac
       .order('created_at', { ascending: false })
       .range(page * pageSize, page * pageSize + pageSize - 1);
 
-    if (entity) query = query.eq('entity', entity);
-    if (action) query = query.eq('action', action);
-    if (search) query = query.or(`actor_name.ilike.%${search}%,entity_label.ilike.%${search}%`);
+    if (entity)          query = query.eq('entity', entity);
+    if (action)          query = query.eq('action', action);
+    if (search)          query = query.or(`actor_name.ilike.%${search}%,entity_label.ilike.%${search}%`);
+    if (spaces?.length)  query = query.in('space', spaces);
 
     const { data, error, count } = await query;
     if (error) return { rows: [], count: 0 };
