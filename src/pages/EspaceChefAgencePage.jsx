@@ -984,7 +984,7 @@ const EspaceChefAgencePage = () => {
 
       {/* En-tête mobile : profil + cloche + bouton menu */}
       <div className="app-space-mobile-header md:hidden">
-        <div className="relative flex items-center gap-3 overflow-hidden rounded-2xl border border-primary/25 bg-white px-3 py-3 shadow-[0_6px_28px_-8px_rgba(15,23,42,0.30)] backdrop-blur">
+        <div className="relative flex items-center gap-3 overflow-hidden rounded-2xl border border-primary/25 bg-white px-4 py-4 shadow-[0_6px_28px_-8px_rgba(15,23,42,0.30)] backdrop-blur">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/6 via-transparent to-transparent" />
           {(chefDetails?.photo_url || chefAgenceInfo?.photo_url) ? (
@@ -1150,7 +1150,7 @@ const EspaceChefAgencePage = () => {
           )}
         </div>
       </motion.aside>
-      <main className="app-space-main flex-1 min-w-0 overflow-visible md:overflow-x-hidden">
+      <main className="app-space-main has-tabbar flex-1 min-w-0 overflow-visible md:overflow-x-hidden">
         <SwipeTabs items={menuItems.map((item) => ({ key: item.path, active: isMenuItemActive(item.path), onClick: () => navigate(`/espace-chef-agence/${item.path}`) }))}>
         <PullToRefresh onRefresh={handlePullRefresh}>
         <motion.div
@@ -1180,6 +1180,17 @@ const EspaceChefAgencePage = () => {
         </SwipeTabs>
       </main>
 
+      <MobileTabBar
+        items={menuItems.map((item) => ({
+          key: item.path,
+          label: CHEF_AGENCE_TAB_LABELS[item.path] || item.label,
+          icon: item.icon,
+          active: isMenuItemActive(item.path),
+          onClick: () => navigate(`/espace-chef-agence/${item.path}`),
+        }))}
+        onMore={() => setIsMobileMenuOpen(true)}
+        moreActive={isMobileMenuOpen}
+      />
     </div>
   );
 };

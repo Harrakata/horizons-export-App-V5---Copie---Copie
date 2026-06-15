@@ -476,8 +476,15 @@ aside,
 
   /* Tiroir : s'ouvre juste sous l'en-tête espace (~4 rem) */
   .has-mobile-header .app-space-sidebar.is-open {
-    top: 4rem;
-    max-height: calc(100vh - 4.5rem);
+    top: 4.5rem;
+    max-height: calc(100vh - 5rem);
+  }
+
+  /* Fix débordement du popover notification sur mobile :
+     force le positionnement depuis la droite quel que soit le calcul Radix */
+  [data-radix-popper-content-wrapper]:has(.notification-bell-popover) {
+    right: 0.5rem !important;
+    left: auto !important;
   }
 
 

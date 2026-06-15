@@ -130,7 +130,7 @@ const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, stor
         align="end"
         sideOffset={6}
         collisionPadding={{ top: 4, right: 8, bottom: 8, left: 8 }}
-        className="overflow-hidden p-0"
+        className="notification-bell-popover overflow-hidden p-0"
         style={{ width: 'min(320px, calc(100vw - 1rem))', maxWidth: 'calc(100vw - 1rem)' }}
       >
         <span className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />

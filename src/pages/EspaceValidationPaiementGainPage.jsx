@@ -32,6 +32,8 @@ import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { useActivityTracker } from '@/hooks/useActivityTracker';
 import EditProfileDialog from '@/components/EditProfileDialog';
 import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
+import MobileTabBar from '@/components/mobile/MobileTabBar';
+import SwipeTabs from '@/components/mobile/SwipeTabs';
 import NotificationBell from '@/components/NotificationBell';
 import { logAudit, AUDIT_ACTIONS, AUDIT_ENTITIES } from '@/lib/auditLog';
 import RegionalMaintenanceSection from '@/components/directeur_regional/RegionalMaintenanceSection';
@@ -1020,6 +1022,13 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
     return renderPaymentSection();
   };
 
+  const VALIDATION_TAB_LABELS = {
+    'paiement': 'Paiement',
+    'maintenance': 'Maint.',
+    'pointage': 'Pointage',
+    'chiffres-daffaires': 'Comptable',
+  };
+
   const menuItems = useMemo(() => [
     {
       key: 'paiement',
@@ -1080,7 +1089,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
 
       {/* En-tête mobile : profil + cloche + bouton menu */}
       <div className="app-space-mobile-header md:hidden">
-        <div className="relative flex items-center gap-3 overflow-hidden rounded-2xl border border-primary/25 bg-white px-3 py-3 shadow-[0_6px_28px_-8px_rgba(15,23,42,0.30)] backdrop-blur">
+        <div className="relative flex items-center gap-3 overflow-hidden rounded-2xl border border-primary/25 bg-white px-4 py-4 shadow-[0_6px_28px_-8px_rgba(15,23,42,0.30)] backdrop-blur">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/6 via-transparent to-transparent" />
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.75rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white text-primary ring-1 ring-primary/20">
@@ -1233,7 +1242,8 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
         }}
       />
 
-      <main className="app-space-main flex-1 min-w-0 overflow-visible md:overflow-x-hidden">
+      <main className="app-space-main has-tabbar flex-1 min-w-0 overflow-visible md:overflow-x-hidden">
+        <SwipeTabs items={menuItems.map((item) => ({ key: item.key, active: activeSection === item.key, onClick: () => !item.disabled && setActiveSection(item.key) }))}>
         <motion.div
           key={activeSection}
           initial={{ opacity: 0, y: 20 }}
@@ -1250,7 +1260,20 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
             renderCurrentSection()
           )}
         </motion.div>
+        </SwipeTabs>
       </main>
+
+      <MobileTabBar
+        items={menuItems.map((item) => ({
+          key: item.key,
+          label: VALIDATION_TAB_LABELS[item.key] || item.label,
+          icon: item.icon,
+          active: activeSection === item.key,
+          onClick: () => !item.disabled && setActiveSection(item.key),
+        }))}
+        onMore={() => setIsMobileMenuOpen(true)}
+        moreActive={isMobileMenuOpen}
+      />
     </div>
   );
 };
