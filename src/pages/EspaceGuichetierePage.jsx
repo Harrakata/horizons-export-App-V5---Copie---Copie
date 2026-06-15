@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CalendarDays, LogOut, MapPin, FileText, ShieldCheck, Wallet, AtSign, Loader2, UserCog, Menu, X } from 'lucide-react';
+import { CalendarDays, LogOut, MapPin, FileText, ShieldCheck, Wallet, AtSign, Loader2, UserCog, Menu, X, Home } from 'lucide-react';
 import EditProfileDialog from '@/components/EditProfileDialog';
 import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 import NotificationBell from '@/components/NotificationBell';
@@ -518,7 +518,9 @@ const EspaceGuichetierePage = () => {
 
       {/* En-tête mobile : profil + cloche + bouton menu — remplace le bouton toggle flottant */}
       <div className="app-space-mobile-header md:hidden">
-        <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-white/95 px-3 py-2.5 shadow-[0_4px_20px_-8px_rgba(15,23,42,0.25)] backdrop-blur">
+        <div className="relative flex items-center gap-3 overflow-hidden rounded-2xl border border-primary/25 bg-white px-3 py-3 shadow-[0_6px_28px_-8px_rgba(15,23,42,0.30)] backdrop-blur">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/6 via-transparent to-transparent" />
           {(guichetiereInfo?.photo_url || guichetiereDetails?.photo_url) ? (
             <img
               src={guichetiereInfo?.photo_url || guichetiereDetails?.photo_url}
@@ -624,22 +626,32 @@ const EspaceGuichetierePage = () => {
                 })}
               </nav>
               <div className="mt-1 border-t pt-1">
-                <button
-                  type="button"
-                  onClick={() => { setIsProfileDialogOpen(true); setIsMobileMenuOpen(false); }}
-                  className="flex w-full items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-sm font-semibold text-foreground/80 transition-all hover:bg-primary/10 hover:text-primary"
-                >
-                  <UserCog className="h-4 w-4 shrink-0" />
-                  Modifier mon profil
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="flex w-full items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-sm font-semibold text-red-500 transition-all hover:bg-red-50 hover:text-red-600"
-                >
-                  <LogOut className="h-4 w-4 shrink-0" />
-                  Se déconnecter
-                </button>
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => { navigate('/'); setIsMobileMenuOpen(false); }}
+                    className="flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-muted-foreground/70 transition-colors hover:bg-primary/8 hover:text-primary"
+                  >
+                    <Home className="h-5 w-5" />
+                    <span className="text-[0.6rem] font-semibold">Accueil</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setIsProfileDialogOpen(true); setIsMobileMenuOpen(false); }}
+                    className="flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-muted-foreground/70 transition-colors hover:bg-primary/8 hover:text-primary"
+                  >
+                    <UserCog className="h-5 w-5" />
+                    <span className="text-[0.6rem] font-semibold">Profil</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    <span className="text-[0.6rem] font-semibold">Déconn.</span>
+                  </button>
+                </div>
               </div>
             </CardContent>
           </Card>

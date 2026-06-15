@@ -128,9 +128,10 @@ const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, stor
 
       <PopoverContent
         align="end"
-        sideOffset={4}
-        collisionPadding={{ top: 4, right: 12, bottom: 8, left: 8 }}
-        className="w-[min(320px,calc(100vw-1.5rem))] overflow-hidden p-0"
+        sideOffset={6}
+        collisionPadding={{ top: 4, right: 8, bottom: 8, left: 8 }}
+        className="overflow-hidden p-0"
+        style={{ width: 'min(320px, calc(100vw - 1rem))', maxWidth: 'calc(100vw - 1rem)' }}
       >
         <span className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
 

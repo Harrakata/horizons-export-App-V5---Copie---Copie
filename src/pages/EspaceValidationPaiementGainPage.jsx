@@ -17,6 +17,7 @@ import {
   XCircle,
   Menu,
   X,
+  Home,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -1075,17 +1076,40 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
   }
 
   return (
-    <div className="app-space-layout flex flex-col gap-4 md:flex-row lg:gap-8">
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        aria-label={isMobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
-        className="app-space-menu-toggle md:hidden"
-        onClick={() => setIsMobileMenuOpen((open) => !open)}
-      >
-        {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-      </Button>
+    <div className="app-space-layout has-mobile-header flex flex-col gap-4 md:flex-row lg:gap-8">
+
+      {/* En-tête mobile : profil + cloche + bouton menu */}
+      <div className="app-space-mobile-header md:hidden">
+        <div className="relative flex items-center gap-3 overflow-hidden rounded-2xl border border-primary/25 bg-white px-3 py-3 shadow-[0_6px_28px_-8px_rgba(15,23,42,0.30)] backdrop-blur">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/6 via-transparent to-transparent" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.75rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white text-primary ring-1 ring-primary/20">
+            <span className="text-sm font-black">
+              {[validator.prenom?.[0], validator.nom?.[0]].filter(Boolean).join('') || spaceConfig.fallbackInitials}
+            </span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[0.6rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground/70">{spaceConfig.spaceTitle}</p>
+            <p className="truncate text-sm font-bold text-foreground leading-tight">{validator.prenom} {validator.nom}</p>
+          </div>
+          <NotificationBell
+            notifications={pendingRequests.length > 0
+              ? [{ key: 'pay', count: pendingRequests.length, title: 'Paiements de gain à valider', description: 'En attente de votre validation', severity: 'blue' }]
+              : []}
+            totalCount={pendingRequests.length}
+            onNavigate={() => setIsMobileMenuOpen(false)}
+          />
+          <button
+            type="button"
+            aria-label={isMobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            onClick={() => setIsMobileMenuOpen((open) => !open)}
+            className="app-space-header-toggle flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/5 text-primary transition-colors hover:bg-primary/10"
+          >
+            {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+
       {isMobileMenuOpen && (
         <div className="app-space-backdrop md:hidden" onClick={() => setIsMobileMenuOpen(false)} aria-hidden="true" />
       )}
@@ -1096,6 +1120,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
         className={`app-space-sidebar md:w-72 md:shrink-0 ${isMobileMenuOpen ? 'is-open' : ''}`}
       >
         <div className="app-space-sidebar-scroll sticky top-20 space-y-3 max-h-[calc(100vh-5.5rem)] overflow-y-auto pb-4 pr-1 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
+          <div className="hidden md:block">
           <Card className="relative overflow-hidden border border-primary/20 bg-white/92 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
@@ -1125,6 +1150,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
               </div>
             </CardContent>
           </Card>
+          </div>
 
           <Card className="relative overflow-hidden border border-primary/20 bg-white/92 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.18)] backdrop-blur">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
@@ -1154,22 +1180,32 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
                 })}
               </nav>
               <div className="mt-1 border-t pt-1">
-                <button
-                  type="button"
-                  onClick={() => { setIsProfileDialogOpen(true); setIsMobileMenuOpen(false); }}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-all hover:bg-primary/10 hover:text-primary"
-                >
-                  <UserCog className="h-4 w-4 shrink-0" />
-                  Modifier mon profil
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-red-500 transition-all hover:bg-red-50 hover:text-red-600"
-                >
-                  <LogOut className="h-4 w-4 shrink-0" />
-                  Se déconnecter
-                </button>
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => { navigate('/'); setIsMobileMenuOpen(false); }}
+                    className="flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-muted-foreground/70 transition-colors hover:bg-primary/8 hover:text-primary"
+                  >
+                    <Home className="h-5 w-5" />
+                    <span className="text-[0.6rem] font-semibold">Accueil</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setIsProfileDialogOpen(true); setIsMobileMenuOpen(false); }}
+                    className="flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-muted-foreground/70 transition-colors hover:bg-primary/8 hover:text-primary"
+                  >
+                    <UserCog className="h-5 w-5" />
+                    <span className="text-[0.6rem] font-semibold">Profil</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    <span className="text-[0.6rem] font-semibold">Déconn.</span>
+                  </button>
+                </div>
               </div>
             </CardContent>
           </Card>
