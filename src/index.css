@@ -495,18 +495,17 @@ aside,
     max-height: calc(100vh - 5rem);
   }
 
-  /* Fix débordement du popover notification sur mobile :
-     force le positionnement depuis la droite quel que soit le calcul Radix.
-     z-index: 90 pour passer au-dessus du sticky header (z-80). */
-  [data-radix-popper-content-wrapper]:has(.notification-bell-popover) {
-    right: 0.5rem !important;
-    left: auto !important;
+  /* Tous les popovers/menus Radix passent AU-DESSUS de l'en-tête sticky (z-80).
+     Sans :has() (compat WebView/PWA) et sans toucher au positionnement : on
+     laisse le transform de Radix gérer la position, on ne force que le z-index. */
+  [data-radix-popper-content-wrapper] {
     z-index: 90 !important;
   }
-  /* Annule le max-width générique pour le popover notification */
-  [data-radix-popper-content-wrapper]:has(.notification-bell-popover) > * {
-    max-width: min(340px, calc(100vw - 1rem)) !important;
-    width: min(340px, calc(100vw - 1rem)) !important;
+  /* Largeur du popover notification — sélecteur enfant direct (spécificité 0,2,1)
+     pour battre le cap générique « [data-radix-popper-content-wrapper] > * » (0,2,0). */
+  [data-radix-popper-content-wrapper] > .notification-bell-popover {
+    width: min(20rem, calc(100vw - 1.25rem)) !important;
+    max-width: calc(100vw - 1.25rem) !important;
   }
 
 
@@ -693,29 +692,22 @@ aside,
   /* ── Boîtes de dialogue ──────────────────────────────────────────────
      Rendues dans un portail (hors de .app-space-main), elles échappent
      aux adaptations mobiles ci-dessus : on les recadre explicitement. */
+  /* La fenêtre reste CENTRÉE (top:50% + translateY(-50%) fournis par le composant),
+     mais on borne sa hauteur pour qu'elle ne déborde jamais sous l'en-tête sticky.
+     Math : centrée, le bord haut = 50vh − hauteur/2. Avec hauteur ≤ 100vh − 10rem,
+     le bord haut ≥ 5rem > 4.5rem (hauteur en-tête) → sommet toujours visible.
+     Aucune dépendance à :has() (compat WebView/PWA). Fallback vh avant dvh. */
   [role="dialog"] {
     width: calc(100vw - 2rem) !important;
     max-width: 28rem !important;
-    max-height: 82dvh !important;
+    max-height: calc(100vh - 11rem) !important;
+    max-height: calc(100dvh - 11rem - env(safe-area-inset-bottom, 0px)) !important;
     overflow-y: auto !important;
     gap: 0.55rem !important;
     padding: 0.8rem !important;
     border-radius: 1.25rem !important;
     box-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.5) !important;
   }
-
-  /* Quand l'en-tête mobile sticky est présent : repositionne la fenêtre
-     juste en dessous pour qu'aucune partie ne soit cachée sous la barre.
-     top ~5rem = hauteur en-tête (4.5rem) + petite marge.
-     translateX(-50%) seul pour garder le centrage horizontal sans décaler vers le haut. */
-  body:has(.has-mobile-header) [role="dialog"] {
-    top: 5rem !important;
-    transform: translateX(-50%) !important;
-    max-height: calc(100dvh - 5.75rem - env(safe-area-inset-bottom, 0px)) !important;
-  }
-
-  /* L'overlay reste pleine page mais l'en-tête (z-80) passe par-dessus grâce
-     à son z-index supérieur — pas besoin de rogner l'overlay. */
 
   [role="dialog"] .text-2xl {
     font-size: 1.05rem !important;
