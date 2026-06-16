@@ -35,6 +35,7 @@ import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 import MobileTabBar from '@/components/mobile/MobileTabBar';
 import SwipeTabs from '@/components/mobile/SwipeTabs';
 import NotificationBell from '@/components/NotificationBell';
+import { useSpaceNotifications } from '@/hooks/useSpaceNotifications';
 import { logAudit, AUDIT_ACTIONS, AUDIT_ENTITIES } from '@/lib/auditLog';
 import RegionalMaintenanceSection from '@/components/directeur_regional/RegionalMaintenanceSection';
 import RegionalPointageSection from '@/components/directeur_regional/RegionalPointageSection';
@@ -418,6 +419,12 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
     validator?.fonction === VALIDATOR_FUNCTIONS.REGIONAL && Boolean(validator?.regionAssignee);
   const isGeneralProfile = validator?.fonction === VALIDATOR_FUNCTIONS.GENERAL;
   const regionalFixedRegion = spaceMode === 'regional' ? (validator?.regionAssignee || null) : null;
+
+  const { notifications: spaceNotifications, totalCount: spaceNotifCount, refresh: refreshSpaceNotifs } = useSpaceNotifications({
+    spaceKey: currentSpaceKey,
+    enabled: Boolean(validator),
+    context: { validatorId: validator?.id, regionNom: validator?.regionAssignee },
+  });
 
   const handleLogin = (userData) => {
     setValidator(userData);
@@ -1102,10 +1109,9 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
             <p className="truncate text-sm font-bold text-foreground leading-tight">{validator.prenom} {validator.nom}</p>
           </div>
           <NotificationBell
-            notifications={pendingRequests.length > 0
-              ? [{ key: 'pay', count: pendingRequests.length, title: 'Paiements de gain à valider', description: 'En attente de votre validation', severity: 'blue' }]
-              : []}
-            totalCount={pendingRequests.length}
+            notifications={spaceNotifications}
+            totalCount={spaceNotifCount}
+            onRefresh={refreshSpaceNotifs}
             onNavigate={() => setIsMobileMenuOpen(false)}
           />
           <button
@@ -1150,10 +1156,9 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
                   </p>
                 </div>
                 <NotificationBell
-                  notifications={pendingRequests.length > 0
-                    ? [{ key: 'pay', count: pendingRequests.length, title: 'Paiements de gain à valider', description: 'En attente de votre validation', severity: 'blue' }]
-                    : []}
-                  totalCount={pendingRequests.length}
+                  notifications={spaceNotifications}
+                  totalCount={spaceNotifCount}
+                  onRefresh={refreshSpaceNotifs}
                   onNavigate={() => setIsMobileMenuOpen(false)}
                 />
               </div>

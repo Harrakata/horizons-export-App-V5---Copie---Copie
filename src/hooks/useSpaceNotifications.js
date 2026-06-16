@@ -40,7 +40,9 @@ const fetchExploitationMessages = async (destinataire, ctx = {}) => {
 
     if (error || !data) return [];
 
-    const relevant = data.filter((m) => m.destinataires === destinataire || m.destinataires === 'tous');
+    // 'tous' signifie Guichetières & Techniciens, pas tous les espaces
+    const includesTous = ['guichetiere', 'technicien'].includes(destinataire);
+    const relevant = data.filter((m) => m.destinataires === destinataire || (includesTous && m.destinataires === 'tous'));
     if (!relevant.length) return [];
 
     // Récupération lazy de région/secteur si un message les utilise et qu'on ne les a pas
@@ -68,6 +70,21 @@ const fetchExploitationMessages = async (destinataire, ctx = {}) => {
       if (destinataire === 'technicien') {
         if (m.technicien_ids?.length > 0)
           return m.technicien_ids.map(String).includes(String(ctx.technicienId));
+        return true;
+      }
+      if (destinataire === 'chef_agence') {
+        if (m.agence_nom)  return m.agence_nom  === ctx.agenceNom;
+        if (m.secteur_nom) return m.secteur_nom === ctx.secteurNom;
+        if (m.region_nom)  return m.region_nom  === ctx.regionNom;
+        return true;
+      }
+      if (destinataire === 'chef_secteur') {
+        if (m.secteur_nom) return m.secteur_nom === ctx.secteurNom;
+        if (m.region_nom)  return m.region_nom  === ctx.regionNom;
+        return true;
+      }
+      if (destinataire === 'directeur_regional') {
+        if (m.region_nom) return m.region_nom === ctx.regionNom;
         return true;
       }
       return false;
@@ -129,17 +146,28 @@ export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }
     }
 
     else if (spaceKey === 'espace-chef-agence') {
-      const [maint, pay] = await Promise.all([
+      const [maint, pay, explMsgs] = await Promise.all([
         countRows('planning_maintenance_modification_requests', [['statut', MAINTENANCE_REQUEST_STATUSES.PENDING_CHEF], ['agence_nom', ctx.agenceNom]]),
         countRows('demandes_paiement_gain', [['statutGlobal', DEMANDE_STATUSES.PENDING_CHEF], ['chefAgenceId', ctx.chefId]]),
+        fetchExploitationMessages('chef_agence', { agenceNom: ctx.agenceNom }),
       ]);
-      if (maint > 0) list.push({ key: 'maint', count: maint, title: 'Demandes de maintenance', description: 'À valider pour votre agence', to: '/espace-chef-agence/maintenance-terminaux', severity: 'amber' });
-      if (pay > 0)   list.push({ key: 'pay',   count: pay,   title: 'Paiements de gain à valider', description: 'En attente de votre validation', to: '/espace-chef-agence/paiement-gros-gain', severity: 'blue' });
+      if (maint > 0)           list.push({ key: 'maint',    count: maint,           title: 'Demandes de maintenance',         description: "À valider pour votre agence",      to: '/espace-chef-agence/maintenance-terminaux', severity: 'amber' });
+      if (pay > 0)             list.push({ key: 'pay',      count: pay,             title: 'Paiements de gain à valider',     description: 'En attente de votre validation',   to: '/espace-chef-agence/paiement-gros-gain',   severity: 'blue'  });
+      if (explMsgs.length > 0) list.push({ key: 'msg-expl', count: explMsgs.length, title: "Message(s) de l'exploitation",    description: 'Cliquez pour lire',                to: null,                                       severity: 'blue', messages: explMsgs });
+    }
+
+    else if (spaceKey === 'espace-chef-secteur') {
+      const explMsgs = await fetchExploitationMessages('chef_secteur', { secteurNom: ctx.secteurNom });
+      if (explMsgs.length > 0) list.push({ key: 'msg-expl', count: explMsgs.length, title: "Message(s) de l'exploitation", description: 'Cliquez pour lire', to: null, severity: 'blue', messages: explMsgs });
     }
 
     else if (spaceKey === 'espace-directeur-regional') {
-      const pay = await countRows('demandes_paiement_gain', [['statutGlobal', DEMANDE_STATUSES.PENDING_REGIONAL], ['directeurRegionalId', ctx.validatorId]]);
-      if (pay > 0) list.push({ key: 'pay', count: pay, title: 'Paiements de gain à valider', description: 'En attente directeur régional', to: '/espace-validation-paiement-gain', severity: 'blue' });
+      const [pay, explMsgs] = await Promise.all([
+        countRows('demandes_paiement_gain', [['statutGlobal', DEMANDE_STATUSES.PENDING_REGIONAL], ['directeurRegionalId', ctx.validatorId]]),
+        fetchExploitationMessages('directeur_regional', { regionNom: ctx.regionNom }),
+      ]);
+      if (pay > 0)             list.push({ key: 'pay',      count: pay,             title: 'Paiements de gain à valider',  description: 'En attente directeur régional', to: '/espace-validation-paiement-gain', severity: 'blue' });
+      if (explMsgs.length > 0) list.push({ key: 'msg-expl', count: explMsgs.length, title: "Message(s) de l'exploitation", description: 'Cliquez pour lire',            to: null,                              severity: 'blue', messages: explMsgs });
     }
 
     else if (spaceKey === 'espace-directeur-general') {

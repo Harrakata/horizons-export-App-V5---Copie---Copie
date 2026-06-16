@@ -47,6 +47,8 @@ import { PointagesSecteurSection, MaintenanceSecteurSection, PaiementsSecteurSec
 import MobileTabBar from '@/components/mobile/MobileTabBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
 import SwipeTabs from '@/components/mobile/SwipeTabs';
+import NotificationBell from '@/components/NotificationBell';
+import useSpaceNotifications from '@/hooks/useSpaceNotifications';
 
 const SECTEUR_TAB_LABELS = { agences: 'Agences', pointages: 'Pointages', maintenance: 'Maint.', paiements: 'Paiements' };
 
@@ -276,6 +278,12 @@ const EspaceChefSecteurPage = () => {
 
   const initials = `${chef.prenom?.charAt(0) || ''}${chef.nom?.charAt(0) || ''}`.toUpperCase() || 'CS';
 
+  const { notifications: chefNotifications, totalCount: chefNotifCount, refresh: refreshChefNotifs } = useSpaceNotifications({
+    spaceKey: SPACE_KEY,
+    enabled: true,
+    context: { secteurNom: chef.secteurEnCharge },
+  });
+
   return (
     <div className="app-space-layout has-mobile-header flex flex-col gap-4 md:flex-row lg:gap-8">
 
@@ -295,6 +303,7 @@ const EspaceChefSecteurPage = () => {
             <p className="text-[0.6rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground/70">Espace Chef de Secteur</p>
             <p className="truncate text-sm font-bold text-foreground leading-tight">{chef.prenom} {chef.nom}</p>
           </div>
+          <NotificationBell notifications={chefNotifications} totalCount={chefNotifCount} onRefresh={refreshChefNotifs} />
           <button
             type="button"
             aria-label={isMobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}

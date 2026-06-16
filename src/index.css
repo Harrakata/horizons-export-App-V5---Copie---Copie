@@ -33,6 +33,16 @@
   --ring: 145 63% 49%; /* Ring color matches primary (Green) */
 
   --radius: 0.75rem; /* Slightly larger radius for modern feel */
+
+  /* ── Variables de personnalisation App Mobile ──────────────────────────────
+     Modifiables via Paramètres > Personnalisation App Mobile.
+     Elles n'ont d'effet qu'à travers les règles @media (max-width: 767px) ci-dessous. */
+  --mobile-tab-h: 4.5rem;           /* hauteur barre d'onglets          */
+  --mobile-card-radius: 1rem;       /* arrondi des cartes               */
+  --mobile-tabbar-blur: 22px;       /* flou fond barre d'onglets        */
+  --mobile-tabbar-opacity: 0.62;    /* opacité fond barre d'onglets     */
+  --mobile-font-scale: 1;           /* échelle de police                */
+  --mobile-header-accent-h: 3px;    /* épaisseur liseré en-tête mobile  */
 }
 
 .dark {
@@ -311,12 +321,12 @@ aside,
     /* Aspect translucide « verre » teinté (comme le popover Espaces) */
     background:
       linear-gradient(180deg, hsl(var(--primary) / 0.10), hsl(var(--primary) / 0.03) 55%),
-      hsl(var(--card) / 0.62);
+      hsl(var(--card) / var(--mobile-tabbar-opacity, 0.62));
     border: 1px solid hsl(var(--primary) / 0.18);
-    border-radius: 1.15rem;
+    border-radius: var(--mobile-card-radius, 1.15rem);
     box-shadow: 0 12px 34px -14px rgba(15, 23, 42, 0.40), inset 0 1px 0 hsl(0 0% 100% / 0.45);
-    backdrop-filter: blur(22px) saturate(1.7);
-    -webkit-backdrop-filter: blur(22px) saturate(1.7);
+    backdrop-filter: blur(var(--mobile-tabbar-blur, 22px)) saturate(1.7);
+    -webkit-backdrop-filter: blur(var(--mobile-tabbar-blur, 22px)) saturate(1.7);
   }
 
   /* Barre du haut translucide « verre » teinté sur mobile (comme le popover Espaces) */
@@ -379,7 +389,7 @@ aside,
 
   /* Le contenu laisse la place à la barre d'onglets en bas */
   .app-space-main.has-tabbar {
-    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--mobile-tab-h, 4.5rem) + env(safe-area-inset-bottom, 0px));
   }
 
   /* Quand une barre d'onglets est présente (espaces terrain), le bouton-toggle
@@ -474,6 +484,11 @@ aside,
     margin-bottom: 0.25rem;
   }
 
+  /* Liseré accent : utilise la variable --mobile-header-accent-h */
+  .app-space-mobile-header .bg-gradient-to-r.from-primary {
+    height: var(--mobile-header-accent-h, 3px) !important;
+  }
+
   /* Tiroir : s'ouvre juste sous l'en-tête espace (~4 rem) */
   .has-mobile-header .app-space-sidebar.is-open {
     top: 4.5rem;
@@ -481,10 +496,17 @@ aside,
   }
 
   /* Fix débordement du popover notification sur mobile :
-     force le positionnement depuis la droite quel que soit le calcul Radix */
+     force le positionnement depuis la droite quel que soit le calcul Radix.
+     z-index: 90 pour passer au-dessus du sticky header (z-80). */
   [data-radix-popper-content-wrapper]:has(.notification-bell-popover) {
     right: 0.5rem !important;
     left: auto !important;
+    z-index: 90 !important;
+  }
+  /* Annule le max-width générique pour le popover notification */
+  [data-radix-popper-content-wrapper]:has(.notification-bell-popover) > * {
+    max-width: min(340px, calc(100vw - 1rem)) !important;
+    width: min(340px, calc(100vw - 1rem)) !important;
   }
 
 
@@ -672,15 +694,28 @@ aside,
      Rendues dans un portail (hors de .app-space-main), elles échappent
      aux adaptations mobiles ci-dessus : on les recadre explicitement. */
   [role="dialog"] {
-    width: calc(100vw - 2.75rem) !important;
-    max-width: 30rem !important;
-    max-height: 82vh !important;
+    width: calc(100vw - 2rem) !important;
+    max-width: 28rem !important;
+    max-height: 82dvh !important;
     overflow-y: auto !important;
-    gap: 0.6rem !important;
-    padding: 0.85rem !important;
-    border-radius: 1.1rem !important;
+    gap: 0.55rem !important;
+    padding: 0.8rem !important;
+    border-radius: 1.25rem !important;
     box-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.5) !important;
   }
+
+  /* Quand l'en-tête mobile sticky est présent : repositionne la fenêtre
+     juste en dessous pour qu'aucune partie ne soit cachée sous la barre.
+     top ~5rem = hauteur en-tête (4.5rem) + petite marge.
+     translateX(-50%) seul pour garder le centrage horizontal sans décaler vers le haut. */
+  body:has(.has-mobile-header) [role="dialog"] {
+    top: 5rem !important;
+    transform: translateX(-50%) !important;
+    max-height: calc(100dvh - 5.75rem - env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* L'overlay reste pleine page mais l'en-tête (z-80) passe par-dessus grâce
+     à son z-index supérieur — pas besoin de rogner l'overlay. */
 
   [role="dialog"] .text-2xl {
     font-size: 1.05rem !important;
@@ -795,6 +830,19 @@ aside,
   /* Cellule sans libellé (ex. actions) : centrée, sans pseudo-libellé */
   table.responsive-cards td[data-label=""]::before {
     content: none;
+  }
+
+  /* ── Personnalisation App Mobile : désactivation des animations ── */
+  body.mobile-no-anim .app-space-main *,
+  body.mobile-no-anim .mobile-tabbar,
+  body.mobile-no-anim .app-space-mobile-header * {
+    animation-duration: 0.001s !important;
+    transition-duration: 0.001s !important;
+  }
+
+  /* ── Personnalisation App Mobile : échelle de police de base ── */
+  .app-space-main {
+    font-size: calc(0.875rem * var(--mobile-font-scale, 1));
   }
 }
 
