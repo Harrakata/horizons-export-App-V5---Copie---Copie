@@ -495,17 +495,31 @@ aside,
     max-height: calc(100vh - 5rem);
   }
 
-  /* Tous les popovers/menus Radix passent AU-DESSUS de l'en-tête sticky (z-80).
-     Sans :has() (compat WebView/PWA) et sans toucher au positionnement : on
-     laisse le transform de Radix gérer la position, on ne force que le z-index. */
+  /* Tous les popovers/menus Radix passent AU-DESSUS de l'en-tête sticky (z-80). */
   [data-radix-popper-content-wrapper] {
+    z-index: 90 !important;
+  }
+
+  /* ── Popover notification : panneau docké centré sous la barre ──────────────
+     Le calcul de collision de Radix le décale parfois hors écran à droite. On
+     REMPLACE entièrement son positionnement : top fixe sous l'en-tête, centré.
+     IMPORTANT : on redéfinit explicitement `transform` (et pas seulement left/right)
+     pour ANNULER le translate inline de Radix — sinon les deux se cumulent et
+     propulsent le contenu hors écran (bug précédent). */
+  [data-radix-popper-content-wrapper]:has(.notification-bell-popover) {
+    position: fixed !important;
+    top: 4.9rem !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translateX(-50%) !important;
     z-index: 90 !important;
   }
   /* Largeur du popover notification — sélecteur enfant direct (spécificité 0,2,1)
      pour battre le cap générique « [data-radix-popper-content-wrapper] > * » (0,2,0). */
   [data-radix-popper-content-wrapper] > .notification-bell-popover {
-    width: min(20rem, calc(100vw - 1.25rem)) !important;
-    max-width: calc(100vw - 1.25rem) !important;
+    width: calc(100vw - 1rem) !important;
+    max-width: 22rem !important;
   }
 
 
