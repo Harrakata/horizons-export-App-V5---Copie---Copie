@@ -501,22 +501,11 @@ aside,
   }
 
   /* ── Popover notification : panneau docké centré sous la barre ──────────────
-     Le calcul de collision de Radix le décale parfois hors écran à droite. On
-     REMPLACE entièrement son positionnement : top fixe sous l'en-tête, centré.
-     IMPORTANT : on redéfinit explicitement `transform` (et pas seulement left/right)
-     pour ANNULER le translate inline de Radix — sinon les deux se cumulent et
-     propulsent le contenu hors écran (bug précédent). */
-  [data-radix-popper-content-wrapper]:has(.notification-bell-popover) {
-    position: fixed !important;
-    top: 4.9rem !important;
-    left: 50% !important;
-    right: auto !important;
-    bottom: auto !important;
-    transform: translateX(-50%) !important;
-    z-index: 90 !important;
-  }
-  /* Largeur du popover notification — sélecteur enfant direct (spécificité 0,2,1)
-     pour battre le cap générique « [data-radix-popper-content-wrapper] > * » (0,2,0). */
+     Le POSITIONNEMENT (fixed, top, centrage) est imposé en JS dans NotificationBell
+     (setContentRef + MutationObserver) car le :has() sur un conteneur Radix
+     portalisé dynamiquement n'est pas réévalué de façon fiable en WebView/PWA.
+     Ici on ne gère que la LARGEUR — sélecteur de classe direct (fiable, spécificité
+     0,2,1) pour battre le cap générique « [data-radix-popper-content-wrapper] > * ». */
   [data-radix-popper-content-wrapper] > .notification-bell-popover {
     width: calc(100vw - 1rem) !important;
     max-width: 22rem !important;

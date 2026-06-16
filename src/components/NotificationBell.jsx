@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bell, ChevronRight, CheckCircle2, ChevronDown,
@@ -65,6 +65,39 @@ const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, stor
   // Recharge les IDs lus quand l'utilisateur change (login/logout)
   useEffect(() => { setReadIds(loadReadIds(storageKey)); }, [storageKey]);
 
+  // ── Positionnement mobile garanti (sans dépendre de :has()) ────────────────
+  // Sur mobile, le calcul de Radix décale parfois le popover hors écran. On force
+  // le conteneur portalisé en panneau fixe centré sous l'en-tête, et on réapplique
+  // via MutationObserver si Radix tente de repositionner (scroll/resize).
+  const observerRef = useRef(null);
+  const setContentRef = useCallback((node) => {
+    if (observerRef.current) { observerRef.current.disconnect(); observerRef.current = null; }
+    if (!node || typeof window === 'undefined') return;
+    if (!window.matchMedia('(max-width: 767px)').matches) return;
+    const wrapper = node.closest('[data-radix-popper-content-wrapper]');
+    if (!wrapper) return;
+
+    const apply = () => {
+      const obs = observerRef.current;
+      if (obs) obs.disconnect();                       // évite la boucle infinie
+      wrapper.style.setProperty('position', 'fixed', 'important');
+      wrapper.style.setProperty('top', '4.9rem', 'important');
+      wrapper.style.setProperty('left', '50%', 'important');
+      wrapper.style.setProperty('right', 'auto', 'important');
+      wrapper.style.setProperty('bottom', 'auto', 'important');
+      wrapper.style.setProperty('transform', 'translateX(-50%)', 'important');
+      wrapper.style.setProperty('z-index', '90', 'important');
+      if (obs) obs.observe(wrapper, { attributes: true, attributeFilter: ['style'] });
+    };
+
+    const observer = new MutationObserver(apply);
+    observerRef.current = observer;
+    apply();
+  }, []);
+
+  // Nettoyage de l'observer si le composant est démonté popover ouvert
+  useEffect(() => () => { if (observerRef.current) observerRef.current.disconnect(); }, []);
+
   // ── Helpers ──────────────────────────────────────────────────────────────
   const isUnread = (msgId) => !readIds.has(msgId);
 
@@ -127,6 +160,7 @@ const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, stor
       </PopoverTrigger>
 
       <PopoverContent
+        ref={setContentRef}
         align="end"
         sideOffset={6}
         collisionPadding={{ top: 4, right: 8, bottom: 8, left: 8 }}
