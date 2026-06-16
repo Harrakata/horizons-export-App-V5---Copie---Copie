@@ -489,10 +489,13 @@ aside,
     height: var(--mobile-header-accent-h, 3px) !important;
   }
 
-  /* Tiroir : s'ouvre juste sous l'en-tête espace (~4 rem) */
+  /* Tiroir : s'ouvre détaché sous l'en-tête espace (~4.5 rem), avec un écart
+     pour être totalement visible — cohérent avec le panneau notifications et
+     les dialogues (6rem du haut). */
   .has-mobile-header .app-space-sidebar.is-open {
-    top: 4.5rem;
-    max-height: calc(100vh - 5rem);
+    top: 6rem;
+    max-height: calc(100vh - 7rem);
+    max-height: calc(100dvh - 7rem - env(safe-area-inset-bottom, 0px));
   }
 
   /* Tous les popovers/menus Radix passent AU-DESSUS de l'en-tête sticky (z-80). */
