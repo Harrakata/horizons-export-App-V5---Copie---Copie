@@ -271,7 +271,7 @@ const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, stor
           <>
             <div className="fixed inset-0 z-[88]" onClick={() => handleOpenChange(false)} aria-hidden="true" />
             <div
-              className="notification-bell-popover fixed left-1/2 top-[4.9rem] z-[90] -translate-x-1/2 overflow-hidden rounded-xl border bg-popover p-0 text-popover-foreground shadow-[0_24px_60px_-12px_rgba(15,23,42,0.45)] animate-in fade-in-0 slide-in-from-top-2 duration-150"
+              className="notification-bell-popover fixed left-1/2 top-[6rem] z-[90] -translate-x-1/2 overflow-hidden rounded-xl border bg-popover p-0 text-popover-foreground shadow-[0_24px_60px_-12px_rgba(15,23,42,0.45)] animate-in fade-in-0 slide-in-from-top-2 duration-150"
               style={{ width: 'calc(100vw - 1rem)', maxWidth: '22rem' }}
               role="region"
               aria-label="Notifications"
