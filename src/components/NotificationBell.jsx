@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   Bell, ChevronRight, CheckCircle2, ChevronDown,
@@ -65,38 +66,19 @@ const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, stor
   // Recharge les IDs lus quand l'utilisateur change (login/logout)
   useEffect(() => { setReadIds(loadReadIds(storageKey)); }, [storageKey]);
 
-  // ── Positionnement mobile garanti (sans dépendre de :has()) ────────────────
-  // Sur mobile, le calcul de Radix décale parfois le popover hors écran. On force
-  // le conteneur portalisé en panneau fixe centré sous l'en-tête, et on réapplique
-  // via MutationObserver si Radix tente de repositionner (scroll/resize).
-  const observerRef = useRef(null);
-  const setContentRef = useCallback((node) => {
-    if (observerRef.current) { observerRef.current.disconnect(); observerRef.current = null; }
-    if (!node || typeof window === 'undefined') return;
-    if (!window.matchMedia('(max-width: 767px)').matches) return;
-    const wrapper = node.closest('[data-radix-popper-content-wrapper]');
-    if (!wrapper) return;
-
-    const apply = () => {
-      const obs = observerRef.current;
-      if (obs) obs.disconnect();                       // évite la boucle infinie
-      wrapper.style.setProperty('position', 'fixed', 'important');
-      wrapper.style.setProperty('top', '4.9rem', 'important');
-      wrapper.style.setProperty('left', '50%', 'important');
-      wrapper.style.setProperty('right', 'auto', 'important');
-      wrapper.style.setProperty('bottom', 'auto', 'important');
-      wrapper.style.setProperty('transform', 'translateX(-50%)', 'important');
-      wrapper.style.setProperty('z-index', '90', 'important');
-      if (obs) obs.observe(wrapper, { attributes: true, attributeFilter: ['style'] });
-    };
-
-    const observer = new MutationObserver(apply);
-    observerRef.current = observer;
-    apply();
+  // ── Détection mobile ────────────────────────────────────────────────────────
+  // Sur mobile, on n'utilise PAS le positionnement de Radix (qui décale le popover
+  // hors écran dans l'en-tête sticky) : on rend un panneau fixe centré via portal.
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener?.('change', handler);
+    return () => mq.removeEventListener?.('change', handler);
   }, []);
-
-  // Nettoyage de l'observer si le composant est démonté popover ouvert
-  useEffect(() => () => { if (observerRef.current) observerRef.current.disconnect(); }, []);
 
   // ── Helpers ──────────────────────────────────────────────────────────────
   const isUnread = (msgId) => !readIds.has(msgId);
@@ -142,31 +124,24 @@ const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, stor
   };
 
   // ── Rendu ─────────────────────────────────────────────────────────────────
-  return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label={`Notifications${effectiveBadge ? ` (${effectiveBadge})` : ''}`}
-          className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/5 text-primary transition-all hover:border-primary/35 hover:bg-primary/10"
-        >
-          <Bell className="h-4 w-4" />
-          {!!effectiveBadge && (
-            <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[0.6rem] font-bold leading-none text-white ring-2 ring-background">
-              {effectiveBadge}
-            </span>
-          )}
-        </button>
-      </PopoverTrigger>
+  const bellButton = (
+    <button
+      type="button"
+      onClick={isMobile ? () => handleOpenChange(!open) : undefined}
+      aria-label={`Notifications${effectiveBadge ? ` (${effectiveBadge})` : ''}`}
+      className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/5 text-primary transition-all hover:border-primary/35 hover:bg-primary/10"
+    >
+      <Bell className="h-4 w-4" />
+      {!!effectiveBadge && (
+        <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[0.6rem] font-bold leading-none text-white ring-2 ring-background">
+          {effectiveBadge}
+        </span>
+      )}
+    </button>
+  );
 
-      <PopoverContent
-        ref={setContentRef}
-        align="end"
-        sideOffset={6}
-        collisionPadding={{ top: 4, right: 8, bottom: 8, left: 8 }}
-        className="notification-bell-popover overflow-hidden p-0"
-        style={{ width: 'min(320px, calc(100vw - 1rem))', maxWidth: 'calc(100vw - 1rem)' }}
-      >
+  const panelBody = (
+    <>
         <span className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
 
         {/* En-tête */}
@@ -282,6 +257,46 @@ const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, stor
             </div>
           </div>
         )}
+    </>
+  );
+
+  // Sur mobile : panneau fixe centré sous la barre, rendu via portal au niveau du
+  // body → positionnement totalement maîtrisé, indépendant du calcul de Radix
+  // (qui décalait le contenu hors écran dans l'en-tête sticky).
+  if (isMobile) {
+    return (
+      <>
+        {bellButton}
+        {open && createPortal(
+          <>
+            <div className="fixed inset-0 z-[88]" onClick={() => handleOpenChange(false)} aria-hidden="true" />
+            <div
+              className="notification-bell-popover fixed left-1/2 top-[4.9rem] z-[90] -translate-x-1/2 overflow-hidden rounded-xl border bg-popover p-0 text-popover-foreground shadow-[0_24px_60px_-12px_rgba(15,23,42,0.45)] animate-in fade-in-0 slide-in-from-top-2 duration-150"
+              style={{ width: 'calc(100vw - 1rem)', maxWidth: '22rem' }}
+              role="region"
+              aria-label="Notifications"
+            >
+              {panelBody}
+            </div>
+          </>,
+          document.body
+        )}
+      </>
+    );
+  }
+
+  // Desktop : positionnement natif de Radix (ancré à la cloche).
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>{bellButton}</PopoverTrigger>
+      <PopoverContent
+        align="end"
+        sideOffset={6}
+        collisionPadding={{ top: 4, right: 8, bottom: 8, left: 8 }}
+        className="notification-bell-popover overflow-hidden p-0"
+        style={{ width: 'min(320px, calc(100vw - 1rem))', maxWidth: 'calc(100vw - 1rem)' }}
+      >
+        {panelBody}
       </PopoverContent>
     </Popover>
   );
