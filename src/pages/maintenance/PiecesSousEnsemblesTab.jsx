@@ -12,9 +12,10 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import {
-  AlertTriangle, BookOpen, Check, ChevronDown, ChevronRight, Download, Edit, FileUp, HelpCircle,
+  AlertTriangle, AlertOctagon, BookOpen, Check, CheckCircle2, ChevronDown, ChevronRight, Download, Edit, FileUp, HelpCircle,
   ImagePlus, Layers, ListChecks, Package, Plus, Search, Trash2, ArrowUpCircle, ArrowDownCircle, Wrench, X,
 } from 'lucide-react';
+import KpiStatCard from '@/components/analytics/KpiStatCard';
 
 const SOUS_ENSEMBLE_LABELS = {
   imprimante: 'Imprimante',
@@ -1015,34 +1016,28 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                   </Button>
                 )}
               </div>
-              <div className="grid gap-4 md:grid-cols-3 pt-2">
-                <Card
+              <div className="grid gap-3 grid-cols-3 pt-2 sm:gap-4">
+                <button
+                  type="button"
                   onClick={() => setStockFilters(f => ({ ...f, etat: f.etat === 'rupture' ? '__all__' : 'rupture' }))}
-                  className={`cursor-pointer border-red-200 bg-red-50 transition-all hover:shadow-md ${stockFilters.etat === 'rupture' ? 'ring-2 ring-red-500' : ''}`}
+                  className={`rounded-2xl text-left transition-all hover:shadow-md ${stockFilters.etat === 'rupture' ? 'ring-2 ring-red-500' : ''}`}
                 >
-                  <CardContent className="p-4">
-                    <p className="text-sm text-red-700 font-medium">Ruptures de stock</p>
-                    <p className="text-2xl font-bold text-red-800">{stockRows.filter(s => s.quantite === 0).length}</p>
-                  </CardContent>
-                </Card>
-                <Card
+                  <KpiStatCard icon={<AlertOctagon />} label="Ruptures de stock" value={stockRows.filter(s => s.quantite === 0).length} tone="red" helper="Quantité à zéro." />
+                </button>
+                <button
+                  type="button"
                   onClick={() => setStockFilters(f => ({ ...f, etat: f.etat === 'faible' ? '__all__' : 'faible' }))}
-                  className={`cursor-pointer border-yellow-200 bg-yellow-50 transition-all hover:shadow-md ${stockFilters.etat === 'faible' ? 'ring-2 ring-yellow-500' : ''}`}
+                  className={`rounded-2xl text-left transition-all hover:shadow-md ${stockFilters.etat === 'faible' ? 'ring-2 ring-amber-500' : ''}`}
                 >
-                  <CardContent className="p-4">
-                    <p className="text-sm text-yellow-700 font-medium">Stock faible</p>
-                    <p className="text-2xl font-bold text-yellow-800">{stockRows.filter(s => s.quantite > 0 && s.quantite <= s.seuil_alerte).length}</p>
-                  </CardContent>
-                </Card>
-                <Card
+                  <KpiStatCard icon={<AlertTriangle />} label="Stock faible" value={stockRows.filter(s => s.quantite > 0 && s.quantite <= s.seuil_alerte).length} tone="amber" helper="Sous le seuil d'alerte." />
+                </button>
+                <button
+                  type="button"
                   onClick={() => setStockFilters(f => ({ ...f, etat: f.etat === 'dispo' ? '__all__' : 'dispo' }))}
-                  className={`cursor-pointer border-green-200 bg-green-50 transition-all hover:shadow-md ${stockFilters.etat === 'dispo' ? 'ring-2 ring-green-500' : ''}`}
+                  className={`rounded-2xl text-left transition-all hover:shadow-md ${stockFilters.etat === 'dispo' ? 'ring-2 ring-emerald-500' : ''}`}
                 >
-                  <CardContent className="p-4">
-                    <p className="text-sm text-green-700 font-medium">Disponibles</p>
-                    <p className="text-2xl font-bold text-green-800">{stockRows.filter(s => s.quantite > s.seuil_alerte).length}</p>
-                  </CardContent>
-                </Card>
+                  <KpiStatCard icon={<CheckCircle2 />} label="Disponibles" value={stockRows.filter(s => s.quantite > s.seuil_alerte).length} tone="emerald" helper="Au-dessus du seuil." />
+                </button>
               </div>
 
               {/* Filtres */}

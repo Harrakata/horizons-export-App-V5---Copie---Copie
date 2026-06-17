@@ -8,11 +8,12 @@ import { Combobox } from '@/components/ui/Combobox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase, publicSupabase } from '@/lib/supabaseClient';
 import { motion } from 'framer-motion';
 import SignatureCanvas from 'react-signature-canvas';
-import { Building2, CalendarClock, Globe, Wrench, ClipboardList, PlusCircle, Trash2, MapPin, AlertTriangle } from 'lucide-react';
+import { Building2, CalendarClock, Globe, Wrench, ClipboardList, PlusCircle, Trash2, MapPin, AlertTriangle, FileText, CheckCircle2 } from 'lucide-react';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { ajouterAuStockDefectueux } from '@/lib/stockDefectueux';
 import { fetchRegions, buildRegionOptions, normalizeRegionText } from '@/lib/regions';
@@ -233,6 +234,20 @@ const MaintenanceTab = ({ technicien }) => {
   });
   const [interventionItems, setInterventionItems] = useState([]);
   const [recap, setRecap] = useState(null);
+  // Visionneuse de fiche d'intervention (même UX que l'onglet Planning)
+  const [ficheDialog, setFicheDialog] = useState({ open: false, html: '', loading: false });
+  const openFicheInDialog = async (url) => {
+    if (!url) return;
+    setFicheDialog({ open: true, html: '', loading: true });
+    try {
+      const res = await fetch(url);
+      const html = await res.text();
+      setFicheDialog({ open: true, html, loading: false });
+    } catch {
+      setFicheDialog({ open: false, html: '', loading: false });
+      window.open(url, '_blank', 'noreferrer');
+    }
+  };
 
   // États pour stocker les données chargées depuis Supabase
   const [regions, setRegions] = useState([]);
@@ -743,6 +758,13 @@ const MaintenanceTab = ({ technicien }) => {
         updated.sousEnsemble = '';
         setInterventionItems([]);
       }
+      // Le code panne (curative) et le code d'intervention (préventive) viennent de
+      // listes différentes : on réinitialise le code (et la description) au changement.
+      if (field === 'typeIntervention') {
+        updated.code = '';
+        updated.panne = '';
+        setInterventionItems([]);
+      }
       return updated;
     });
   };
@@ -909,6 +931,34 @@ const MaintenanceTab = ({ technicien }) => {
     };
   };
 
+  // Préventif : construit automatiquement une ligne pour CHAQUE sous-ensemble du
+  // terminal, toutes avec le même code d'intervention choisi.
+  const buildPreventiveItems = ({ showToast = false } = {}) => {
+    if (!form.terminal) {
+      if (showToast) toast({ title: 'Terminal requis', description: "Sélectionnez d'abord un terminal.", variant: 'destructive' });
+      return [];
+    }
+    if (!form.code) {
+      if (showToast) toast({ title: "Code d'intervention requis", description: "Choisissez le code d'intervention préventive.", variant: 'destructive' });
+      return [];
+    }
+    const options = getSousEnsembles();
+    if (!options.length) {
+      if (showToast) toast({ title: 'Aucun sous-ensemble', description: "Ce terminal n'a aucun sous-ensemble enregistré.", variant: 'destructive' });
+      return [];
+    }
+    return options
+      .map((opt) => buildInterventionItem({
+        ...form,
+        sousEnsemble: opt.value,
+        typeIntervention: 'preventive',
+        panne: '',
+        remplace: 'non',
+        remplacement: '',
+      }))
+      .filter(Boolean);
+  };
+
   const getValidationInterventionItems = () => {
     if (interventionItems.length > 0) {
       return interventionItems;
@@ -965,6 +1015,15 @@ const MaintenanceTab = ({ technicien }) => {
   };
 
   const handleGoToValidation = () => {
+    // Préventif : on inclut automatiquement TOUS les sous-ensembles du terminal.
+    if (form.typeIntervention === 'preventive') {
+      const items = buildPreventiveItems({ showToast: true });
+      if (!items.length) return;
+      setInterventionItems(items);
+      setStep(3);
+      return;
+    }
+
     if (interventionItems.length > 0) {
       const hasDraft = Boolean(form.sousEnsemble || form.code || form.panne || form.piece || form.commentaire || form.remplacement);
       if (!hasDraft) {
@@ -1677,6 +1736,38 @@ const MaintenanceTab = ({ technicien }) => {
     }
   };
 
+  // Applique le remplacement d'un sous-ensemble (terminal + équipements + entrée
+  // en stock défectueux). Réutilisable pour chaque sous-ensemble d'une intervention.
+  const applyReplacement = async (interventionData, interventionId) => {
+    if (interventionData.remplace !== 'oui' || !interventionData.remplacement || !interventionData.sousEnsemble) return;
+    const terminal = terminaux.find((t) => String(t.id) === String(interventionData.terminal));
+    if (!terminal) return;
+    let type = null;
+    if (terminal.imprimante_reference === interventionData.sousEnsemble) type = 'imprimante';
+    else if (terminal.lecteur_reference === interventionData.sousEnsemble) type = 'lecteur';
+    else if (terminal.ecran_reference === interventionData.sousEnsemble) type = 'ecran';
+    else if (terminal.afficheur_reference === interventionData.sousEnsemble) type = 'afficheur';
+    else if (terminal.buc_reference === interventionData.sousEnsemble) type = 'buc';
+    else if (terminal.carrosserie_reference === interventionData.sousEnsemble) type = 'carrosserie';
+    if (!type) return;
+    const fieldMap = { imprimante: 'imprimante_reference', lecteur: 'lecteur_reference', ecran: 'ecran_reference', afficheur: 'afficheur_reference', buc: 'buc_reference', carrosserie: 'carrosserie_reference' };
+    const equipTableMap = { imprimante: 'equipments_imprimantes', lecteur: 'equipments_lecteurs', ecran: 'equipments_ecrans', afficheur: 'equipments_afficheurs', buc: 'equipments_bucs', carrosserie: 'equipments_carrosseries' };
+    await Promise.all([
+      supabase.from('terminaux').update({ [fieldMap[type]]: interventionData.remplacement }).eq('id', terminal.id),
+      supabase.from(equipTableMap[type]).update({ statut: 'En maintenance' }).eq('reference', interventionData.sousEnsemble),
+      supabase.from(equipTableMap[type]).update({ statut: 'En service' }).eq('reference', interventionData.remplacement),
+    ]);
+    await ajouterAuStockDefectueux({
+      referenceSousEnsemble: interventionData.sousEnsemble,
+      typeSousEnsemble: type,
+      typeTerminal: terminal.type_terminal || null,
+      agenceProvenance: interventionData.agence || terminal.agence_id || null,
+      dateEntree: new Date().toISOString(),
+      commentaire: null,
+      interventionId: interventionId || null,
+    });
+  };
+
   const saveIntervention = async (interventionData, { manageLoading = true, silent = false } = {}) => {
     if (manageLoading) setIsLoading(true);
     try {
@@ -1779,40 +1870,8 @@ const MaintenanceTab = ({ technicien }) => {
         });
       }
 
-      // Traitement du remplacement à la validation finale
-      if (interventionData.remplace === 'oui' && interventionData.remplacement && interventionData.sousEnsemble) {
-        const terminal = terminaux.find((t) => String(t.id) === String(interventionData.terminal));
-        if (terminal) {
-          let type = null;
-          if (terminal.imprimante_reference === interventionData.sousEnsemble) type = 'imprimante';
-          else if (terminal.lecteur_reference === interventionData.sousEnsemble) type = 'lecteur';
-          else if (terminal.ecran_reference === interventionData.sousEnsemble) type = 'ecran';
-          else if (terminal.afficheur_reference === interventionData.sousEnsemble) type = 'afficheur';
-          else if (terminal.buc_reference === interventionData.sousEnsemble) type = 'buc';
-          else if (terminal.carrosserie_reference === interventionData.sousEnsemble) type = 'carrosserie';
-
-          if (type) {
-            const fieldMap = { imprimante: 'imprimante_reference', lecteur: 'lecteur_reference', ecran: 'ecran_reference', afficheur: 'afficheur_reference', buc: 'buc_reference', carrosserie: 'carrosserie_reference' };
-            const equipTableMap = { imprimante: 'equipments_imprimantes', lecteur: 'equipments_lecteurs', ecran: 'equipments_ecrans', afficheur: 'equipments_afficheurs', buc: 'equipments_bucs', carrosserie: 'equipments_carrosseries' };
-
-            await Promise.all([
-              supabase.from('terminaux').update({ [fieldMap[type]]: interventionData.remplacement }).eq('id', terminal.id),
-              supabase.from(equipTableMap[type]).update({ statut: 'En maintenance' }).eq('reference', interventionData.sousEnsemble),
-              supabase.from(equipTableMap[type]).update({ statut: 'En service' }).eq('reference', interventionData.remplacement),
-            ]);
-
-            await ajouterAuStockDefectueux({
-              referenceSousEnsemble: interventionData.sousEnsemble,
-              typeSousEnsemble: type,
-              typeTerminal: terminal.type_terminal || null,
-              agenceProvenance: interventionData.agence || terminal.agence_id || null,
-              dateEntree: new Date().toISOString(),
-              commentaire: null,
-              interventionId: insertedIntervention?.id || null,
-            });
-          }
-        }
-      }
+      // Remplacement éventuel (mouvement de stock) pour ce sous-ensemble.
+      await applyReplacement(interventionData, insertedIntervention?.id);
 
       return insertedIntervention;
     } catch (error) {
@@ -1862,27 +1921,58 @@ const MaintenanceTab = ({ technicien }) => {
         return [];
       }
 
-      const savedInterventions = [];
+      // ── UNE SEULE intervention par TERMINAL ──────────────────────────────
+      // Tous les sous-ensembles concernés sont fusionnés sur une seule ligne ;
+      // le détail (sous-ensemble → code → traitement) est conservé dans le
+      // commentaire et dans la fiche. Le remplacement/stock reste traité par
+      // sous-ensemble afin de garder les mouvements de stock exacts.
+      const first = itemsToSave[0];
+      const subList = itemsToSave.map((i) => i.sousEnsemble).filter(Boolean).join(', ');
+      const breakdown = itemsToSave
+        .map((i) => {
+          const code = i.codeLabel || i.code || '';
+          const detail = i.typeIntervention === 'curative' ? (i.panne || '') : 'Maintenance préventive';
+          return `• ${i.sousEnsemble} — ${code}${detail ? ` : ${detail}` : ''}`;
+        })
+        .join('\n');
+      const baseComment = String(form.commentaire || '').trim();
+      const replacedItems = itemsToSave.filter((i) => i.remplace === 'oui' && i.remplacement);
 
-      for (const item of itemsToSave) {
-        const savedIntervention = await saveIntervention(
-          { ...form, ...item, technicien },
-          { manageLoading: false, silent: true }
-        );
+      const mergedData = {
+        ...form,
+        ...first,
+        sousEnsemble: subList,
+        typeIntervention: first.typeIntervention,
+        code: first.code,
+        panne: itemsToSave.map((i) => i.panne).filter(Boolean).join(' | ') || null,
+        commentaire: `${baseComment ? `${baseComment}\n\n` : ''}Sous-ensembles concernés (${itemsToSave.length}) :\n${breakdown}`,
+        // Marqueur de remplacement global ; les mouvements réels sont appliqués
+        // par sous-ensemble ci-dessous (la ligne fusionnée ne déclenche rien).
+        remplace: replacedItems.length > 0 ? 'oui' : 'non',
+        remplacement: replacedItems.map((i) => i.remplacement).join(', '),
+        technicien,
+      };
 
-        if (!savedIntervention?.id) {
-          return [];
-        }
-
-        savedInterventions.push(savedIntervention);
+      const savedIntervention = await saveIntervention(mergedData, { manageLoading: false, silent: true });
+      if (!savedIntervention?.id) {
+        return [];
       }
 
-      const savedOffline = savedInterventions.some((i) => i?.__offline);
+      // Remplacements réels : un mouvement de stock par sous-ensemble remplacé
+      // (sauf hors-ligne où l'on ne touche pas au stock immédiatement).
+      if (!savedIntervention.__offline) {
+        for (const item of replacedItems) {
+          await applyReplacement({ ...form, ...item }, savedIntervention.id);
+        }
+      }
+
+      const savedInterventions = [savedIntervention];
+      const savedOffline = Boolean(savedIntervention.__offline);
       toast({
         title: savedOffline ? 'Enregistré hors-ligne' : 'Succès',
         description: savedOffline
-          ? `${savedInterventions.length} intervention(s) enregistrée(s) localement. Synchronisation automatique au retour de la connexion.`
-          : `${savedInterventions.length} intervention(s) enregistrée(s) avec succès.`,
+          ? `Intervention enregistrée localement (${itemsToSave.length} sous-ensemble(s) concerné(s)). Synchronisation automatique au retour de la connexion.`
+          : `Intervention enregistrée pour le terminal (${itemsToSave.length} sous-ensemble(s) concerné(s)).`,
         className: savedOffline ? 'bg-blue-600 text-white' : 'bg-green-500 text-white',
       });
 
@@ -2116,86 +2206,62 @@ const MaintenanceTab = ({ technicien }) => {
             <CardTitle className="text-xl text-green-600">✅ Intervention Terminée</CardTitle>
             <CardDescription>Récapitulatif et validation de l'intervention de maintenance</CardDescription>
         </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
               <div><strong>Agence :</strong> {recapAgence?.nom}</div>
               <div><strong>Terminal :</strong> {recapTerminal?.reference}</div>
-              <div><strong>Interventions :</strong> {recapInterventions.length}</div>
+              <div><strong>Sous-ensembles concernés :</strong> {recapInterventions.length}</div>
               <div><strong>N° Intervention :</strong> {recap.interventionId}</div>
+              <div><strong>Technicien :</strong> {technicien?.prenom} {technicien?.nom}</div>
               <div><strong>Chef d'agence :</strong> {recap.chefAgence?.prenom} {recap.chefAgence?.nom}</div>
-
-              <div className="md:col-span-2 overflow-x-auto rounded-lg border bg-white">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Sous-ensemble</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Traitement</TableHead>
-                      <TableHead>Remplacement</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {recapInterventions.map((item, index) => (
-                      <TableRow key={item.localId || `${item.sousEnsemble}-${index}`}>
-                        <TableCell className="font-medium">{item.sousEnsemble}</TableCell>
-                        <TableCell>{item.typeLabel || (item.typeIntervention === 'curative' ? 'Curative' : 'Préventive')}</TableCell>
-                        <TableCell>{item.codeLabel || item.code}</TableCell>
-                        <TableCell>{item.detailValue || item.panne || item.piece || 'N/A'}</TableCell>
-                        <TableCell>{item.remplacementValue || (item.remplace === 'oui' ? item.remplacement : 'Aucun remplacement')}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              
-              <div className="md:col-span-2 mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <strong>Technicien :</strong> {technicien?.prenom} {technicien?.nom} - {technicien?.matricule}
-              </div>
-
-              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="rounded-lg border bg-white p-3">
-                  <p className="mb-2 text-sm font-medium text-primary">Signature technicien</p>
-                  {recap.technicienSignature ? (
-                    <img src={recap.technicienSignature} alt="Signature technicien" className="h-24 w-full object-contain" />
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Non disponible</p>
-                  )}
-                </div>
-                <div className="rounded-lg border bg-white p-3">
-                  <p className="mb-2 text-sm font-medium text-primary">Signature chef d'agence</p>
-                  {recap.chefAgenceSignature ? (
-                    <img src={recap.chefAgenceSignature} alt="Signature chef d'agence" className="h-24 w-full object-contain" />
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Non disponible</p>
-                  )}
-                </div>
-              </div>
-
-              {recap.validationFile?.fileName && (
-                <div className="md:col-span-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm">
-                  <strong>Fiche de validation :</strong> {recap.validationFile.fileName}
-                  {recap.validationFile.publicUrl && (
-                    <>
-                      {' '}-
-                      <button type="button" onClick={() => openStoredFiche(recap.validationFile.publicUrl)} className="ml-1 text-primary underline">
-                        Ouvrir la fiche enregistrée
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
             </div>
+
+            {recap.validationFile?.publicUrl ? (
+              <div className="flex flex-col items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 text-center">
+                <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                <p className="text-sm font-medium text-emerald-800">Fiche d'intervention enregistrée et signée.</p>
+                <Button type="button" onClick={() => openFicheInDialog(recap.validationFile.publicUrl)} className="mt-1 gap-2">
+                  <FileText className="h-4 w-4" /> Voir la fiche d'intervention
+                </Button>
+              </div>
+            ) : (
+              <p className="rounded-xl border bg-slate-50 p-4 text-sm text-muted-foreground">
+                La fiche d'intervention n'est pas disponible pour le moment.
+              </p>
+            )}
         </CardContent>
         <CardFooter>
-            <Button 
-              onClick={resetForm} 
-              className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90"
+            <Button
+              onClick={resetForm}
+              variant="outline"
             >
               Nouvelle Intervention
             </Button>
         </CardFooter>
       </Card>
+
+      <Dialog open={ficheDialog.open} onOpenChange={(open) => !open && setFicheDialog({ open: false, html: '', loading: false })}>
+        <DialogContent className="flex h-[90vh] w-full max-w-4xl flex-col p-0">
+          <DialogHeader className="shrink-0 border-b px-5 pb-3 pt-4">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-4 w-4 text-primary" />
+              Fiche d'intervention
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden">
+            {ficheDialog.loading ? (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Chargement de la fiche...</div>
+            ) : (
+              <iframe
+                srcDoc={ficheDialog.html}
+                className="h-full w-full border-0"
+                title="Fiche d'intervention"
+                sandbox="allow-same-origin"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
       </motion.div>
     );
   }
@@ -2340,7 +2406,29 @@ const MaintenanceTab = ({ technicien }) => {
                   />
             </div>
                 
-            <div className="space-y-2">
+          </div>
+
+              {/* Type d'intervention — détermine si l'on choisit un sous-ensemble */}
+              <div className="space-y-3">
+                <Label>Type d'intervention *</Label>
+                <RadioGroup
+                  value={form.typeIntervention}
+                  onValueChange={handleChange('typeIntervention')}
+                  className="flex flex-wrap gap-6"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="curative" id="type-curative" />
+                    <Label htmlFor="type-curative">Curative (Réparation)</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="preventive" id="type-preventive" />
+                    <Label htmlFor="type-preventive">Préventive (Maintenance)</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {form.typeIntervention === 'curative' ? (
+                <div className="space-y-2">
                   <Label htmlFor="sousEnsemble">Sous-ensemble *</Label>
                   <Combobox
                     options={sousEnsemblesOptions}
@@ -2351,8 +2439,16 @@ const MaintenanceTab = ({ technicien }) => {
                     emptyText="Aucun équipement associé à ce terminal."
                     disabled={!form.terminal || isLoading}
                   />
-            </div>
-          </div>
+                  <p className="text-xs text-muted-foreground">En curatif, sélectionnez le sous-ensemble concerné par la panne.</p>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+                  <p className="font-medium text-emerald-800">Maintenance préventive — tous les sous-ensembles</p>
+                  <p className="text-sm text-emerald-700">
+                    En préventif, l'intervention couvre automatiquement tous les sous-ensembles du terminal ; aucun sous-ensemble à sélectionner ici.
+                  </p>
+                </div>
+              )}
 
               <Separator />
 
@@ -2434,51 +2530,90 @@ const MaintenanceTab = ({ technicien }) => {
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-primary">Détails de l'Intervention</h3>
               <div className="mobile-inline-fields space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="sousEnsembleDetails">Sous-ensemble concerné *</Label>
-                  <Combobox
-                    options={sousEnsemblesOptions}
-                    value={form.sousEnsemble}
-                    onSelect={handleChange('sousEnsemble')}
-                    placeholder="Choisir un sous-ensemble du terminal"
-                    searchPlaceholder="Rechercher un équipement..."
-                    emptyText="Aucun équipement associé à ce terminal."
-                    disabled={!form.terminal || isLoading}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Ajoutez une ligne par sous-ensemble traité avant de passer à la signature.
-                  </p>
-                  {currentSousEnsembleAlreadyPrepared && (
-                    <p className="text-xs font-medium text-red-600">
-                      Ce sous-ensemble est déjà ajouté à cette intervention.
-                    </p>
-                  )}
-                </div>
 
-                <div className="space-y-3">
-                  <Label>Type d'intervention *</Label>
-                  <RadioGroup
-                    value={form.typeIntervention}
-                    onValueChange={handleChange('typeIntervention')}
-                    className="flex gap-6"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="curative" id="curative" />
-                      <Label htmlFor="curative">Curative (Réparation)</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="preventive" id="preventive" />
-                      <Label htmlFor="preventive">Préventive (Maintenance)</Label>
-                    </div>
-                  </RadioGroup>
+                {/* Type choisi à l'étape 1 — rappel en lecture seule */}
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Type d'intervention :</span>
+                  <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${form.typeIntervention === 'curative' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                    {form.typeIntervention === 'curative' ? 'Curative (Réparation)' : 'Préventive (Maintenance)'}
+                  </span>
+                  <button type="button" onClick={() => setStep(1)} className="text-xs text-primary underline">Modifier</button>
                 </div>
 
                 <Separator />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {form.typeIntervention === 'curative' ? (
-              <>
-                <div className="space-y-2">
+                {form.typeIntervention === 'preventive' ? (
+                  /* ===== PRÉVENTIVE : tous les sous-ensembles, un seul code ===== */
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="code">Code intervention *</Label>
+                      <Combobox
+                        options={codesInterventionsOptions}
+                        value={form.code}
+                        onSelect={handleChange('code')}
+                        placeholder="Choisir un code d'intervention"
+                        searchPlaceholder="Rechercher un code ou libellé..."
+                        emptyText="Aucun code d'intervention trouvé."
+                        disabled={isLoading}
+                      />
+                    </div>
+
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+                      <p className="font-medium text-emerald-800">Tous les sous-ensembles du terminal seront inclus</p>
+                      <p className="mb-3 text-sm text-emerald-700">
+                        La maintenance préventive s'applique automatiquement à chaque sous-ensemble du terminal {selectedTerminal?.reference || ''}.
+                      </p>
+                      {sousEnsemblesOptions.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {sousEnsemblesOptions.map((opt) => (
+                            <span key={opt.value} className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-medium text-emerald-700">
+                              <ClipboardList className="h-3 w-3" />
+                              {opt.label}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-red-600">Aucun sous-ensemble enregistré pour ce terminal.</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="commentaire">Commentaire</Label>
+                      <Textarea
+                        value={form.commentaire}
+                        onChange={(e) => handleChange('commentaire')(e.target.value)}
+                        placeholder="Observations générales de la maintenance préventive..."
+                        rows={3}
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  /* ===== CURATIVE : un sous-ensemble + code(s) panne ===== */
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="sousEnsembleDetails">Sous-ensemble concerné *</Label>
+                      <Combobox
+                        options={sousEnsemblesOptions}
+                        value={form.sousEnsemble}
+                        onSelect={handleChange('sousEnsemble')}
+                        placeholder="Choisir un sous-ensemble du terminal"
+                        searchPlaceholder="Rechercher un équipement..."
+                        emptyText="Aucun équipement associé à ce terminal."
+                        disabled={!form.terminal || isLoading}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Ajoutez une ligne par sous-ensemble traité avant de passer à la signature.
+                      </p>
+                      {currentSousEnsembleAlreadyPrepared && (
+                        <p className="text-xs font-medium text-red-600">
+                          Ce sous-ensemble est déjà ajouté à cette intervention.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
                         <Label htmlFor="code">Code panne *</Label>
                         <Combobox
                           options={codesPannesOptions}
@@ -2489,153 +2624,137 @@ const MaintenanceTab = ({ technicien }) => {
                           emptyText="Aucun code de panne trouvé."
                           disabled={isLoading}
                         />
-                </div>
-                <div className="space-y-2">
+                      </div>
+                      <div className="space-y-2">
                         <Label htmlFor="panne">Description panne *</Label>
-                        <Input 
-                          value={form.panne} 
+                        <Input
+                          value={form.panne}
                           onChange={(e) => handleChange('panne')(e.target.value)}
                           placeholder="Décrivez la panne constatée"
                           disabled={isLoading}
                         />
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="space-y-2">
-                        <Label htmlFor="code">Code intervention *</Label>
-                        <Combobox
-                          options={codesInterventionsOptions}
-                          value={form.code}
-                          onSelect={handleChange('code')}
-                          placeholder="Choisir un code d'intervention"
-                          searchPlaceholder="Rechercher un code ou libellé..."
-                          emptyText="Aucun code d'intervention trouvé."
-                          disabled={isLoading}
-                        />
                       </div>
-                    </>
-                  )}
-                </div>
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="commentaire">Commentaire</Label>
-                  <Textarea 
-                    value={form.commentaire} 
-                    onChange={(e) => handleChange('commentaire')(e.target.value)}
-                    placeholder="Détails de l'intervention, observations, remarques techniques..."
-                    rows={3}
-                    disabled={isLoading}
-                  />
-                </div>
-
-                <Separator />
-
-                <div className="space-y-4">
-                  <div className="space-y-3">
-                    <Label>Sous ensemble remplacé ?</Label>
-                    <RadioGroup
-                      value={form.remplace}
-                      onValueChange={handleChange('remplace')}
-                      className="flex gap-6"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="non" id="non" />
-                        <Label htmlFor="non">Non</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="oui" id="oui" />
-                        <Label htmlFor="oui">Oui</Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-
-                  {form.remplace === 'oui' && (
                     <div className="space-y-2">
-                      <Label htmlFor="remplacement">Référence de remplacement *</Label>
-                      <Combobox
-                        options={replacementOptions}
-                        value={form.remplacement}
-                        onSelect={handleReplacementSelect}
-                        placeholder="Choisir un sous-ensemble disponible"
-                        searchPlaceholder="Rechercher par référence..."
-                        emptyText={isLoadingReplacements ? 'Chargement...' : 'Aucun sous-ensemble disponible.'}
-                        disabled={isLoading || isLoadingReplacements}
+                      <Label htmlFor="commentaire">Commentaire</Label>
+                      <Textarea
+                        value={form.commentaire}
+                        onChange={(e) => handleChange('commentaire')(e.target.value)}
+                        placeholder="Détails de l'intervention, observations, remarques techniques..."
+                        rows={3}
+                        disabled={isLoading}
                       />
                     </div>
-                  )}
-                </div>
 
-                <div className="flex flex-col gap-3 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="font-medium text-primary">Intervenir sur un autre sous-ensemble</p>
-                    <p className="text-sm text-muted-foreground">
-                      Enregistre la ligne courante dans la fiche puis permet de saisir un autre sous-ensemble du même terminal.
-                    </p>
-                  </div>
-                  <Button type="button" variant="outline" onClick={handleAddInterventionItem} disabled={isLoading || currentSousEnsembleAlreadyPrepared}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Ajouter ce sous-ensemble
-                  </Button>
-                </div>
+                    <Separator />
 
-                {interventionItems.length > 0 && (
-                  <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-                    <div className="border-b bg-slate-50 px-4 py-3">
-                      <p className="font-medium text-primary">Sous-ensembles préparés</p>
-                      {/* le tableau interne défile horizontalement */}
-                      <p className="text-sm text-muted-foreground">
-                        {interventionItems.length} intervention(s) seront insérées dans la validation finale.
-                      </p>
+                    <div className="space-y-4">
+                      <div className="space-y-3">
+                        <Label>Sous ensemble remplacé ?</Label>
+                        <RadioGroup
+                          value={form.remplace}
+                          onValueChange={handleChange('remplace')}
+                          className="flex gap-6"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="non" id="non" />
+                            <Label htmlFor="non">Non</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="oui" id="oui" />
+                            <Label htmlFor="oui">Oui</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+
+                      {form.remplace === 'oui' && (
+                        <div className="space-y-2">
+                          <Label htmlFor="remplacement">Référence de remplacement *</Label>
+                          <Combobox
+                            options={replacementOptions}
+                            value={form.remplacement}
+                            onSelect={handleReplacementSelect}
+                            placeholder="Choisir un sous-ensemble disponible"
+                            searchPlaceholder="Rechercher par référence..."
+                            emptyText={isLoadingReplacements ? 'Chargement...' : 'Aucun sous-ensemble disponible.'}
+                            disabled={isLoading || isLoadingReplacements}
+                          />
+                        </div>
+                      )}
                     </div>
-                    <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Sous-ensemble</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Code</TableHead>
-                          <TableHead>Traitement</TableHead>
-                          <TableHead className="text-right">Action</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {interventionItems.map((item) => (
-                          <TableRow key={item.localId}>
-                            <TableCell className="font-medium">{item.sousEnsemble}</TableCell>
-                            <TableCell>{item.typeLabel}</TableCell>
-                            <TableCell>{item.codeLabel}</TableCell>
-                            <TableCell>
-                              <div className="space-y-1 text-sm">
-                                <p>{item.detailValue}</p>
-                                <p className="text-muted-foreground">{item.remplacementValue}</p>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRemoveInterventionItem(item.localId)}
-                                disabled={isLoading}
-                                title="Retirer cette intervention"
-                              >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+
+                    <div className="flex flex-col gap-3 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="font-medium text-primary">Intervenir sur un autre sous-ensemble</p>
+                        <p className="text-sm text-muted-foreground">
+                          Enregistre la ligne courante dans la fiche puis permet de saisir un autre sous-ensemble du même terminal.
+                        </p>
+                      </div>
+                      <Button type="button" variant="outline" onClick={handleAddInterventionItem} disabled={isLoading || currentSousEnsembleAlreadyPrepared}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Ajouter ce sous-ensemble
+                      </Button>
                     </div>
-                  </div>
+
+                    {interventionItems.length > 0 && (
+                      <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
+                        <div className="border-b bg-slate-50 px-4 py-3">
+                          <p className="font-medium text-primary">Sous-ensembles préparés</p>
+                          <p className="text-sm text-muted-foreground">
+                            {interventionItems.length} sous-ensemble(s) seront inclus dans l'intervention du terminal.
+                          </p>
+                        </div>
+                        <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Sous-ensemble</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead>Code</TableHead>
+                              <TableHead>Traitement</TableHead>
+                              <TableHead className="text-right">Action</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {interventionItems.map((item) => (
+                              <TableRow key={item.localId}>
+                                <TableCell className="font-medium">{item.sousEnsemble}</TableCell>
+                                <TableCell>{item.typeLabel}</TableCell>
+                                <TableCell>{item.codeLabel}</TableCell>
+                                <TableCell>
+                                  <div className="space-y-1 text-sm">
+                                    <p>{item.detailValue}</p>
+                                    <p className="text-muted-foreground">{item.remplacementValue}</p>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleRemoveInterventionItem(item.localId)}
+                                    disabled={isLoading}
+                                    title="Retirer cette intervention"
+                                  >
+                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
           </div>
         )}
 
           {step === 3 && (
-            <div className="space-y-8">
+            <div className="space-y-8 min-w-0 max-w-full overflow-x-hidden">
               <div className="overflow-hidden rounded-xl border bg-gradient-to-r from-slate-50 via-white to-blue-50 shadow-sm">
                 <div className="flex flex-wrap items-center gap-4 px-5 py-3">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -2670,7 +2789,7 @@ const MaintenanceTab = ({ technicien }) => {
                     </div>
                     <div className="rounded-2xl border bg-slate-50 px-4 py-3 text-sm text-muted-foreground">
                       <p><strong>Terminal :</strong> {selectedTerminal?.reference || 'N/A'}</p>
-                      <p><strong>Interventions :</strong> {validationInterventionItems.length}</p>
+                      <p><strong>Sous-ensembles concernés :</strong> {validationInterventionItems.length}</p>
                     </div>
                   </div>
 
@@ -2683,7 +2802,7 @@ const MaintenanceTab = ({ technicien }) => {
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <ValidationInfoBlock label="Agence" value={selectedAgence?.nom || 'N/A'} tone="accent" />
                         <ValidationInfoBlock label="Terminal" value={selectedTerminal?.reference || 'N/A'} />
-                        <ValidationInfoBlock label="Sous-ensembles" value={`${validationInterventionItems.length} intervention(s)`} />
+                        <ValidationInfoBlock label="Sous-ensembles" value={`${validationInterventionItems.length} sous-ensemble(s)`} />
                         <ValidationInfoBlock label="Validation" value="Une ligne par sous-ensemble" />
                       </div>
                     </div>
@@ -2851,7 +2970,7 @@ const MaintenanceTab = ({ technicien }) => {
           {step === 1 && (
             <Button
               onClick={() => setStep(2)}
-              disabled={!form.agence || !form.terminal || !form.sousEnsemble || isLoading}
+              disabled={!form.agence || !form.terminal || isLoading || (form.typeIntervention === 'curative' && !form.sousEnsemble)}
               className="ml-auto bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90"
             >
               Suivant →
@@ -2859,9 +2978,14 @@ const MaintenanceTab = ({ technicien }) => {
           )}
           
           {step === 2 && (
-            <Button 
+            <Button
               onClick={handleGoToValidation}
-              disabled={isLoading || currentSousEnsembleAlreadyPrepared || (interventionItems.length === 0 && (!form.sousEnsemble || !form.code || (form.remplace === 'oui' && !form.remplacement)))}
+              disabled={
+                isLoading ||
+                (form.typeIntervention === 'preventive'
+                  ? (!form.code || sousEnsemblesOptions.length === 0)
+                  : (currentSousEnsembleAlreadyPrepared || (interventionItems.length === 0 && (!form.sousEnsemble || !form.code || (form.remplace === 'oui' && !form.remplacement)))))
+              }
               className="ml-auto bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90"
             >
               Passer aux signatures →
