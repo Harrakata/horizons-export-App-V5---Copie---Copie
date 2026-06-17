@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/Combobox';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
@@ -28,7 +29,14 @@ const PERIOD_OPTIONS = [
   { value: '1', label: '1 mois' },
   { value: '3', label: '3 mois' },
   { value: '6', label: '6 mois' },
+  { value: 'custom', label: 'Période personnalisée' },
 ];
+
+const toDateInputValue = (date) => {
+  const d = new Date(date);
+  const tz = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - tz).toISOString().slice(0, 10);
+};
 
 const SOUS_ENSEMBLE_LABELS = {
   imprimante: 'Imprimante',
@@ -72,7 +80,17 @@ const makeExtraId = () => `extra-${Date.now()}-${Math.random().toString(36).slic
 const DevisPiecesTab = () => {
   const { toast } = useToast();
   const [periodMonths, setPeriodMonths] = useState('1');
+  // Dates personnalisées (par défaut : le dernier mois)
+  const [customStart, setCustomStart] = useState(() => {
+    const d = new Date(); d.setMonth(d.getMonth() - 1); return toDateInputValue(d);
+  });
+  const [customEnd, setCustomEnd] = useState(() => toDateInputValue(new Date()));
   const [movements, setMovements] = useState([]);
+  // Pièces ajoutées manuellement + clés de lignes auto retirées
+  const [manualLines, setManualLines] = useState([]);
+  const [removedKeys, setRemovedKeys] = useState(() => new Set());
+  const [addPieceId, setAddPieceId] = useState('');
+  const [addQty, setAddQty] = useState(1);
   const [catalogPieces, setCatalogPieces] = useState([]);
   const [catalogSearch, setCatalogSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -88,12 +106,18 @@ const DevisPiecesTab = () => {
   ]);
 
   const periodBounds = useMemo(() => {
+    if (periodMonths === 'custom' && customStart && customEnd) {
+      const start = new Date(customStart); start.setHours(0, 0, 0, 0);
+      const end = new Date(customEnd); end.setHours(23, 59, 59, 999);
+      return { start, end };
+    }
+    const months = Number(periodMonths);
     const end = new Date();
     const start = new Date(end);
-    start.setMonth(start.getMonth() - Number(periodMonths));
+    start.setMonth(start.getMonth() - (Number.isFinite(months) ? months : 1));
     start.setHours(0, 0, 0, 0);
     return { start, end };
-  }, [periodMonths]);
+  }, [periodMonths, customStart, customEnd]);
 
   const showErr = useCallback((description) => {
     toast({ title: 'Erreur', description, variant: 'destructive' });
@@ -162,6 +186,66 @@ const DevisPiecesTab = () => {
       .sort((first, second) => first.nom.localeCompare(second.nom, 'fr'));
   }, [movements]);
 
+  // Clé stable d'une ligne auto (issue des mouvements de stock)
+  const autoKey = useCallback((line) => String(line.piece_id || `${line.reference}-${line.nom}`), []);
+
+  // Lignes consommées finales : lignes auto NON retirées + pièces ajoutées manuellement.
+  const consumedLines = useMemo(() => {
+    const auto = quoteLines
+      .filter((line) => !removedKeys.has(autoKey(line)))
+      .map((line) => ({ ...line, source: 'auto', key: autoKey(line) }));
+    const manual = manualLines.map((line) => ({
+      ...line,
+      source: 'manual',
+      key: line.id,
+      montant_ht: (Number(line.quantite) || 0) * (Number(line.prix_unitaire_ht) || 0),
+    }));
+    return [...auto, ...manual];
+  }, [quoteLines, removedKeys, manualLines, autoKey]);
+
+  const removeConsumedLine = (line) => {
+    if (line.source === 'manual') {
+      setManualLines((current) => current.filter((item) => item.id !== line.key));
+    } else {
+      setRemovedKeys((current) => new Set(current).add(line.key));
+    }
+  };
+
+  const updateManualLineQty = (id, value) => {
+    setManualLines((current) => current.map((item) => (
+      item.id === id ? { ...item, quantite: value } : item
+    )));
+  };
+
+  const updateManualLinePrice = (id, value) => {
+    setManualLines((current) => current.map((item) => (
+      item.id === id ? { ...item, prix_unitaire_ht: value } : item
+    )));
+  };
+
+  const addManualPiece = () => {
+    const piece = catalogPieces.find((p) => String(p.id) === String(addPieceId));
+    if (!piece) return;
+    setManualLines((current) => [
+      ...current,
+      {
+        id: makeExtraId(),
+        piece_id: piece.id,
+        nom: piece.nom || 'Pièce',
+        reference: piece.reference || '-',
+        quantite: Math.max(1, Number(addQty) || 1),
+        prix_unitaire_ht: Number(piece.prix_unitaire_ht) || 0,
+      },
+    ]);
+    setAddPieceId('');
+    setAddQty(1);
+  };
+
+  const catalogOptions = useMemo(
+    () => catalogPieces.map((p) => ({ value: String(p.id), label: `${p.nom || 'Pièce'} — ${p.reference || '-'}` })),
+    [catalogPieces],
+  );
+
   const filteredCatalogPieces = useMemo(() => {
     const term = catalogSearch.trim().toLowerCase();
     if (!term) return catalogPieces;
@@ -182,11 +266,11 @@ const DevisPiecesTab = () => {
     }))
     .filter((field) => field.libelle || field.montant_ht > 0), [extraFields]);
 
-  const totalPiecesHt = useMemo(() => quoteLines.reduce((sum, line) => sum + line.montant_ht, 0), [quoteLines]);
+  const totalPiecesHt = useMemo(() => consumedLines.reduce((sum, line) => sum + line.montant_ht, 0), [consumedLines]);
   const totalExtrasHt = useMemo(() => extraLines.reduce((sum, line) => sum + line.montant_ht, 0), [extraLines]);
   const totalHt = totalPiecesHt + totalExtrasHt;
-  const totalQuantity = useMemo(() => quoteLines.reduce((sum, line) => sum + line.quantite, 0), [quoteLines]);
-  const hasMissingPrices = quoteLines.some((line) => line.prix_unitaire_ht <= 0);
+  const totalQuantity = useMemo(() => consumedLines.reduce((sum, line) => sum + (Number(line.quantite) || 0), 0), [consumedLines]);
+  const hasMissingPrices = consumedLines.some((line) => (Number(line.prix_unitaire_ht) || 0) <= 0);
 
   const addExtraField = () => {
     setExtraFields((current) => [...current, { id: makeExtraId(), libelle: '', montant_ht: 0 }]);
@@ -203,12 +287,12 @@ const DevisPiecesTab = () => {
   };
 
   const buildQuoteHtml = () => {
-    const pieceRows = quoteLines.length
-      ? quoteLines.map((line) => `
+    const pieceRows = consumedLines.length
+      ? consumedLines.map((line) => `
           <tr>
             <td>${escapeHtml(line.reference)}</td>
             <td>${escapeHtml(line.nom)}</td>
-            <td class="right">${line.quantite}</td>
+            <td class="right">${Number(line.quantite) || 0}</td>
             <td class="right">${escapeHtml(formatMoney(line.prix_unitaire_ht))}</td>
             <td class="right">${escapeHtml(formatMoney(line.montant_ht))}</td>
           </tr>
@@ -394,7 +478,7 @@ const DevisPiecesTab = () => {
           tone="primary"
           label="Pièces HT"
           value={formatMoney(totalPiecesHt)}
-          helper={`${quoteLines.length} référence(s)`}
+          helper={`${consumedLines.length} référence(s)`}
         />
         <KpiStatCard
           icon={<Receipt />}
@@ -430,6 +514,18 @@ const DevisPiecesTab = () => {
                 </SelectContent>
               </Select>
             </div>
+            {periodMonths === 'custom' && (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-2">
+                  <Label>Du</Label>
+                  <Input type="date" value={customStart} max={customEnd || undefined} onChange={(e) => setCustomStart(e.target.value)} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Au</Label>
+                  <Input type="date" value={customEnd} min={customStart || undefined} onChange={(e) => setCustomEnd(e.target.value)} />
+                </div>
+              </div>
+            )}
             <div className="grid gap-2">
               <Label>Destinataire</Label>
               <Input value={quoteMeta.destinataire} onChange={(e) => setQuoteMeta((m) => ({ ...m, destinataire: e.target.value }))} placeholder="Client, agence ou direction" />
@@ -478,8 +574,31 @@ const DevisPiecesTab = () => {
             </div>
           </CardHeader>
           <CardContent className="p-0">
+            {/* Ajout manuel d'une pièce consommée depuis le catalogue */}
+            <div className="flex flex-wrap items-end gap-2 border-b bg-muted/20 p-3">
+              <div className="grid min-w-[180px] flex-1 gap-1">
+                <Label className="text-xs">Ajouter une pièce du catalogue</Label>
+                <Combobox
+                  options={catalogOptions}
+                  value={addPieceId}
+                  onSelect={setAddPieceId}
+                  placeholder="Choisir une pièce..."
+                  searchPlaceholder="Rechercher une pièce..."
+                  emptyText="Aucune pièce."
+                />
+              </div>
+              <div className="grid w-20 gap-1">
+                <Label className="text-xs">Qté</Label>
+                <Input type="number" min={1} value={addQty} onChange={(e) => setAddQty(e.target.value)} />
+              </div>
+              <Button onClick={addManualPiece} disabled={!addPieceId}>
+                <Plus className="mr-2 h-4 w-4" /> Ajouter
+              </Button>
+            </div>
             <Table>
-              <TableCaption>{isLoading ? 'Chargement...' : `${quoteLines.length} référence(s) sur ${movements.length} mouvement(s).`}</TableCaption>
+              <TableCaption>
+                {isLoading ? 'Chargement...' : `${consumedLines.length} ligne(s) — dont ${movements.length} mouvement(s) de stock.`}
+              </TableCaption>
               <TableHeader>
                 <TableRow>
                   <TableHead>Pièce</TableHead>
@@ -487,22 +606,51 @@ const DevisPiecesTab = () => {
                   <TableHead className="text-right">Qté</TableHead>
                   <TableHead className="text-right">Prix HT (€)</TableHead>
                   <TableHead className="text-right">Montant HT</TableHead>
+                  <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {quoteLines.length === 0 ? (
+                {consumedLines.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                      Aucune pièce consommée sur cette période.
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                      Aucune pièce consommée sur cette période. Ajoutez-en une ci-dessus si besoin.
                     </TableCell>
                   </TableRow>
-                ) : quoteLines.map((line) => (
-                  <TableRow key={line.piece_id || `${line.reference}-${line.nom}`}>
-                    <TableCell className="font-medium">{line.nom}</TableCell>
+                ) : consumedLines.map((line) => (
+                  <TableRow key={line.key} className={line.source === 'manual' ? 'bg-emerald-50/50' : undefined}>
+                    <TableCell className="font-medium">
+                      {line.nom}
+                      {line.source === 'manual' && (
+                        <Badge variant="outline" className="ml-2 border-emerald-300 text-[0.6rem] text-emerald-700">ajoutée</Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="font-mono text-sm">{line.reference}</TableCell>
-                    <TableCell className="text-right">{line.quantite}</TableCell>
-                    <TableCell className="text-right">{formatMoney(line.prix_unitaire_ht)}</TableCell>
+                    <TableCell className="text-right">
+                      {line.source === 'manual' ? (
+                        <Input
+                          type="number" min={1}
+                          value={line.quantite}
+                          onChange={(e) => updateManualLineQty(line.key, e.target.value)}
+                          className="ml-auto h-8 w-16 text-right"
+                        />
+                      ) : line.quantite}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {line.source === 'manual' ? (
+                        <Input
+                          type="number" min={0} step="0.01"
+                          value={line.prix_unitaire_ht}
+                          onChange={(e) => updateManualLinePrice(line.key, e.target.value)}
+                          className="ml-auto h-8 w-24 text-right"
+                        />
+                      ) : formatMoney(line.prix_unitaire_ht)}
+                    </TableCell>
                     <TableCell className="text-right font-semibold">{formatMoney(line.montant_ht)}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => removeConsumedLine(line)} title="Retirer cette pièce">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {extraLines.map((line) => (
@@ -512,11 +660,13 @@ const DevisPiecesTab = () => {
                     <TableCell className="text-right">1</TableCell>
                     <TableCell className="text-right">{formatMoney(line.montant_ht)}</TableCell>
                     <TableCell className="text-right font-semibold">{formatMoney(line.montant_ht)}</TableCell>
+                    <TableCell />
                   </TableRow>
                 ))}
                 <TableRow>
                   <TableCell colSpan={4} className="text-right font-semibold">Total HT</TableCell>
                   <TableCell className="text-right text-lg font-bold text-primary">{formatMoney(totalHt)}</TableCell>
+                  <TableCell />
                 </TableRow>
               </TableBody>
             </Table>

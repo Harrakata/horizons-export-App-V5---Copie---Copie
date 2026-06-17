@@ -413,10 +413,30 @@ aside,
     display: none;
   }
 
-  /* Toute grille de cartes KPI passe en 2 colonnes sur mobile (densité « app ») */
+  /* Grilles de cartes KPI : on en met le MAXIMUM par ligne selon la largeur.
+     auto-fit + minmax(8rem) → 2 sur petit téléphone, 3-4 sur grand écran/tablette,
+     sans jamais déborder ni laisser de vide disgracieux. */
   .grid:has(> .kpi-stat-card) {
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)) !important;
+    gap: 0.5rem !important;
+  }
+
+  /* ── Densification GLOBALE des grilles de filtres (tous espaces/onglets) ──
+     Toute grille de la zone espace contenant des listes déroulantes (Select ou
+     Combobox) passe à 2 colonnes minimum sur mobile au lieu d'être empilée en
+     pleine largeur → on fait tenir le maximum par ligne. Les fenêtres modales
+     (portalisées hors de .app-space-main) ne sont PAS affectées. */
+  .app-space-main .grid:has(> div [data-radix-select-trigger]),
+  .app-space-main .grid:has(> div button[role="combobox"]) {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 0.5rem !important;
+  }
+  /* Les champs qui doivent rester pleine largeur (recherche, zones de texte)
+     gardent leur portée si elles utilisent col-span-2 ; sinon on force la
+     recherche à occuper toute la ligne. */
+  .app-space-main .grid:has(> div [data-radix-select-trigger]) > div:has(input[type="search"]),
+  .app-space-main .grid:has(> div button[role="combobox"]) > div:has(textarea) {
+    grid-column: 1 / -1 !important;
   }
 
   /* Champs compacts : libellé et champ sur la même ligne (opt-in via .mobile-inline-fields) */
@@ -739,13 +759,15 @@ aside,
      On ANCRE la fenêtre à 6rem du haut (au lieu de centrée) pour bien la
      détacher de la barre de menu (~4.5rem) — même traitement que le panneau
      de notifications. translateX(-50%) seul = centrage horizontal, top fixe.
+     LARGEUR PROGRESSIVE : on ne force PLUS de plafond fixe — chaque dialogue
+     garde sa largeur de conception (max-w-lg, max-w-4xl…) bornée par le viewport.
+     Effectif = min(100vw − 2rem, largeur-conçue) → s'élargit sur tablette.
      Aucune dépendance à :has() (compat WebView/PWA). Fallback vh avant dvh. */
   [role="dialog"] {
     top: 6rem !important;
     bottom: auto !important;
     transform: translateX(-50%) !important;
     width: calc(100vw - 2rem) !important;
-    max-width: 28rem !important;
     max-height: calc(100vh - 7.5rem) !important;
     max-height: calc(100dvh - 7.5rem - env(safe-area-inset-bottom, 0px)) !important;
     overflow-y: auto !important;
@@ -753,6 +775,25 @@ aside,
     padding: 0.8rem !important;
     border-radius: 1.25rem !important;
     box-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.5) !important;
+  }
+
+  /* Centrage vertical à partir des grands écrans mobiles / tablettes (≥ 600px) :
+     plus besoin d'ancrer en haut, on recentre pour un meilleur équilibre. */
+  @media (min-width: 600px) {
+    [role="dialog"] {
+      top: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      max-height: calc(100dvh - 4rem - env(safe-area-inset-bottom, 0px)) !important;
+    }
+  }
+
+  /* Visionneuses plein cadre (iframe : fiche d'intervention, etc.) : pas de
+     padding interne, hauteur généreuse pour occuper l'écran sur tablette. */
+  [role="dialog"]:has(iframe) {
+    padding: 0 !important;
+    gap: 0 !important;
+    height: calc(100dvh - 8rem) !important;
+    max-height: calc(100dvh - 8rem) !important;
   }
 
   [role="dialog"] .text-2xl {

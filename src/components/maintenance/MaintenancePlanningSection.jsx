@@ -857,12 +857,12 @@ const MaintenancePlanningSection = ({
               </Button>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Input
                 type="date"
                 value={planningMapDate}
                 onChange={(event) => setPlanningMapDate(event.target.value || extractMaintenancePlanningDateKey(new Date()))}
-                className="h-9 w-[160px]"
+                className="h-9 w-[8.5rem] sm:w-[160px]"
                 disabled={isLoading}
                 title="Journée à visualiser sur la carte"
               />
@@ -871,26 +871,30 @@ const MaintenancePlanningSection = ({
                 variant={showPlanningMap ? 'default' : 'outline'}
                 onClick={() => setShowPlanningMap((currentValue) => !currentValue)}
                 disabled={isLoading}
+                title={showPlanningMap ? 'Masquer la carte' : 'Visualiser sur la carte'}
               >
-                <MapPinned className="mr-2 h-4 w-4" />
-                {showPlanningMap ? 'Masquer la carte' : 'Visualiser sur carte'}
+                <MapPinned className="h-4 w-4" />
+                <span className="ml-1.5 sm:hidden">{showPlanningMap ? 'Masquer' : 'Carte'}</span>
+                <span className="ml-1.5 hidden sm:inline">{showPlanningMap ? 'Masquer la carte' : 'Visualiser sur carte'}</span>
               </Button>
               {canManage && (
                 <>
-                <Button size="sm" variant="outline" onClick={() => handleCopyPrevious('week')} disabled={isLoading}>
-                  <Copy className="mr-2 h-4 w-4" />
-                  Copier Sem.
+                <Button size="sm" variant="outline" onClick={() => handleCopyPrevious('week')} disabled={isLoading} title="Copier le planning de la semaine précédente">
+                  <Copy className="h-4 w-4" />
+                  <span className="ml-1.5">Sem.</span>
+                  <span className="hidden sm:inline">&nbsp;précéd.</span>
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => handleCopyPrevious('month')} disabled={isLoading}>
-                  <Copy className="mr-2 h-4 w-4" />
-                  Copier Mois
+                <Button size="sm" variant="outline" onClick={() => handleCopyPrevious('month')} disabled={isLoading} title="Copier le planning du mois précédent">
+                  <Copy className="h-4 w-4" />
+                  <span className="ml-1.5">Mois</span>
+                  <span className="hidden sm:inline">&nbsp;précéd.</span>
                 </Button>
                 </>
               )}
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
             {showRegionColumn && (
               <div className="space-y-2">
                 <p className="text-sm font-medium">Région</p>
@@ -1005,7 +1009,7 @@ const MaintenancePlanningSection = ({
               </Select>
             </div>
 
-            <div className="space-y-2 xl:col-span-5">
+            <div className="space-y-2 col-span-2 md:col-span-3 xl:col-span-5">
               <p className="text-sm font-medium">Recherche</p>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
