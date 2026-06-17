@@ -514,6 +514,30 @@ aside,
     max-width: 22rem !important;
   }
 
+  /* ── Étape 3 « Validation » de Faire Maintenance : anti-débordement mobile ──
+     #root a overflow-x:hidden → tout contenu plus large que l'écran est COUPÉ
+     (invisible) au lieu de défiler. On force donc le contenu à tenir :
+     min-width:0 sur tous les descendants (laisse rétrécir les enfants flex/grid),
+     toutes les grilles en 1 colonne, et les tableaux défilent dans leur conteneur. */
+  .maintenance-validation-step {
+    overflow-x: clip;
+  }
+  .maintenance-validation-step * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .maintenance-validation-step .grid {
+    grid-template-columns: 1fr !important;
+  }
+  .maintenance-validation-step table {
+    width: 100%;
+  }
+  /* Les conteneurs de tableau gardent leur défilement horizontal interne */
+  .maintenance-validation-step .overflow-x-auto {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
 
   /* Tiroir mobile : plus compact, dans l'esprit du menu de la barre de navigation */
   .app-space-sidebar.is-open .app-space-sidebar-scroll {

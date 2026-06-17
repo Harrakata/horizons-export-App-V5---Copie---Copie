@@ -2124,9 +2124,11 @@ const MaintenanceTab = ({ technicien }) => {
     let interventionIds = savedInterventionIds.length > 0 ? savedInterventionIds : (savedInterventionId ? [savedInterventionId] : []);
 
     if (interventionIds.length === 0) {
+      // Une seule intervention (par terminal) est désormais créée pour tous les
+      // sous-ensembles : on vérifie simplement qu'elle a bien été enregistrée.
       const savedInterventions = await saveInterventions(finalInterventions);
 
-      if (savedInterventions.length !== finalInterventions.length) {
+      if (savedInterventions.length === 0) {
         return;
       }
 
@@ -2754,7 +2756,7 @@ const MaintenanceTab = ({ technicien }) => {
         )}
 
           {step === 3 && (
-            <div className="space-y-8 min-w-0 max-w-full overflow-x-hidden">
+            <div className="maintenance-validation-step space-y-8">
               <div className="overflow-hidden rounded-xl border bg-gradient-to-r from-slate-50 via-white to-blue-50 shadow-sm">
                 <div className="flex flex-wrap items-center gap-4 px-5 py-3">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
