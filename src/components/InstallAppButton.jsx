@@ -75,7 +75,7 @@ const InstallAppButton = ({ className = '', full = false }) => {
               <Download className="h-5 w-5" /> Installer l'application
             </DialogTitle>
             <DialogDescription>
-              Ajoutez Star3000+ à votre écran d'accueil pour un usage comme une vraie application (et hors ligne).
+              Ajoutez GestionPDV à votre écran d'accueil pour un usage comme une vraie application (et hors ligne).
             </DialogDescription>
           </DialogHeader>
           <ol className="space-y-3 py-2 text-sm">

@@ -191,9 +191,9 @@ export default defineConfig({
 			registerType: 'autoUpdate',
 			includeAssets: ['carrus-logo.png', 'pwa-icon.svg', 'apple-touch-icon.png'],
 			manifest: {
-				name: 'Star3000+ — Gestion PDV',
-				short_name: 'Star3000+',
-				description: 'Gestion de planning, pointage, paiements et maintenance des points de vente.',
+				name: 'GestionPDV',
+				short_name: 'GestionPDV',
+				description: 'Gestion des points de vente : planning, pointage, paiements et maintenance.',
 				lang: 'fr',
 				theme_color: '#2563eb',
 				background_color: '#ffffff',

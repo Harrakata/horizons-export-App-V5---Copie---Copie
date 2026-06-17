@@ -73,7 +73,7 @@ const HomePage = () => {
             />
             <h1 className="text-3xl sm:text-4xl md:text-6xl font-extrabold mb-2 sm:mb-4">
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-green-400">
-                Star3000+
+                GestionPDV
               </span>
             </h1>
             <p className="text-base sm:text-2xl md:text-3xl font-semibold text-foreground mb-1 sm:mb-2">
@@ -138,7 +138,7 @@ const HomePage = () => {
         transition={{ duration: 0.5, delay: 1.2 }}
         className="mt-14 text-center text-muted-foreground"
       >
-        <p>&copy; {new Date().getFullYear()} Star3000+ by PMC. Tous droits réservés.</p>
+        <p>&copy; {new Date().getFullYear()} GestionPDV by PMC. Tous droits réservés.</p>
       </motion.footer>
     </div>
   );

@@ -1,10 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Star3000+">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#2563eb"/>
-      <stop offset="1" stop-color="#16a34a"/>
-    </linearGradient>
-  </defs>
-  <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#bg)"/>
-  <path fill="#ffffff" d="M256 120 l52 105 116 17 -84 82 20 115 -104 -55 -104 55 20 -115 -84 -82 116 -17 z"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="GestionPDV"><defs><linearGradient id="bg" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="512" y2="512"><stop offset="0" stop-color="#2563eb"/><stop offset="1" stop-color="#16a34a"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect x="150" y="204" width="212" height="176" rx="16" fill="#ffffff"/>
+  <rect x="226" y="288" width="60" height="92" rx="10" fill="url(#bg)"/>
+  <rect x="174" y="240" width="40" height="30" rx="6" fill="url(#bg)"/>
+  <rect x="298" y="240" width="40" height="30" rx="6" fill="url(#bg)"/>
+  <path d="M150 138 H362 L392 194 q -34 28 -68 0 q -34 28 -68 0 q -34 28 -68 0 q -34 28 -68 0 Z" fill="#ffffff"/>
 </svg>
