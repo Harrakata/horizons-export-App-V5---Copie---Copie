@@ -43,6 +43,9 @@
   --mobile-tabbar-opacity: 0.62;    /* opacité fond barre d'onglets     */
   --mobile-font-scale: 1;           /* échelle de police                */
   --mobile-header-accent-h: 3px;    /* épaisseur liseré en-tête mobile  */
+  --mobile-tab-icon: 1.15rem;       /* taille icônes barre d'onglets    */
+  --mobile-tabbar-shadow: 0 12px 34px -14px rgba(15, 23, 42, 0.40); /* ombre barre */
+  --mobile-header-radius: 1rem;     /* arrondi carte en-tête mobile     */
 }
 
 .dark {
@@ -324,7 +327,7 @@ aside,
       hsl(var(--card) / var(--mobile-tabbar-opacity, 0.62));
     border: 1px solid hsl(var(--primary) / 0.18);
     border-radius: var(--mobile-card-radius, 1.15rem);
-    box-shadow: 0 12px 34px -14px rgba(15, 23, 42, 0.40), inset 0 1px 0 hsl(0 0% 100% / 0.45);
+    box-shadow: var(--mobile-tabbar-shadow, 0 12px 34px -14px rgba(15, 23, 42, 0.40)), inset 0 1px 0 hsl(0 0% 100% / 0.45);
     backdrop-filter: blur(var(--mobile-tabbar-blur, 22px)) saturate(1.7);
     -webkit-backdrop-filter: blur(var(--mobile-tabbar-blur, 22px)) saturate(1.7);
   }
@@ -374,6 +377,12 @@ aside,
   .mobile-tabbar-item.is-active {
     color: hsl(var(--primary));
     background: hsl(var(--primary) / 0.1);
+  }
+
+  /* Taille des icônes de la barre d'onglets (personnalisable) */
+  .mobile-tabbar-item svg {
+    height: var(--mobile-tab-icon, 1.15rem);
+    width: var(--mobile-tab-icon, 1.15rem);
   }
 
   .mobile-tabbar-item:active {
@@ -482,6 +491,11 @@ aside,
     z-index: 80;
     padding: 0 0.25rem;
     margin-bottom: 0.25rem;
+  }
+
+  /* Arrondi de la carte d'en-tête mobile (personnalisable) */
+  .app-space-mobile-header > div {
+    border-radius: var(--mobile-header-radius, 1rem) !important;
   }
 
   /* Liseré accent : utilise la variable --mobile-header-accent-h */
