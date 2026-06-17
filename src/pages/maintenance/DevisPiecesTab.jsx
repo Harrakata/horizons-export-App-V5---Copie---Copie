@@ -443,15 +443,19 @@ const DevisPiecesTab = () => {
                 Devis basé sur les pièces sorties du stock de maintenance sur la période sélectionnée.
               </CardDescription>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={loadMovements} disabled={isLoading}>
-                <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} /> Actualiser
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" onClick={loadMovements} disabled={isLoading} title="Actualiser">
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                <span className="ml-2 hidden sm:inline">Actualiser</span>
               </Button>
-              <Button variant="outline" onClick={downloadWordQuote}>
-                <Download className="mr-2 h-4 w-4" /> Word
+              <Button variant="outline" onClick={downloadWordQuote} title="Exporter en Word">
+                <Download className="h-4 w-4" />
+                <span className="ml-2 hidden sm:inline">Word</span>
               </Button>
-              <Button onClick={printQuote}>
-                <Printer className="mr-2 h-4 w-4" /> Imprimer / PDF
+              <Button onClick={printQuote} title="Imprimer / PDF">
+                <Printer className="h-4 w-4" />
+                <span className="ml-2">PDF</span>
+                <span className="hidden sm:inline">&nbsp;/ Imprimer</span>
               </Button>
             </div>
           </div>
