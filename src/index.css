@@ -820,6 +820,13 @@ aside,
     max-height: calc(100dvh - 8rem) !important;
   }
 
+  /* Fenêtres à mise en page « bord à bord » (en-tête/corps gérant leur propre
+     padding, ex. fenêtre Diagnostique) : on respecte leur p-0/gap-0. */
+  [role="dialog"][class~="p-0"] {
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+
   [role="dialog"] .text-2xl {
     font-size: 1.05rem !important;
     line-height: 1.35rem !important;

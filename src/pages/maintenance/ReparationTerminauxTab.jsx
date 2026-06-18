@@ -441,23 +441,23 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
                     const isSelected = selectedItem?.id === item.id;
                     return (
                       <div key={item.id} className={isSelected ? 'bg-primary/10' : ''}>
-                        <div className="flex items-center">
+                        <div className="flex items-center min-w-0">
                           <button
-                            className="flex-1 text-left px-3 py-4 transition-colors hover:bg-muted/50"
+                            className="flex-1 min-w-0 text-left px-3 py-4 transition-colors hover:bg-muted/50"
                             onClick={() => loadItemDetail(item)}
                           >
                             <div className="flex items-center gap-2 min-w-0">
                               <span className="font-bold text-base font-mono shrink-0">{item.reference_sous_ensemble}</span>
                               <Badge variant="outline" className="text-sm shrink-0">{SOUS_ENSEMBLE_LABELS[item.type_sous_ensemble] || item.type_sous_ensemble}</Badge>
-                              {item.type_terminal && <span className="text-sm text-muted-foreground shrink-0">· {item.type_terminal}</span>}
+                              {item.type_terminal && <span className="text-sm text-muted-foreground truncate">· {item.type_terminal}</span>}
                             </div>
                           </button>
                           <button
                             className="px-2.5 self-stretch flex items-center justify-center gap-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors shrink-0"
                             onClick={(e) => openSousEnsembleHelp(item, e)}
                           >
-                            <Stethoscope className="h-3.5 w-3.5" />
-                            Diagnostiquer
+                            <Stethoscope className="h-3.5 w-3.5 shrink-0" />
+                            <span className="hidden xs:inline">Diagnostiquer</span>
                           </button>
                           <button
                             className="px-1.5 self-stretch flex items-center justify-center hover:bg-muted/50 transition-colors text-muted-foreground"
@@ -492,8 +492,8 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
                                   const sp = stockPiecesById[mp.piece?.id];
                                   const pieceAction = treatedPieces[item.id]?.[mp.piece?.id];
                                   return (
-                                    <div key={mp.id} className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs transition-colors ${pieceAction ? 'bg-green-50 border-green-200' : 'bg-background'}`}>
-                                      <span className="flex-1 font-medium truncate">{mp.piece?.nom}</span>
+                                    <div key={mp.id} className={`flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-md border px-2.5 py-1.5 text-xs transition-colors ${pieceAction ? 'bg-green-50 border-green-200' : 'bg-background'}`}>
+                                      <span className="flex-1 basis-full sm:basis-0 min-w-0 font-medium truncate">{mp.piece?.nom}</span>
                                       {pieceAction && (
                                         <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${pieceAction === 'nettoyage' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                                           {pieceAction === 'nettoyage' ? '✓ Nettoyée' : '✓ Remplacée'}
@@ -684,14 +684,14 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
                       <Wrench className="h-3.5 w-3.5" /> Pièces du modèle
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="px-4 pb-3 pt-0 space-y-1.5">
+                  <CardContent className="px-4 pb-3 pt-0 space-y-1.5 max-h-[22rem] overflow-y-auto">
                     {itemPieces.length === 0 ? (
                       <p className="text-xs text-muted-foreground">Aucune pièce référencée.</p>
                     ) : itemPieces.map(mp => {
                       const sp = stockPiecesById[mp.piece?.id];
                       return (
-                        <div key={mp.id} className="flex items-center gap-2 rounded-md border bg-background/60 px-3 py-1.5 text-xs">
-                          <div className="flex-1 min-w-0">
+                        <div key={mp.id} className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-md border bg-background/60 px-3 py-1.5 text-xs">
+                          <div className="flex-1 basis-full sm:basis-0 min-w-0 truncate">
                             <span className="font-medium">{mp.piece?.nom}</span>
                             <span className="ml-2 font-mono text-muted-foreground">{mp.piece?.reference}</span>
                           </div>
@@ -731,12 +731,12 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
       <Dialog open={isSEHelpOpen} onOpenChange={setIsSEHelpOpen}>
         <DialogContent className="sm:max-w-lg w-full flex flex-col h-[62vh] p-0 gap-0 overflow-hidden !rounded-2xl">
 
-          {/* Bande de couleur supérieure */}
-          <div className="h-1.5 w-full shrink-0 bg-gradient-to-r from-transparent via-green-400 to-transparent [box-shadow:0_0_16px_4px_rgba(74,222,128,0.55)]" />
+          {/* Bande de couleur supérieure — accent primary (style des fenêtres flottantes) */}
+          <div className="h-1.5 w-full shrink-0 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
 
           {/* Header */}
-          <div className="shrink-0 px-6 pt-5 pb-4 border-b bg-gradient-to-b from-green-50/60 to-white">
-            <h2 className="text-xl font-bold text-green-600 leading-tight">
+          <div className="shrink-0 px-6 pt-5 pb-4 border-b bg-gradient-to-b from-primary/8 to-white">
+            <h2 className="text-xl font-bold text-primary leading-tight">
               {seHelpItem?.reference_sous_ensemble}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
