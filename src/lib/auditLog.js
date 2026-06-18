@@ -105,8 +105,13 @@ export async function fetchAuditLog({
       .order('created_at', { ascending: false })
       .range(page * pageSize, page * pageSize + pageSize - 1);
 
-    if (entity)          query = query.eq('entity', entity);
-    if (action)          query = query.eq('action', action);
+    // entity / action acceptent une valeur unique OU un tableau (multi-filtre).
+    if (Array.isArray(entity) ? entity.length : entity) {
+      query = Array.isArray(entity) ? query.in('entity', entity) : query.eq('entity', entity);
+    }
+    if (Array.isArray(action) ? action.length : action) {
+      query = Array.isArray(action) ? query.in('action', action) : query.eq('action', action);
+    }
     if (search)          query = query.or(`actor_name.ilike.%${search}%,entity_label.ilike.%${search}%`);
     if (spaces?.length)  query = query.in('space', spaces);
 

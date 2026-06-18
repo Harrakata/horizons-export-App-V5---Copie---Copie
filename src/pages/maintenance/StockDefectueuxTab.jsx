@@ -7,6 +7,7 @@ import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogT
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/Combobox';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
@@ -41,7 +42,8 @@ const StockDefectueuxTab = ({ canManage = true, technicienId = null }) => {
   const [agences, setAgences] = useState([]);
   const [techniciens, setTechniciens] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [filters, setFilters] = useState({ type_sous_ensemble: ALL, type_terminal: ALL, statut: ALL });
+  // Filtres multi-select : tableaux de valeurs. Tableau vide = pas de filtre (tout afficher).
+  const [filters, setFilters] = useState({ type_sous_ensemble: [], type_terminal: [], statut: [] });
   const [search, setSearch] = useState('');
 
   const [isAssignOpen, setIsAssignOpen] = useState(false);
@@ -88,9 +90,9 @@ const StockDefectueuxTab = ({ canManage = true, technicienId = null }) => {
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
     return stock
-      .filter(s => filters.type_sous_ensemble === ALL || s.type_sous_ensemble === filters.type_sous_ensemble)
-      .filter(s => filters.type_terminal === ALL || s.type_terminal === filters.type_terminal)
-      .filter(s => filters.statut === ALL || s.statut === filters.statut)
+      .filter(s => filters.type_sous_ensemble.length === 0 || filters.type_sous_ensemble.includes(s.type_sous_ensemble))
+      .filter(s => filters.type_terminal.length === 0 || filters.type_terminal.includes(s.type_terminal))
+      .filter(s => filters.statut.length === 0 || filters.statut.includes(s.statut))
       .filter(s => !term || [s.reference_sous_ensemble, s.type_sous_ensemble, s.technicien_nom, s.agence?.nom, s.commentaire]
         .some(v => String(v || '').toLowerCase().includes(term)));
   }, [stock, filters, search]);
@@ -173,45 +175,41 @@ const StockDefectueuxTab = ({ canManage = true, technicienId = null }) => {
             <KpiStatCard icon={<Wrench />} label="À tester" value={kpis.a_tester} tone="primary" helper="Réparation effectuée, test requis." />
             <KpiStatCard icon={<CheckCircle2 />} label="Réparés" value={kpis.repare} tone="emerald" helper="Disponibles pour réaffectation." />
           </div>
-          {/* Filtres */}
-          <div className="flex flex-wrap items-end gap-3 pt-2">
-            <div className="space-y-1">
-              <Label>Type</Label>
-              <Select value={filters.type_sous_ensemble} onValueChange={v => setFilters(f => ({ ...f, type_sous_ensemble: v }))}>
-                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL}>Tous les types</SelectItem>
-                  {Object.entries(SOUS_ENSEMBLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
+          {/* Filtres multi-sélection — libellé intégré, indication active (bordure) */}
+          <div className="flex flex-wrap items-end gap-2 pt-2">
+            <div className="w-40">
+              <Combobox
+                multi
+                options={[{ value: ALL, label: 'Type' }, ...Object.entries(SOUS_ENSEMBLE_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
+                value={filters.type_sous_ensemble}
+                onSelect={arr => setFilters(f => ({ ...f, type_sous_ensemble: arr }))}
+                searchPlaceholder="Rechercher…"
+                emptyText="Aucun type."
+              />
             </div>
-            <div className="space-y-1">
-              <Label>Terminal</Label>
-              <Select value={filters.type_terminal} onValueChange={v => setFilters(f => ({ ...f, type_terminal: v }))}>
-                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL}>Tous</SelectItem>
-                  <SelectItem value="2020">2020</SelectItem>
-                  <SelectItem value="2031">2031</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="w-36">
+              <Combobox
+                multi
+                options={[{ value: ALL, label: 'Terminal' }, { value: '2020', label: '2020' }, { value: '2031', label: '2031' }]}
+                value={filters.type_terminal}
+                onSelect={arr => setFilters(f => ({ ...f, type_terminal: arr }))}
+                searchPlaceholder="Rechercher…"
+                emptyText="Aucun."
+              />
             </div>
-            <div className="space-y-1">
-              <Label>Statut</Label>
-              <Select value={filters.statut} onValueChange={v => setFilters(f => ({ ...f, statut: v }))}>
-                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL}>Tous les statuts</SelectItem>
-                  {Object.entries(STATUT_CONFIG).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="w-44">
+              <Combobox
+                multi
+                options={[{ value: ALL, label: 'Statut' }, ...Object.entries(STATUT_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))]}
+                value={filters.statut}
+                onSelect={arr => setFilters(f => ({ ...f, statut: arr }))}
+                searchPlaceholder="Rechercher…"
+                emptyText="Aucun statut."
+              />
             </div>
-            <div className="flex-1 space-y-1">
-              <Label>Recherche</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input className="pl-10" placeholder="Référence, agence, technicien..." value={search} onChange={e => setSearch(e.target.value)} />
-              </div>
+            <div className="relative min-w-[180px] flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input className="pl-10" placeholder="Rechercher : référence, agence, technicien..." value={search} onChange={e => setSearch(e.target.value)} />
             </div>
           </div>
         </CardHeader>

@@ -141,12 +141,13 @@ const ConfigurationTab = ({
   const [editingTerminalId, setEditingTerminalId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  // Filtres multi-sélection : tableaux de valeurs (vide = tout afficher).
   const [parkFilters, setParkFilters] = useState({
-    region: ALL_FILTER_VALUE,
-    secteur: ALL_FILTER_VALUE,
-    agenceId: ALL_FILTER_VALUE,
-    type: ALL_FILTER_VALUE,
-    statut: ALL_FILTER_VALUE,
+    region: [],
+    secteur: [],
+    agenceId: [],
+    type: [],
+    statut: [],
     search: '',
   });
 
@@ -354,8 +355,8 @@ const ConfigurationTab = ({
       setFormRegion(resolvedLockedAgence.region || '');
       setParkFilters((previousState) => ({
         ...previousState,
-        region: resolvedLockedAgence.region || ALL_FILTER_VALUE,
-        agenceId: String(resolvedLockedAgence.id),
+        region: resolvedLockedAgence.region ? [resolvedLockedAgence.region] : [],
+        agenceId: [String(resolvedLockedAgence.id)],
       }));
     }
   }, [resolvedLockedAgence]);
@@ -372,7 +373,7 @@ const ConfigurationTab = ({
 
   const regionOptions = useMemo(() => buildRegionOptions(regionSource), [regionSource]);
   const parkRegionOptions = useMemo(
-    () => buildRegionOptions(regionSource, { includeAllLabel: 'Toutes les régions' }),
+    () => buildRegionOptions(regionSource, { includeAllLabel: 'Régions' }),
     [regionSource]
   );
 
@@ -760,15 +761,15 @@ const ConfigurationTab = ({
     () =>
       agences.filter(
         (agence) =>
-          parkFilters.region === ALL_FILTER_VALUE ||
-          normalizeRegionText(agence.region) === normalizeRegionText(parkFilters.region)
+          parkFilters.region.length === 0 ||
+          parkFilters.region.some((r) => normalizeRegionText(r) === normalizeRegionText(agence.region))
       ),
     [agences, parkFilters.region]
   );
 
   const parkAgencyOptions = useMemo(
     () => [
-      { value: ALL_FILTER_VALUE, label: 'Toutes les agences' },
+      { value: ALL_FILTER_VALUE, label: 'Agences' },
       ...filteredAgencesForPark.map((agence) => ({
         value: String(agence.id),
         label: `${agence.nom}${agence.codePDV ? ` • ${agence.codePDV}` : ''}`,
@@ -803,24 +804,24 @@ const ConfigurationTab = ({
     return parkTerminalRows
       .filter(
         (terminal) =>
-          parkFilters.region === ALL_FILTER_VALUE ||
-          normalizeRegionText(terminal.regionNom) === normalizeRegionText(parkFilters.region)
+          parkFilters.region.length === 0 ||
+          parkFilters.region.some((r) => normalizeRegionText(r) === normalizeRegionText(terminal.regionNom))
       )
       .filter(
         (terminal) =>
-          parkFilters.secteur === ALL_FILTER_VALUE ||
-          normalizeRegionText(terminal.secteurNom) === normalizeRegionText(parkFilters.secteur)
+          parkFilters.secteur.length === 0 ||
+          parkFilters.secteur.some((s) => normalizeRegionText(s) === normalizeRegionText(terminal.secteurNom))
       )
       .filter(
         (terminal) =>
-          parkFilters.agenceId === ALL_FILTER_VALUE ||
-          String(terminal.agence_id) === String(parkFilters.agenceId)
+          parkFilters.agenceId.length === 0 ||
+          parkFilters.agenceId.includes(String(terminal.agence_id))
       )
       .filter(
-        (terminal) => parkFilters.type === ALL_FILTER_VALUE || terminal.type_terminal === parkFilters.type
+        (terminal) => parkFilters.type.length === 0 || parkFilters.type.includes(terminal.type_terminal)
       )
       .filter(
-        (terminal) => parkFilters.statut === ALL_FILTER_VALUE || terminal.statut === parkFilters.statut
+        (terminal) => parkFilters.statut.length === 0 || parkFilters.statut.includes(terminal.statut)
       )
       .filter(
         (terminal) =>
@@ -878,7 +879,7 @@ const ConfigurationTab = ({
                     setFormSecteur('');
                     setAgenceId('');
                   }}
-                  placeholder="Choisir une région"
+                  placeholder="Région"
                   searchPlaceholder="Rechercher une région..."
                   emptyText="Aucune région trouvée."
                   disabled={isLoading}
@@ -895,7 +896,7 @@ const ConfigurationTab = ({
                     setFormSecteur(value);
                     setAgenceId('');
                   }}
-                  placeholder={formRegion ? 'Choisir un secteur' : "Choisissez d'abord une région"}
+                  placeholder={formRegion ? 'Secteur' : 'Secteur (région d’abord)'}
                   searchPlaceholder="Rechercher un secteur..."
                   emptyText="Aucun secteur pour cette région."
                   disabled={isLoading || !formRegion}
@@ -918,7 +919,7 @@ const ConfigurationTab = ({
                       setFormSecteur(nextAgency.secteur);
                     }
                   }}
-                  placeholder="Choisir une agence"
+                  placeholder="Agence"
                   searchPlaceholder="Rechercher une agence..."
                   emptyText="Aucune agence trouvée."
                   disabled={isLoading || !formRegion}
@@ -934,7 +935,7 @@ const ConfigurationTab = ({
                 ]}
                 value={formData.type}
                 onSelect={(value) => setFormData((previousState) => ({ ...previousState, type: value }))}
-                placeholder="Choisir un type"
+                placeholder="Type"
                 searchPlaceholder="Rechercher un type..."
                 emptyText="Aucun type trouvé."
                 disabled={isLoading}
@@ -979,7 +980,7 @@ const ConfigurationTab = ({
                 onSelect={(value) =>
                   setFormData((previousState) => ({ ...previousState, imprimante: value }))
                 }
-                placeholder="Choisir une imprimante"
+                placeholder="Imprimante"
                 searchPlaceholder="Rechercher une imprimante..."
                 emptyText="Aucune imprimante disponible."
                 disabled={isLoading}
@@ -991,7 +992,7 @@ const ConfigurationTab = ({
                 options={lecteursOptions}
                 value={formData.lecteur}
                 onSelect={(value) => setFormData((previousState) => ({ ...previousState, lecteur: value }))}
-                placeholder="Choisir un lecteur"
+                placeholder="Lecteur"
                 searchPlaceholder="Rechercher un lecteur..."
                 emptyText="Aucun lecteur disponible."
                 disabled={isLoading}
@@ -1003,7 +1004,7 @@ const ConfigurationTab = ({
                 options={ecransOptions}
                 value={formData.ecran}
                 onSelect={(value) => setFormData((previousState) => ({ ...previousState, ecran: value }))}
-                placeholder="Choisir un écran"
+                placeholder="Écran"
                 searchPlaceholder="Rechercher un écran..."
                 emptyText="Aucun écran disponible."
                 disabled={isLoading}
@@ -1015,7 +1016,7 @@ const ConfigurationTab = ({
                 options={afficheurOptions}
                 value={formData.afficheur}
                 onSelect={(value) => setFormData((previousState) => ({ ...previousState, afficheur: value }))}
-                placeholder="Choisir un afficheur client"
+                placeholder="Afficheur client"
                 searchPlaceholder="Rechercher un afficheur..."
                 emptyText="Aucun afficheur disponible."
                 disabled={isLoading}
@@ -1027,7 +1028,7 @@ const ConfigurationTab = ({
                 options={bucsOptions}
                 value={formData.buc}
                 onSelect={(value) => setFormData((previousState) => ({ ...previousState, buc: value }))}
-                placeholder="Choisir un BUC"
+                placeholder="BUC"
                 searchPlaceholder="Rechercher un BUC..."
                 emptyText="Aucun BUC disponible."
                 disabled={isLoading}
@@ -1039,7 +1040,7 @@ const ConfigurationTab = ({
                 options={carrosseriesOptions}
                 value={formData.carrosserie}
                 onSelect={(value) => setFormData((previousState) => ({ ...previousState, carrosserie: value }))}
-                placeholder="Choisir une carrosserie"
+                placeholder="Carrosserie"
                 searchPlaceholder="Rechercher une carrosserie..."
                 emptyText="Aucune carrosserie disponible."
                 disabled={isLoading}
@@ -1051,7 +1052,7 @@ const ConfigurationTab = ({
                 options={alimentationsOptions}
                 value={formData.alimentation}
                 onSelect={(value) => setFormData((previousState) => ({ ...previousState, alimentation: value }))}
-                placeholder="Choisir une alimentation"
+                placeholder="Alimentation"
                 searchPlaceholder="Rechercher une alimentation..."
                 emptyText="Aucune alimentation disponible."
                 disabled={isLoading}
@@ -1130,17 +1131,17 @@ const ConfigurationTab = ({
               <div className="space-y-2">
                 <Label>Région</Label>
                 <Combobox
+                  multi
                   options={parkRegionOptions}
                   value={parkFilters.region}
-                  onSelect={(value) =>
+                  onSelect={(arr) =>
                     setParkFilters((previousState) => ({
                       ...previousState,
-                      region: value || ALL_FILTER_VALUE,
-                      secteur: ALL_FILTER_VALUE,
-                      agenceId: ALL_FILTER_VALUE,
+                      region: arr,
+                      secteur: [],
+                      agenceId: [],
                     }))
                   }
-                  placeholder="Toutes les régions"
                   searchPlaceholder="Rechercher une région..."
                   emptyText="Aucune région trouvée."
                   disabled={isLoading}
@@ -1151,16 +1152,16 @@ const ConfigurationTab = ({
               <div className="space-y-2">
                 <Label>Secteur</Label>
                 <Combobox
-                  options={[{ value: ALL_FILTER_VALUE, label: 'Tous les secteurs' }, ...parkSecteurOptions.map((s) => ({ value: s, label: s }))]}
+                  multi
+                  options={[{ value: ALL_FILTER_VALUE, label: 'Secteurs' }, ...parkSecteurOptions.map((s) => ({ value: s, label: s }))]}
                   value={parkFilters.secteur}
-                  onSelect={(value) =>
+                  onSelect={(arr) =>
                     setParkFilters((previousState) => ({
                       ...previousState,
-                      secteur: value || ALL_FILTER_VALUE,
-                      agenceId: ALL_FILTER_VALUE,
+                      secteur: arr,
+                      agenceId: [],
                     }))
                   }
-                  placeholder="Tous les secteurs"
                   searchPlaceholder="Rechercher un secteur..."
                   emptyText="Aucun secteur trouvé."
                   disabled={isLoading}
@@ -1171,15 +1172,15 @@ const ConfigurationTab = ({
               <div className="space-y-2">
                 <Label>Agence</Label>
                 <Combobox
+                  multi
                   options={parkAgencyOptions}
                   value={parkFilters.agenceId}
-                  onSelect={(value) =>
+                  onSelect={(arr) =>
                     setParkFilters((previousState) => ({
                       ...previousState,
-                      agenceId: value || ALL_FILTER_VALUE,
+                      agenceId: arr,
                     }))
                   }
-                  placeholder="Toutes les agences"
                   searchPlaceholder="Rechercher une agence..."
                   emptyText="Aucune agence trouvée."
                   disabled={isLoading}
@@ -1189,19 +1190,19 @@ const ConfigurationTab = ({
             <div className="space-y-2">
               <Label>Type</Label>
               <Combobox
+                multi
                 options={[
-                  { value: ALL_FILTER_VALUE, label: 'Tous les types' },
+                  { value: ALL_FILTER_VALUE, label: 'Types' },
                   { value: '2020', label: '2020' },
                   { value: '2031', label: '2031' },
                 ]}
                 value={parkFilters.type}
-                onSelect={(value) =>
+                onSelect={(arr) =>
                   setParkFilters((previousState) => ({
                     ...previousState,
-                    type: value || ALL_FILTER_VALUE,
+                    type: arr,
                   }))
                 }
-                placeholder="Tous les types"
                 searchPlaceholder="Rechercher un type..."
                 emptyText="Aucun type trouvé."
                 disabled={isLoading}
@@ -1210,21 +1211,21 @@ const ConfigurationTab = ({
             <div className="space-y-2">
               <Label>Statut</Label>
               <Combobox
+                multi
                 options={[
-                  { value: ALL_FILTER_VALUE, label: 'Tous les statuts' },
+                  { value: ALL_FILTER_VALUE, label: 'Statuts' },
                   { value: 'Actif', label: 'Actif' },
                   { value: 'Inactif', label: 'Inactif' },
                   { value: 'En maintenance', label: 'En maintenance' },
                   { value: 'Hors service', label: 'Hors service' },
                 ]}
                 value={parkFilters.statut}
-                onSelect={(value) =>
+                onSelect={(arr) =>
                   setParkFilters((previousState) => ({
                     ...previousState,
-                    statut: value || ALL_FILTER_VALUE,
+                    statut: arr,
                   }))
                 }
-                placeholder="Tous les statuts"
                 searchPlaceholder="Rechercher un statut..."
                 emptyText="Aucun statut trouvé."
                 disabled={isLoading}
@@ -1359,7 +1360,7 @@ const ConfigurationTab = ({
                 options={regionOptions}
                 value={formRegion}
                 onSelect={(value) => { if (resolvedLockedAgence) return; setFormRegion(value); setAgenceId(''); }}
-                placeholder="Choisir une région"
+                placeholder="Région"
                 searchPlaceholder="Rechercher une région..."
                 emptyText="Aucune région trouvée."
                 disabled={isLoading || Boolean(resolvedLockedAgence)}
@@ -1371,7 +1372,7 @@ const ConfigurationTab = ({
                 options={agencesOptions}
                 value={agenceId}
                 onSelect={(value) => { setAgenceId(value); const a = agenciesById[String(value)]; if (a?.region) setFormRegion(a.region); }}
-                placeholder="Choisir une agence"
+                placeholder="Agence"
                 searchPlaceholder="Rechercher une agence..."
                 emptyText="Aucune agence trouvée."
                 disabled={isLoading || Boolean(resolvedLockedAgence)}
@@ -1383,7 +1384,7 @@ const ConfigurationTab = ({
                 options={[{ value: '2020', label: '2020' }, { value: '2031', label: '2031' }]}
                 value={formData.type}
                 onSelect={(value) => setFormData((s) => ({ ...s, type: value }))}
-                placeholder="Choisir un type"
+                placeholder="Type"
                 searchPlaceholder="Rechercher un type..."
                 emptyText="Aucun type trouvé."
                 disabled={isLoading}
@@ -1408,31 +1409,31 @@ const ConfigurationTab = ({
             </div>
             <div className="space-y-2">
               <Label>Imprimante</Label>
-              <Combobox options={imprimantesOptions} value={formData.imprimante} onSelect={(v) => setFormData((s) => ({ ...s, imprimante: v }))} placeholder="Choisir une imprimante" searchPlaceholder="Rechercher..." emptyText="Aucune disponible." disabled={isLoading} />
+              <Combobox options={imprimantesOptions} value={formData.imprimante} onSelect={(v) => setFormData((s) => ({ ...s, imprimante: v }))} placeholder="Imprimante" searchPlaceholder="Rechercher..." emptyText="Aucune disponible." disabled={isLoading} />
             </div>
             <div className="space-y-2">
               <Label>Lecteur</Label>
-              <Combobox options={lecteursOptions} value={formData.lecteur} onSelect={(v) => setFormData((s) => ({ ...s, lecteur: v }))} placeholder="Choisir un lecteur" searchPlaceholder="Rechercher..." emptyText="Aucun disponible." disabled={isLoading} />
+              <Combobox options={lecteursOptions} value={formData.lecteur} onSelect={(v) => setFormData((s) => ({ ...s, lecteur: v }))} placeholder="Lecteur" searchPlaceholder="Rechercher..." emptyText="Aucun disponible." disabled={isLoading} />
             </div>
             <div className="space-y-2">
               <Label>Écran</Label>
-              <Combobox options={ecransOptions} value={formData.ecran} onSelect={(v) => setFormData((s) => ({ ...s, ecran: v }))} placeholder="Choisir un écran" searchPlaceholder="Rechercher..." emptyText="Aucun disponible." disabled={isLoading} />
+              <Combobox options={ecransOptions} value={formData.ecran} onSelect={(v) => setFormData((s) => ({ ...s, ecran: v }))} placeholder="Écran" searchPlaceholder="Rechercher..." emptyText="Aucun disponible." disabled={isLoading} />
             </div>
             <div className="space-y-2">
               <Label>Afficheur client</Label>
-              <Combobox options={afficheurOptions} value={formData.afficheur} onSelect={(v) => setFormData((s) => ({ ...s, afficheur: v }))} placeholder="Choisir un afficheur" searchPlaceholder="Rechercher..." emptyText="Aucun disponible." disabled={isLoading} />
+              <Combobox options={afficheurOptions} value={formData.afficheur} onSelect={(v) => setFormData((s) => ({ ...s, afficheur: v }))} placeholder="Afficheur" searchPlaceholder="Rechercher..." emptyText="Aucun disponible." disabled={isLoading} />
             </div>
             <div className="space-y-2">
               <Label>BUC</Label>
-              <Combobox options={bucsOptions} value={formData.buc} onSelect={(v) => setFormData((s) => ({ ...s, buc: v }))} placeholder="Choisir un BUC" searchPlaceholder="Rechercher..." emptyText="Aucun disponible." disabled={isLoading} />
+              <Combobox options={bucsOptions} value={formData.buc} onSelect={(v) => setFormData((s) => ({ ...s, buc: v }))} placeholder="BUC" searchPlaceholder="Rechercher..." emptyText="Aucun disponible." disabled={isLoading} />
             </div>
             <div className="space-y-2">
               <Label>Carrosserie</Label>
-              <Combobox options={carrosseriesOptions} value={formData.carrosserie} onSelect={(v) => setFormData((s) => ({ ...s, carrosserie: v }))} placeholder="Choisir une carrosserie" searchPlaceholder="Rechercher..." emptyText="Aucune disponible." disabled={isLoading} />
+              <Combobox options={carrosseriesOptions} value={formData.carrosserie} onSelect={(v) => setFormData((s) => ({ ...s, carrosserie: v }))} placeholder="Carrosserie" searchPlaceholder="Rechercher..." emptyText="Aucune disponible." disabled={isLoading} />
             </div>
             <div className="space-y-2">
               <Label>Alimentation</Label>
-              <Combobox options={alimentationsOptions} value={formData.alimentation} onSelect={(v) => setFormData((s) => ({ ...s, alimentation: v }))} placeholder="Choisir une alimentation" searchPlaceholder="Rechercher..." emptyText="Aucune disponible." disabled={isLoading} />
+              <Combobox options={alimentationsOptions} value={formData.alimentation} onSelect={(v) => setFormData((s) => ({ ...s, alimentation: v }))} placeholder="Alimentation" searchPlaceholder="Rechercher..." emptyText="Aucune disponible." disabled={isLoading} />
             </div>
           </div>
 

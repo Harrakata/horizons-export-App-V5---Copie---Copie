@@ -54,14 +54,14 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
   const [modelePieces, setModelePieces] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [filters, setFilters] = useState({ sous_ensemble: '__all__', type_terminal: '__all__' });
+  const [filters, setFilters] = useState({ sous_ensemble: [], type_terminal: [] });
   const [search, setSearch] = useState('');
 
   // Filtres dédiés au tab Stock Pièces
   const [stockFilters, setStockFilters] = useState({
-    sous_ensemble: '__all__',
-    type_terminal: '__all__',
-    etat:          '__all__', // __all__ | rupture | faible | dispo
+    sous_ensemble: [],
+    type_terminal: [],
+    etat:          [], // tableau : rupture | faible | dispo
   });
   const [stockSearch, setStockSearch] = useState('');
 
@@ -187,14 +187,16 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
   const filteredStockRows = useMemo(() => {
     const term = stockSearch.trim().toLowerCase();
     return stockRows
-      .filter(s => stockFilters.sous_ensemble === '__all__' || s.sous_ensemble === stockFilters.sous_ensemble)
-      .filter(s => stockFilters.type_terminal === '__all__' || s.type_terminal === 'tous' || s.type_terminal === stockFilters.type_terminal)
+      .filter(s => stockFilters.sous_ensemble.length === 0 || stockFilters.sous_ensemble.includes(s.sous_ensemble))
+      .filter(s => stockFilters.type_terminal.length === 0 || s.type_terminal === 'tous' || stockFilters.type_terminal.includes(s.type_terminal))
       .filter(s => {
-        if (stockFilters.etat === '__all__') return true;
-        if (stockFilters.etat === 'rupture') return s.quantite === 0;
-        if (stockFilters.etat === 'faible')  return s.quantite > 0 && s.quantite <= s.seuil_alerte;
-        if (stockFilters.etat === 'dispo')   return s.quantite > s.seuil_alerte;
-        return true;
+        if (stockFilters.etat.length === 0) return true;
+        return stockFilters.etat.some(e => {
+          if (e === 'rupture') return s.quantite === 0;
+          if (e === 'faible')  return s.quantite > 0 && s.quantite <= s.seuil_alerte;
+          if (e === 'dispo')   return s.quantite > s.seuil_alerte;
+          return false;
+        });
       })
       .filter(s => !term
         || String(s.piece?.nom ?? '').toLowerCase().includes(term)
@@ -202,20 +204,20 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
   }, [stockRows, stockFilters, stockSearch]);
 
   const hasActiveStockFilter =
-    stockFilters.sous_ensemble !== '__all__' ||
-    stockFilters.type_terminal !== '__all__' ||
-    stockFilters.etat !== '__all__' ||
+    stockFilters.sous_ensemble.length > 0 ||
+    stockFilters.type_terminal.length > 0 ||
+    stockFilters.etat.length > 0 ||
     stockSearch.trim() !== '';
 
   const resetStockFilters = () => {
-    setStockFilters({ sous_ensemble: '__all__', type_terminal: '__all__', etat: '__all__' });
+    setStockFilters({ sous_ensemble: [], type_terminal: [], etat: [] });
     setStockSearch('');
   };
 
   const filteredPieces = useMemo(() =>
     pieces
-      .filter(p => filters.sous_ensemble === '__all__' || p.sous_ensemble === filters.sous_ensemble)
-      .filter(p => filters.type_terminal === '__all__' || p.type_terminal === 'tous' || p.type_terminal === filters.type_terminal)
+      .filter(p => filters.sous_ensemble.length === 0 || filters.sous_ensemble.includes(p.sous_ensemble))
+      .filter(p => filters.type_terminal.length === 0 || p.type_terminal === 'tous' || filters.type_terminal.includes(p.type_terminal))
       .filter(p => !search || p.nom.toLowerCase().includes(search.toLowerCase()) || p.reference.toLowerCase().includes(search.toLowerCase())),
     [pieces, filters, search]
   );
@@ -571,44 +573,40 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
                   </CardTitle>
                   <CardDescription>Liste de toutes les pièces disponibles, filtrables par sous-ensemble et type de terminal.</CardDescription>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" onClick={exportCSV}><Download className="mr-2 h-4 w-4" /> Exporter</Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="outline" onClick={exportCSV} title="Exporter"><Download className="h-4 w-4" /><span className="ml-2 hidden sm:inline">Exporter</span></Button>
                   {canManage && (
                     <>
-                      <Button variant="outline" onClick={() => { setImportRows([]); setImportErrors([]); setIsImportOpen(true); }}><FileUp className="mr-2 h-4 w-4" /> Importer</Button>
-                      <Button onClick={() => { setPieceForm(DEFAULT_PIECE); setEditingPiece(null); resetPhotoState(); setIsPieceOpen(true); }}><Plus className="mr-2 h-4 w-4" /> Ajouter une pièce</Button>
+                      <Button variant="outline" onClick={() => { setImportRows([]); setImportErrors([]); setIsImportOpen(true); }} title="Importer"><FileUp className="h-4 w-4" /><span className="ml-2 hidden sm:inline">Importer</span></Button>
+                      <Button onClick={() => { setPieceForm(DEFAULT_PIECE); setEditingPiece(null); resetPhotoState(); setIsPieceOpen(true); }} title="Ajouter une pièce"><Plus className="h-4 w-4" /><span className="ml-2">Ajouter</span><span className="hidden sm:inline">&nbsp;une pièce</span></Button>
                     </>
                   )}
                 </div>
               </div>
-              <div className="flex flex-wrap items-end gap-3 pt-2">
-                <div className="space-y-1">
-                  <Label>Sous-ensemble</Label>
-                  <Select value={filters.sous_ensemble} onValueChange={v => setFilters(f => ({ ...f, sous_ensemble: v }))}>
-                    <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">Tous</SelectItem>
-                      {Object.entries(SOUS_ENSEMBLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+              <div className="flex flex-wrap items-end gap-2 pt-2">
+                <div className="w-44">
+                  <Combobox
+                    multi
+                    options={[{ value: '__all__', label: 'Sous-ensemble' }, ...Object.entries(SOUS_ENSEMBLE_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
+                    value={filters.sous_ensemble}
+                    onSelect={arr => setFilters(f => ({ ...f, sous_ensemble: arr }))}
+                    searchPlaceholder="Rechercher…"
+                    emptyText="Aucun."
+                  />
                 </div>
-                <div className="space-y-1">
-                  <Label>Type terminal</Label>
-                  <Select value={filters.type_terminal} onValueChange={v => setFilters(f => ({ ...f, type_terminal: v }))}>
-                    <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">Tous</SelectItem>
-                      <SelectItem value="2020">2020</SelectItem>
-                      <SelectItem value="2031">2031</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="w-36">
+                  <Combobox
+                    multi
+                    options={[{ value: '__all__', label: 'Type terminal' }, { value: '2020', label: '2020' }, { value: '2031', label: '2031' }]}
+                    value={filters.type_terminal}
+                    onSelect={arr => setFilters(f => ({ ...f, type_terminal: arr }))}
+                    searchPlaceholder="Rechercher…"
+                    emptyText="Aucun."
+                  />
                 </div>
-                <div className="flex-1 space-y-1">
-                  <Label>Recherche</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input className="pl-10" placeholder="Nom, référence..." value={search} onChange={e => setSearch(e.target.value)} />
-                  </div>
+                <div className="relative min-w-[180px] flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input className="pl-10" placeholder="Rechercher : nom, référence..." value={search} onChange={e => setSearch(e.target.value)} />
                 </div>
               </div>
             </CardHeader>
@@ -1019,77 +1017,71 @@ const PiecesSousEnsemblesTab = ({ canManage = true }) => {
               <div className="grid gap-3 grid-cols-3 pt-2 sm:gap-4">
                 <button
                   type="button"
-                  onClick={() => setStockFilters(f => ({ ...f, etat: f.etat === 'rupture' ? '__all__' : 'rupture' }))}
-                  className={`rounded-2xl text-left transition-all hover:shadow-md ${stockFilters.etat === 'rupture' ? 'ring-2 ring-red-500' : ''}`}
+                  onClick={() => setStockFilters(f => ({ ...f, etat: f.etat.includes('rupture') ? f.etat.filter(x => x !== 'rupture') : [...f.etat, 'rupture'] }))}
+                  className={`rounded-2xl text-left transition-all hover:shadow-md ${stockFilters.etat.includes('rupture') ? 'ring-2 ring-red-500' : ''}`}
                 >
                   <KpiStatCard icon={<AlertOctagon />} label="Ruptures de stock" value={stockRows.filter(s => s.quantite === 0).length} tone="red" helper="Quantité à zéro." />
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStockFilters(f => ({ ...f, etat: f.etat === 'faible' ? '__all__' : 'faible' }))}
-                  className={`rounded-2xl text-left transition-all hover:shadow-md ${stockFilters.etat === 'faible' ? 'ring-2 ring-amber-500' : ''}`}
+                  onClick={() => setStockFilters(f => ({ ...f, etat: f.etat.includes('faible') ? f.etat.filter(x => x !== 'faible') : [...f.etat, 'faible'] }))}
+                  className={`rounded-2xl text-left transition-all hover:shadow-md ${stockFilters.etat.includes('faible') ? 'ring-2 ring-amber-500' : ''}`}
                 >
                   <KpiStatCard icon={<AlertTriangle />} label="Stock faible" value={stockRows.filter(s => s.quantite > 0 && s.quantite <= s.seuil_alerte).length} tone="amber" helper="Sous le seuil d'alerte." />
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStockFilters(f => ({ ...f, etat: f.etat === 'dispo' ? '__all__' : 'dispo' }))}
-                  className={`rounded-2xl text-left transition-all hover:shadow-md ${stockFilters.etat === 'dispo' ? 'ring-2 ring-emerald-500' : ''}`}
+                  onClick={() => setStockFilters(f => ({ ...f, etat: f.etat.includes('dispo') ? f.etat.filter(x => x !== 'dispo') : [...f.etat, 'dispo'] }))}
+                  className={`rounded-2xl text-left transition-all hover:shadow-md ${stockFilters.etat.includes('dispo') ? 'ring-2 ring-emerald-500' : ''}`}
                 >
                   <KpiStatCard icon={<CheckCircle2 />} label="Disponibles" value={stockRows.filter(s => s.quantite > s.seuil_alerte).length} tone="emerald" helper="Au-dessus du seuil." />
                 </button>
               </div>
 
-              {/* Filtres */}
-              <div className="flex flex-wrap items-end gap-3 pt-4">
-                <div className="space-y-1">
-                  <Label>Sous-ensemble</Label>
-                  <Select value={stockFilters.sous_ensemble} onValueChange={v => setStockFilters(f => ({ ...f, sous_ensemble: v }))}>
-                    <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">Tous</SelectItem>
-                      {Object.entries(SOUS_ENSEMBLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+              {/* Filtres — libellé intégré au champ (option « tout » = libellé court) */}
+              <div className="flex flex-wrap items-end gap-2 pt-4">
+                <div className="w-44">
+                  <Combobox
+                    multi
+                    options={[{ value: '__all__', label: 'Sous-ensemble' }, ...Object.entries(SOUS_ENSEMBLE_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
+                    value={stockFilters.sous_ensemble}
+                    onSelect={arr => setStockFilters(f => ({ ...f, sous_ensemble: arr }))}
+                    searchPlaceholder="Rechercher…"
+                    emptyText="Aucun."
+                  />
                 </div>
-                <div className="space-y-1">
-                  <Label>Type terminal</Label>
-                  <Select value={stockFilters.type_terminal} onValueChange={v => setStockFilters(f => ({ ...f, type_terminal: v }))}>
-                    <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">Tous</SelectItem>
-                      <SelectItem value="2020">2020</SelectItem>
-                      <SelectItem value="2031">2031</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="w-36">
+                  <Combobox
+                    multi
+                    options={[{ value: '__all__', label: 'Type terminal' }, { value: '2020', label: '2020' }, { value: '2031', label: '2031' }]}
+                    value={stockFilters.type_terminal}
+                    onSelect={arr => setStockFilters(f => ({ ...f, type_terminal: arr }))}
+                    searchPlaceholder="Rechercher…"
+                    emptyText="Aucun."
+                  />
                 </div>
-                <div className="space-y-1">
-                  <Label>État</Label>
-                  <Select value={stockFilters.etat} onValueChange={v => setStockFilters(f => ({ ...f, etat: v }))}>
-                    <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">Tous</SelectItem>
-                      <SelectItem value="rupture">Rupture</SelectItem>
-                      <SelectItem value="faible">Stock faible</SelectItem>
-                      <SelectItem value="dispo">Disponible</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="w-40">
+                  <Combobox
+                    multi
+                    options={[{ value: '__all__', label: 'État' }, { value: 'rupture', label: 'Rupture' }, { value: 'faible', label: 'Stock faible' }, { value: 'dispo', label: 'Disponible' }]}
+                    value={stockFilters.etat}
+                    onSelect={arr => setStockFilters(f => ({ ...f, etat: arr }))}
+                    searchPlaceholder="Rechercher…"
+                    emptyText="Aucun."
+                  />
                 </div>
-                <div className="flex-1 min-w-[200px] space-y-1">
-                  <Label>Recherche</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input className="pl-10 pr-9" placeholder="Nom, référence..." value={stockSearch} onChange={e => setStockSearch(e.target.value)} />
-                    {stockSearch && (
-                      <button
-                        type="button"
-                        onClick={() => setStockSearch('')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
+                <div className="relative min-w-[200px] flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input className="pl-10 pr-9" placeholder="Rechercher : nom, référence..." value={stockSearch} onChange={e => setStockSearch(e.target.value)} />
+                  {stockSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setStockSearch('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
                 {hasActiveStockFilter && (
                   <Button variant="ghost" size="sm" onClick={resetStockFilters} className="text-xs">

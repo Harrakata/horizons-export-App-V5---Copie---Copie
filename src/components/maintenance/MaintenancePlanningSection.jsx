@@ -18,6 +18,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/Combobox';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
@@ -138,12 +139,14 @@ const MaintenancePlanningSection = ({
       currentPlanning: null,
     })
   );
+  // Filtres multi-sélection : tableaux de valeurs. Vide = pas de filtre (tout afficher).
+  // Les modes verrouillés (chef d'agence/secteur) restent gérés via les props lockedX.
   const [filters, setFilters] = useState({
-    region: lockedRegion || ALL_FILTER_VALUE,
-    agenceId: lockedAgenceId ? String(lockedAgenceId) : ALL_FILTER_VALUE,
-    technicienId: lockedTechnicienId ? String(lockedTechnicienId) : ALL_FILTER_VALUE,
-    creneau: ALL_FILTER_VALUE,
-    statut: ALL_FILTER_VALUE,
+    region: [],
+    agenceId: [],
+    technicienId: [],
+    creneau: [],
+    statut: [],
   });
 
   const loadData = useCallback(async () => {
@@ -298,20 +301,20 @@ const MaintenancePlanningSection = ({
   );
 
   const regionOptions = useMemo(
-    () => buildRegionOptions(regions, { includeAllLabel: 'Toutes les régions' }),
+    () => buildRegionOptions(regions, { includeAllLabel: 'Régions' }),
     [regions]
   );
 
   const visibleAgences = useMemo(() => {
     if (resolvedLockedAgency) return [resolvedLockedAgency];
 
+    const effectiveRegions = lockedRegion ? [lockedRegion] : filters.region;
     return agences.filter(
       (agence) =>
-        filters.region === ALL_FILTER_VALUE ||
-        !filters.region ||
-        normalizeMaintenanceText(agence.region) === normalizeMaintenanceText(filters.region)
+        effectiveRegions.length === 0 ||
+        effectiveRegions.some((r) => normalizeMaintenanceText(r) === normalizeMaintenanceText(agence.region))
     );
-  }, [agences, filters.region, resolvedLockedAgency]);
+  }, [agences, filters.region, lockedRegion, resolvedLockedAgency]);
 
   const filteredRows = useMemo(() => {
     const normalizedSearch = normalizeMaintenanceText(searchTerm);
@@ -320,26 +323,26 @@ const MaintenancePlanningSection = ({
       .filter((row) =>
         resolvedLockedAgency
           ? String(row.agence_id) === String(resolvedLockedAgency.id)
-          : filters.agenceId === ALL_FILTER_VALUE
+          : filters.agenceId.length === 0
             ? true
-            : String(row.agence_id) === String(filters.agenceId)
+            : filters.agenceId.includes(String(row.agence_id))
       )
       .filter((row) =>
         lockedTechnicienId
           ? String(row.technicien_id) === String(lockedTechnicienId)
-          : filters.technicienId === ALL_FILTER_VALUE
+          : filters.technicienId.length === 0
             ? true
-            : String(row.technicien_id) === String(filters.technicienId)
+            : filters.technicienId.includes(String(row.technicien_id))
       )
       .filter((row) =>
         lockedRegion || resolvedLockedAgency?.region
           ? normalizeMaintenanceText(row.regionNom) === normalizeMaintenanceText(lockedRegion || resolvedLockedAgency?.region)
-          : filters.region === ALL_FILTER_VALUE
+          : filters.region.length === 0
             ? true
-            : normalizeMaintenanceText(row.regionNom) === normalizeMaintenanceText(filters.region)
+            : filters.region.some((r) => normalizeMaintenanceText(r) === normalizeMaintenanceText(row.regionNom))
       )
-      .filter((row) => (filters.creneau === ALL_FILTER_VALUE ? true : row.creneau === filters.creneau))
-      .filter((row) => (filters.statut === ALL_FILTER_VALUE ? true : row.executionStatus === filters.statut))
+      .filter((row) => (filters.creneau.length === 0 ? true : filters.creneau.includes(row.creneau)))
+      .filter((row) => (filters.statut.length === 0 ? true : filters.statut.includes(row.executionStatus)))
       .filter((row) => !normalizedSearch || row.searchBlob.includes(normalizedSearch));
   }, [filters.agenceId, filters.creneau, filters.region, filters.statut, filters.technicienId, lockedRegion, lockedTechnicienId, planningRows, resolvedLockedAgency, searchTerm]);
 
@@ -446,7 +449,7 @@ const MaintenancePlanningSection = ({
   // couverts), regroupées par jour + agence + créneau, en respectant les filtres.
   const realizedByDate = useMemo(() => {
     // Le filtre « Suivi » sur planifiée / non effectuée / annulée masque la couche réalisée.
-    if (filters.statut !== ALL_FILTER_VALUE && filters.statut !== 'effectuee') return {};
+    if (filters.statut.length > 0 && !filters.statut.includes('effectuee')) return {};
 
     const lockedRegionValue = lockedRegion || resolvedLockedAgency?.region || '';
     const groups = {};
@@ -470,26 +473,26 @@ const MaintenancePlanningSection = ({
       // Filtres
       if (resolvedLockedAgency) {
         if (agenceId !== String(resolvedLockedAgency.id)) return;
-      } else if (filters.agenceId !== ALL_FILTER_VALUE && agenceId !== String(filters.agenceId)) {
+      } else if (filters.agenceId.length > 0 && !filters.agenceId.includes(agenceId)) {
         return;
       }
       if (lockedRegionValue) {
         if (normalizeMaintenanceText(regionNom) !== normalizeMaintenanceText(lockedRegionValue)) return;
       } else if (
-        filters.region !== ALL_FILTER_VALUE &&
-        normalizeMaintenanceText(regionNom) !== normalizeMaintenanceText(filters.region)
+        filters.region.length > 0 &&
+        !filters.region.some((r) => normalizeMaintenanceText(r) === normalizeMaintenanceText(regionNom))
       ) {
         return;
       }
       if (lockedTechnicienId) {
         if (String(intervention.technicien_id) !== String(lockedTechnicienId)) return;
       } else if (
-        filters.technicienId !== ALL_FILTER_VALUE &&
-        String(intervention.technicien_id) !== String(filters.technicienId)
+        filters.technicienId.length > 0 &&
+        !filters.technicienId.includes(String(intervention.technicien_id))
       ) {
         return;
       }
-      if (filters.creneau !== ALL_FILTER_VALUE && creneau !== filters.creneau) return;
+      if (filters.creneau.length > 0 && !filters.creneau.includes(creneau)) return;
 
       // Regroupement par agence (toutes les interventions d'une agence sur la
       // journée sont réunies, quel que soit le créneau).
@@ -530,7 +533,7 @@ const MaintenancePlanningSection = ({
 
   const technicienOptions = useMemo(
     () => [
-      { value: ALL_FILTER_VALUE, label: 'Tous les techniciens' },
+      { value: ALL_FILTER_VALUE, label: 'Techniciens' },
       ...techniciens.map((technicien) => ({
         value: String(technicien.id),
         label: `${technicien.prenom} ${technicien.nom}${technicien.matricule ? ` • ${technicien.matricule}` : ''}`,
@@ -896,118 +899,66 @@ const MaintenancePlanningSection = ({
 
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
             {showRegionColumn && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Région</p>
-                <Select
-                  value={filters.region}
-                  onValueChange={(value) =>
-                    setFilters((previousState) => ({
-                      ...previousState,
-                      region: value,
-                      agenceId: ALL_FILTER_VALUE,
-                    }))
-                  }
-                  disabled={isLoading}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Toutes les régions" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {regionOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Combobox
+                multi
+                options={regionOptions}
+                value={filters.region}
+                onSelect={(arr) => setFilters((p) => ({ ...p, region: arr, agenceId: [] }))}
+                searchPlaceholder="Rechercher une région…"
+                emptyText="Aucune région."
+                disabled={isLoading}
+              />
             )}
 
             {showAgenceColumn && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Agence</p>
-                <Select
-                  value={filters.agenceId}
-                  onValueChange={(value) => setFilters((previousState) => ({ ...previousState, agenceId: value }))}
-                  disabled={isLoading}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Toutes les agences" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={ALL_FILTER_VALUE}>Toutes les agences</SelectItem>
-                    {visibleAgences.map((agence) => (
-                      <SelectItem key={agence.id} value={String(agence.id)}>
-                        {agence.nom}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Combobox
+                multi
+                options={[{ value: ALL_FILTER_VALUE, label: 'Agences' }, ...visibleAgences.map((agence) => ({ value: String(agence.id), label: agence.nom }))]}
+                value={filters.agenceId}
+                onSelect={(arr) => setFilters((p) => ({ ...p, agenceId: arr }))}
+                searchPlaceholder="Rechercher une agence…"
+                emptyText="Aucune agence."
+                disabled={isLoading}
+              />
             )}
 
             {showTechnicienColumn && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Technicien</p>
-                <Select
-                  value={filters.technicienId}
-                  onValueChange={(value) => setFilters((previousState) => ({ ...previousState, technicienId: value }))}
-                  disabled={isLoading}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Tous les techniciens" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {technicienOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Combobox
+                multi
+                options={technicienOptions}
+                value={filters.technicienId}
+                onSelect={(arr) => setFilters((p) => ({ ...p, technicienId: arr }))}
+                searchPlaceholder="Rechercher un technicien…"
+                emptyText="Aucun technicien."
+                disabled={isLoading}
+              />
             )}
 
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Créneau</p>
-              <Select
-                value={filters.creneau}
-                onValueChange={(value) => setFilters((previousState) => ({ ...previousState, creneau: value }))}
-                disabled={isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Tous les créneaux" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_FILTER_VALUE}>Tous les créneaux</SelectItem>
-                  {MAINTENANCE_SHIFT_OPTIONS.map((shift) => (
-                    <SelectItem key={shift.value} value={shift.value}>
-                      {shift.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Combobox
+              multi
+              options={[{ value: ALL_FILTER_VALUE, label: 'Créneaux' }, ...MAINTENANCE_SHIFT_OPTIONS]}
+              value={filters.creneau}
+              onSelect={(arr) => setFilters((p) => ({ ...p, creneau: arr }))}
+              searchPlaceholder="Rechercher…"
+              emptyText="Aucun créneau."
+              disabled={isLoading}
+            />
 
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Suivi</p>
-              <Select
-                value={filters.statut}
-                onValueChange={(value) => setFilters((previousState) => ({ ...previousState, statut: value }))}
-                disabled={isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Tous les suivis" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_FILTER_VALUE}>Tous les suivis</SelectItem>
-                  <SelectItem value="planifiee">Planifiée</SelectItem>
-                  <SelectItem value="effectuee">Effectuée</SelectItem>
-                  <SelectItem value="non_effectuee">Non effectuée</SelectItem>
-                  <SelectItem value="annulee">Annulée</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Combobox
+              multi
+              options={[
+                { value: ALL_FILTER_VALUE, label: 'Suivis' },
+                { value: 'planifiee', label: 'Planifiée' },
+                { value: 'effectuee', label: 'Effectuée' },
+                { value: 'non_effectuee', label: 'Non effectuée' },
+                { value: 'annulee', label: 'Annulée' },
+              ]}
+              value={filters.statut}
+              onSelect={(arr) => setFilters((p) => ({ ...p, statut: arr }))}
+              searchPlaceholder="Rechercher…"
+              emptyText="Aucun suivi."
+              disabled={isLoading}
+            />
 
             <div className="space-y-2 col-span-2 md:col-span-3 xl:col-span-5">
               <p className="text-sm font-medium">Recherche</p>

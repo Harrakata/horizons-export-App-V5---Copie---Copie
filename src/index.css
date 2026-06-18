@@ -209,6 +209,30 @@ aside,
   background: hsl(var(--primary));
 }
 
+/* ── Libellés de filtres intégrés au champ (UI épurée) ──────────────────────
+   Dans les grilles de filtres/sélecteurs (contenant un Select ou un Combobox),
+   on masque visuellement le libellé séparé : le contrôle porte déjà le libellé
+   via sa valeur ou son placeholder (« Toutes les régions », « Choisir… »).
+   Hiding « visually-hidden » (et non display:none) → le lecteur d'écran continue
+   d'annoncer le libellé. Scopé à la zone espace ; les modales ne sont pas touchées. */
+.app-space-main .grid:has(> div [data-radix-select-trigger]) > div > p.font-medium,
+.app-space-main .grid:has(> div [data-radix-select-trigger]) > div > label.font-medium,
+.app-space-main .grid:has(> div button[role="combobox"]) > div > p.font-medium,
+.app-space-main .grid:has(> div button[role="combobox"]) > div > label.font-medium,
+/* Panneaux de formulaire en colonne : cellule « grid gap-2 » = libellé + contrôle */
+.app-space-main .grid.gap-2:has(> input, > textarea, > [data-radix-select-trigger], > button[role="combobox"], > .relative) > label.font-medium,
+.app-space-main .grid.gap-2:has(> input, > textarea, > [data-radix-select-trigger], > button[role="combobox"], > .relative) > p.font-medium {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
 /* Téléphones uniquement : le menu d'espace passe en tiroir.
    Les tablettes (≥ 768px) conservent la mise en page PC (barre latérale verticale). */
 @media (max-width: 767px) {
