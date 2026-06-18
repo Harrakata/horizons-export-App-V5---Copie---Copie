@@ -942,6 +942,24 @@ aside,
     content: none;
   }
 
+  /* ── Variante dense : cartes plus compactes (opt-in via .responsive-cards-dense) ── */
+  table.responsive-cards.responsive-cards-dense tr {
+    margin-bottom: 0.3rem;
+    border-radius: 0.55rem;
+    padding: 0.05rem 0.55rem;
+    font-size: 0.72rem;
+  }
+
+  table.responsive-cards.responsive-cards-dense td {
+    padding: 0.08rem 0 !important;
+    gap: 0.5rem;
+    line-height: 1.1;
+  }
+
+  table.responsive-cards.responsive-cards-dense td::before {
+    font-size: 0.66rem;
+  }
+
   /* ── Personnalisation App Mobile : désactivation des animations ── */
   body.mobile-no-anim .app-space-main *,
   body.mobile-no-anim .mobile-tabbar,

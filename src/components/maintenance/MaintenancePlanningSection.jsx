@@ -844,56 +844,62 @@ const MaintenancePlanningSection = ({
             />
           </div>
 
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="icon" onClick={handlePrev} disabled={isLoading}>
+          <div className="flex flex-col gap-1.5 lg:flex-row lg:items-center lg:justify-between">
+            {/* Navigation période — barre intégrée */}
+            <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/20 px-1 py-0.5">
+              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handlePrev} disabled={isLoading}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <h2 className="text-lg font-semibold text-foreground whitespace-nowrap">
+              <h2 className="flex-1 px-1 text-center text-sm font-semibold capitalize text-foreground whitespace-nowrap sm:text-base">
                 {format(currentCalendarDate, viewMode === 'month' ? 'MMMM yyyy' : "'Semaine du' dd MMMM", { locale: fr })}
               </h2>
-              <Button variant="outline" size="icon" onClick={handleNext} disabled={isLoading}>
+              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleNext} disabled={isLoading}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
-              <Button size="sm" variant="outline" onClick={handleToday} disabled={isLoading}>
-                Aujourd&apos;hui
+              <Button size="sm" variant="outline" className="h-7 shrink-0 px-2 text-xs" onClick={handleToday} disabled={isLoading}>
+                <span className="sm:hidden">Auj.</span>
+                <span className="hidden sm:inline">Aujourd&apos;hui</span>
               </Button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Actions — barre intégrée */}
+            <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-muted/20 px-1 py-0.5">
               <Input
                 type="date"
                 value={planningMapDate}
                 onChange={(event) => setPlanningMapDate(event.target.value || extractMaintenancePlanningDateKey(new Date()))}
-                className="h-9 w-[8.5rem] sm:w-[160px]"
+                className="h-7 w-[7.5rem] text-xs sm:w-[150px]"
                 disabled={isLoading}
                 title="Journée à visualiser sur la carte"
               />
-              <Button
-                size="sm"
-                variant={showPlanningMap ? 'default' : 'outline'}
-                onClick={() => setShowPlanningMap((currentValue) => !currentValue)}
-                disabled={isLoading}
-                title={showPlanningMap ? 'Masquer la carte' : 'Visualiser sur la carte'}
-              >
-                <MapPinned className="h-4 w-4" />
-                <span className="ml-1.5 sm:hidden">{showPlanningMap ? 'Masquer' : 'Carte'}</span>
-                <span className="ml-1.5 hidden sm:inline">{showPlanningMap ? 'Masquer la carte' : 'Visualiser sur carte'}</span>
-              </Button>
-              {canManage && (
-                <>
-                <Button size="sm" variant="outline" onClick={() => handleCopyPrevious('week')} disabled={isLoading} title="Copier le planning de la semaine précédente">
-                  <Copy className="h-4 w-4" />
-                  <span className="ml-1.5">Sem.</span>
-                  <span className="hidden sm:inline">&nbsp;précéd.</span>
+              <div className="inline-flex items-center divide-x divide-border overflow-hidden rounded-md border border-input">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={`h-7 rounded-none px-2 text-xs ${showPlanningMap ? 'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground' : ''}`}
+                  onClick={() => setShowPlanningMap((currentValue) => !currentValue)}
+                  disabled={isLoading}
+                  title={showPlanningMap ? 'Masquer la carte' : 'Visualiser sur la carte'}
+                >
+                  <MapPinned className="h-4 w-4" />
+                  <span className="ml-1.5 sm:hidden">{showPlanningMap ? 'Masquer' : 'Carte'}</span>
+                  <span className="ml-1.5 hidden sm:inline">{showPlanningMap ? 'Masquer la carte' : 'Visualiser sur carte'}</span>
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => handleCopyPrevious('month')} disabled={isLoading} title="Copier le planning du mois précédent">
-                  <Copy className="h-4 w-4" />
-                  <span className="ml-1.5">Mois</span>
-                  <span className="hidden sm:inline">&nbsp;précéd.</span>
-                </Button>
-                </>
-              )}
+                {canManage && (
+                  <>
+                  <Button size="sm" variant="ghost" className="h-7 rounded-none px-2 text-xs" onClick={() => handleCopyPrevious('week')} disabled={isLoading} title="Copier le planning de la semaine précédente">
+                    <Copy className="h-4 w-4" />
+                    <span className="ml-1.5">Sem.</span>
+                    <span className="hidden sm:inline">&nbsp;précéd.</span>
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 rounded-none px-2 text-xs" onClick={() => handleCopyPrevious('month')} disabled={isLoading} title="Copier le planning du mois précédent">
+                    <Copy className="h-4 w-4" />
+                    <span className="ml-1.5">Mois</span>
+                    <span className="hidden sm:inline">&nbsp;précéd.</span>
+                  </Button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 

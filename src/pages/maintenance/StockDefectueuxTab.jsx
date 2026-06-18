@@ -214,11 +214,11 @@ const StockDefectueuxTab = ({ canManage = true, technicienId = null }) => {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
+          <Table containerClassName="max-h-[60vh]">
             <TableCaption>
               {filtered.length === 0 ? 'Aucun sous-ensemble défectueux.' : `${filtered.length} sous-ensemble(s).`}
             </TableCaption>
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm">
               <TableRow>
                 <TableHead>Référence</TableHead>
                 <TableHead>Type</TableHead>
