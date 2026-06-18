@@ -2352,14 +2352,14 @@ const MaintenanceTab = ({ technicien }) => {
         {step === 1 && (
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-primary">Sélection du Terminal</h3>
-          <div className="mobile-inline-fields grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="mobile-inline-fields grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
             <div className="space-y-2">
                   <Label htmlFor="region">Région</Label>
                   <Combobox
                     options={regionsOptions}
                     value={form.region}
                     onSelect={(v) => setForm((f) => ({ ...f, region: v, secteur: '', agence: '', terminal: '' }))}
-                    placeholder="Choisir une région"
+                    placeholder="Région"
                     searchPlaceholder="Rechercher une région..."
                     emptyText="Aucune région trouvée."
                     disabled={isLoading}
@@ -2372,7 +2372,7 @@ const MaintenanceTab = ({ technicien }) => {
                     options={secteurOptions}
                     value={form.secteur}
                     onSelect={(v) => setForm((f) => ({ ...f, secteur: v, agence: '', terminal: '' }))}
-                    placeholder={form.region ? 'Choisir un secteur' : "Choisissez d'abord une région"}
+                    placeholder={form.region ? 'Secteur' : 'Secteur (région d’abord)'}
                     searchPlaceholder="Rechercher un secteur..."
                     emptyText="Aucun secteur pour cette région."
                     disabled={isLoading || !form.region}
@@ -2388,10 +2388,10 @@ const MaintenanceTab = ({ technicien }) => {
                       const a = agences.find((x) => String(x.id) === String(v));
                       setForm((f) => ({ ...f, agence: v, region: a?.region || f.region, secteur: a?.secteur || f.secteur, terminal: '' }));
                     }}
-                    placeholder={!form.region ? "Choisissez d'abord une région" : (!form.secteur ? "Choisissez d'abord un secteur" : 'Choisir une agence')}
+                    placeholder={form.region ? 'Agence' : 'Agence (région d’abord)'}
                     searchPlaceholder="Rechercher une agence..."
                     emptyText="Aucune agence trouvée."
-                    disabled={isLoading || !form.region || !form.secteur}
+                    disabled={isLoading || !form.region}
                   />
             </div>
                 
@@ -2401,7 +2401,7 @@ const MaintenanceTab = ({ technicien }) => {
                     options={terminauxOptions}
                     value={form.terminal}
                     onSelect={handleChange('terminal')}
-                    placeholder={form.agence ? 'Choisir un terminal' : "Choisissez d'abord une agence"}
+                    placeholder={form.agence ? 'Terminal' : 'Terminal (agence d’abord)'}
                     searchPlaceholder="Rechercher un terminal..."
                     emptyText="Aucun terminal trouvé pour cette agence."
                     disabled={!form.agence || isLoading}
@@ -2436,7 +2436,7 @@ const MaintenanceTab = ({ technicien }) => {
                     options={sousEnsemblesOptions}
                     value={form.sousEnsemble}
                     onSelect={handleChange('sousEnsemble')}
-                    placeholder={form.terminal ? 'Choisir un sous-ensemble' : "Choisissez d'abord un terminal"}
+                    placeholder={form.terminal ? 'Sous-ensemble' : 'Sous-ensemble (terminal d’abord)'}
                     searchPlaceholder="Rechercher un équipement..."
                     emptyText="Aucun équipement associé à ce terminal."
                     disabled={!form.terminal || isLoading}
