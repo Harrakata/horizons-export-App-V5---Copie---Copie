@@ -168,7 +168,7 @@ const StockDefectueuxTab = ({ canManage = true, technicienId = null }) => {
           </CardTitle>
           <CardDescription>Suivi des sous-ensembles défectueux, assignation aux techniciens et état de réparation.</CardDescription>
           {/* KPIs */}
-          <div className="grid gap-4 grid-cols-2 md:grid-cols-5 pt-2">
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-5 pt-2 kpi-grid-dense">
             <KpiStatCard icon={<Package />} label="Total" value={kpis.total} tone="primary" helper="Tous les sous-ensembles défectueux." />
             <KpiStatCard icon={<AlertTriangle />} label="Non assignés" value={kpis.defectueux} tone="red" helper="À prendre en charge." />
             <KpiStatCard icon={<UserCheck />} label="Assignés" value={kpis.assigne} tone="primary" helper="En cours de réparation." />

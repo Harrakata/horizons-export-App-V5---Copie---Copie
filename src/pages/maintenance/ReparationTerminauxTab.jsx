@@ -433,7 +433,7 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
                   {isLoading ? 'Chargement...' : 'Aucun sous-ensemble à traiter.'}
                 </p>
               ) : (
-                <div className="divide-y">
+                <div className="divide-y max-h-[32rem] overflow-y-auto">
                   {filteredStock.map(item => {
                     const isExpanded = expandedItems.has(item.id);
                     const cachedPieces = itemPiecesCache[item.id];
@@ -888,13 +888,13 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
         <DialogContent className="sm:max-w-lg w-full flex flex-col h-[62vh] p-0 gap-0 overflow-hidden !rounded-2xl">
 
           {/* Bande de couleur supérieure */}
-          <div className="h-1.5 w-full shrink-0 bg-gradient-to-r from-transparent via-green-400 to-transparent [box-shadow:0_0_16px_4px_rgba(74,222,128,0.55)]" />
+          <div className="h-1.5 w-full shrink-0 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
 
           {/* Header */}
-          <div className="shrink-0 px-6 pt-5 pb-0 border-b bg-gradient-to-b from-green-50/60 to-white">
+          <div className="shrink-0 px-6 pt-5 pb-0 border-b bg-gradient-to-b from-primary/8 to-white">
             <div className="flex items-start justify-between gap-2 pb-3">
               <div className="min-w-0">
-                <h2 className="text-xl font-bold text-green-600 leading-tight truncate">
+                <h2 className="text-xl font-bold text-primary leading-tight truncate">
                   {selectedPieceHelp?.nom}
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">Guide de diagnostic par symptôme</p>
@@ -902,7 +902,7 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
               {wizardFromSEHelp && (
                 <button
                   onClick={() => { setIsHelpOpen(false); setIsSEHelpOpen(true); }}
-                  className="shrink-0 flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:border-green-400 hover:text-green-600 transition-colors"
+                  className="shrink-0 flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors"
                 >
                   <ChevronLeft className="h-3 w-3" /> Formulaire Diagnostique
                 </button>
@@ -929,7 +929,7 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
                   onClick={() => setHelpTab(tab.id)}
                   className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${
                     helpTab === tab.id
-                      ? 'border-green-500 text-green-600'
+                      ? 'border-primary text-primary'
                       : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
                   }`}
                 >

@@ -445,6 +445,11 @@ aside,
     gap: 0.5rem !important;
   }
 
+  /* Variante dense : 3 KPI par ligne sur mobile (opt-in via .kpi-grid-dense) */
+  .grid.kpi-grid-dense:has(> .kpi-stat-card) {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
   /* ── Densification GLOBALE des grilles de filtres (tous espaces/onglets) ──
      Toute grille de la zone espace contenant des listes déroulantes (Select ou
      Combobox) passe à 2 colonnes minimum sur mobile au lieu d'être empilée en

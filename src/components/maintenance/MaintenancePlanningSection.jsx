@@ -779,32 +779,12 @@ const MaintenancePlanningSection = ({
     <div className="space-y-6">
       <Card className="shadow-xl glassmorphism">
         <CardHeader className="space-y-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <CardTitle className="flex items-center text-2xl font-bold text-primary">
-                <ClipboardList className="mr-3 h-7 w-7" />
-                {title}
-              </CardTitle>
-              <CardDescription>{description}</CardDescription>
-            </div>
-            <div className="flex gap-2 self-start sm:self-center">
-              <Button
-                size="sm"
-                variant={viewMode === 'month' ? 'default' : 'outline'}
-                onClick={() => setViewMode('month')}
-                disabled={isLoading}
-              >
-                Mois
-              </Button>
-              <Button
-                size="sm"
-                variant={viewMode === 'week' ? 'default' : 'outline'}
-                onClick={() => setViewMode('week')}
-                disabled={isLoading}
-              >
-                Semaine
-              </Button>
-            </div>
+          <div>
+            <CardTitle className="flex items-center text-2xl font-bold text-primary">
+              <ClipboardList className="mr-3 h-7 w-7" />
+              {title}
+            </CardTitle>
+            <CardDescription>{description}</CardDescription>
           </div>
 
           {!canManage && readOnlyMessage && (
@@ -845,21 +825,46 @@ const MaintenancePlanningSection = ({
           </div>
 
           <div className="flex flex-col gap-1.5 lg:flex-row lg:items-center lg:justify-between">
-            {/* Navigation période — barre intégrée */}
-            <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/20 px-1 py-0.5">
-              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handlePrev} disabled={isLoading}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <h2 className="flex-1 px-1 text-center text-sm font-semibold capitalize text-foreground whitespace-nowrap sm:text-base">
-                {format(currentCalendarDate, viewMode === 'month' ? 'MMMM yyyy' : "'Semaine du' dd MMMM", { locale: fr })}
-              </h2>
-              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleNext} disabled={isLoading}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              <Button size="sm" variant="outline" className="h-7 shrink-0 px-2 text-xs" onClick={handleToday} disabled={isLoading}>
-                <span className="sm:hidden">Auj.</span>
-                <span className="hidden sm:inline">Aujourd&apos;hui</span>
-              </Button>
+            {/* Cluster calendrier : vue (Mois/Semaine) + navigation période */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {/* Sélecteur de vue — segmenté */}
+              <div className="inline-flex items-center divide-x divide-border overflow-hidden rounded-lg border border-border">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={`h-8 rounded-none px-3 text-xs ${viewMode === 'month' ? 'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground' : ''}`}
+                  onClick={() => setViewMode('month')}
+                  disabled={isLoading}
+                >
+                  Mois
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={`h-8 rounded-none px-3 text-xs ${viewMode === 'week' ? 'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground' : ''}`}
+                  onClick={() => setViewMode('week')}
+                  disabled={isLoading}
+                >
+                  Semaine
+                </Button>
+              </div>
+
+              {/* Navigation période — barre intégrée */}
+              <div className="flex flex-1 items-center gap-0.5 rounded-lg border border-border bg-muted/20 px-1 py-0.5">
+                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handlePrev} disabled={isLoading}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <h2 className="flex-1 px-1 text-center text-sm font-semibold capitalize text-foreground whitespace-nowrap sm:text-base">
+                  {format(currentCalendarDate, viewMode === 'month' ? 'MMMM yyyy' : "'Semaine du' dd MMMM", { locale: fr })}
+                </h2>
+                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleNext} disabled={isLoading}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button size="sm" variant="outline" className="h-7 shrink-0 px-2 text-xs" onClick={handleToday} disabled={isLoading}>
+                  <span className="sm:hidden">Auj.</span>
+                  <span className="hidden sm:inline">Aujourd&apos;hui</span>
+                </Button>
+              </div>
             </div>
 
             {/* Actions — barre intégrée */}
