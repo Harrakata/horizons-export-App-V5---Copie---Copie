@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
+import { STORAGE_BUCKET } from '@/lib/clientConfig';
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -101,13 +102,13 @@ const EditProfileDialog = ({
     const ext = (file.name?.split('.').pop() || 'png').toLowerCase();
     const fileName = `${photoPrefix}/${String(recordId)}_${Date.now()}.${ext}`;
     const { data, error } = await supabase.storage
-      .from('pmu-mali-storage')
+      .from(STORAGE_BUCKET)
       .upload(fileName, file, { cacheControl: '3600', upsert: true });
     if (error) {
       toast({ title: "Erreur d'upload photo", description: error.message, variant: 'destructive' });
       return undefined;
     }
-    const { data: publicUrlData } = supabase.storage.from('pmu-mali-storage').getPublicUrl(data.path);
+    const { data: publicUrlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(data.path);
     return publicUrlData.publicUrl;
   };
 

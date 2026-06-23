@@ -16,6 +16,10 @@ src/lib/supabaseClient.jsx
 vite-dev.out.log
 vite-dev.err.log
 
+# Multi-clients : connexions DB (secrets) + fichiers de travail temporaires
+scripts/multi-client/clients/*.env
+scripts/multi-client/.work/
+
 # Playwright
 /test-results/
 /playwright-report/

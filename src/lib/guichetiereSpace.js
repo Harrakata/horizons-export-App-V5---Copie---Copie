@@ -94,3 +94,17 @@ export const isSupabaseAuthError = (error) => {
     error.code === 'PGRST301'
   );
 };
+
+// Détecte une table absente (migration non encore appliquée) : la fonctionnalité
+// doit alors se dégrader silencieusement au lieu d'afficher une erreur bloquante.
+export const isMissingTableError = (error) => {
+  if (!error) return false;
+  const msg = (error.message || JSON.stringify(error)).toLowerCase();
+  return (
+    error.code === 'PGRST205' || // PostgREST : table introuvable dans le schema cache
+    error.code === '42P01' ||    // PostgreSQL : undefined_table
+    msg.includes('schema cache') ||
+    msg.includes('could not find the table') ||
+    msg.includes('does not exist')
+  );
+};

@@ -1,10 +1,18 @@
 import React, { useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { useFeature } from '@/hooks/useFeatureFlags';
 
 const DEFAULT_URL = 'https://app.powerbi.com/view?r=eyJrIjoiMTMzN2MxNGQtYjcxMy00NWM0LWE3ZGUtMzMxYjA1YWJkMGU0IiwidCI6IjZmNTc4MTczLTJlNGUtNGQ4Ni1hZTU1LWQ2MmFmYTcwYzkyMCIsImMiOjh9';
 
 const PbiViewerPage = () => {
+  // Fonctionnalité Power BI (multi-tenant) : si désactivée pour ce client, ne pas rediriger.
+  const powerBiEnabled = useFeature('powerbi');
+
   useEffect(() => {
+    if (!powerBiEnabled) {
+      document.title = 'Fonctionnalité désactivée';
+      return;
+    }
     document.title = 'Rapport BI SONAL';
     supabase.from('app_settings').select('value').eq('key', 'powerbi_ccope_url').maybeSingle()
       .then(({ data }) => {
@@ -18,7 +26,24 @@ const PbiViewerPage = () => {
         }
         window.location.replace(target);
       });
-  }, []);
+  }, [powerBiEnabled]);
+
+  if (!powerBiEnabled) {
+    return (
+      <div style={{
+        width: '100vw', height: '100vh', display: 'flex',
+        flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        background: '#f8fafc', gap: 12, padding: 24, textAlign: 'center',
+      }}>
+        <p style={{ color: '#0f172a', fontSize: 18, fontWeight: 600, margin: 0 }}>
+          Rapports Power BI désactivés
+        </p>
+        <p style={{ color: '#475569', fontSize: 14, margin: 0 }}>
+          Cette fonctionnalité n'est pas activée pour ce client.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div style={{

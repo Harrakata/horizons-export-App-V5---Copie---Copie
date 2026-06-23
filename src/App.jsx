@@ -5,6 +5,7 @@ import HomePage from '@/pages/HomePage';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { FeatureFlagsProvider } from '@/hooks/useFeatureFlags';
 import { loadAndApplyTheme, applyThemeFromCache } from '@/lib/theme';
 
 // Application synchrone immédiate depuis le cache (évite le flash au rechargement)
@@ -88,7 +89,8 @@ const LazyRoute = ({ children }) => (
 );
 
 const App = () => (
-  <TooltipProvider>
+  <FeatureFlagsProvider>
+    <TooltipProvider>
     <BrowserRouter>
       <ThemeLoader />
       <Routes>
@@ -160,7 +162,8 @@ const App = () => (
       </Routes>
       <Toaster />
     </BrowserRouter>
-  </TooltipProvider>
+    </TooltipProvider>
+  </FeatureFlagsProvider>
 );
 
 export default App;

@@ -11,7 +11,12 @@
       "Bash(git rm *)",
       "Bash(grep -nE \"const ConfigurationTab|function ConfigurationTab|useOutletContext|props\\\\.|actor|currentUser|technicien|spaceKey|=> \\\\{$\" src/pages/maintenance/ConfigurationTab.jsx)",
       "Bash(powershell -Command \"Select-String -Path 'c:\\\\Users\\\\ar.kader\\\\OneDrive - GROUPE CARRUS\\\\Documents\\\\Web App\\\\Gestion pdv V1.0\\\\src\\\\pages\\\\EspaceChefAgencePage.jsx' -Pattern 'md:hidden|mobile|app-space' | Select-Object LineNumber, Line | Format-Table -AutoSize\")",
-      "Bash(powershell -Command \"Select-String -Path 'c:\\\\Users\\\\ar.kader\\\\OneDrive - GROUPE CARRUS\\\\Documents\\\\Web App\\\\Gestion pdv V1.0\\\\src\\\\pages\\\\EspaceExploitationPage.jsx' -Pattern 'md:hidden|mobile|app-space' | Select-Object LineNumber, Line | Format-Table -AutoSize\")"
+      "Bash(powershell -Command \"Select-String -Path 'c:\\\\Users\\\\ar.kader\\\\OneDrive - GROUPE CARRUS\\\\Documents\\\\Web App\\\\Gestion pdv V1.0\\\\src\\\\pages\\\\EspaceExploitationPage.jsx' -Pattern 'md:hidden|mobile|app-space' | Select-Object LineNumber, Line | Format-Table -AutoSize\")",
+      "Bash(bash -n scripts/dump-schema.sh)",
+      "Bash(bash scripts/dump-schema.sh --help)",
+      "Bash(git check-ignore *)",
+      "Bash(bash scripts/dump-schema.sh)",
+      "Bash(echo \"\\(exit=$?\\)\")"
     ]
   }
 }

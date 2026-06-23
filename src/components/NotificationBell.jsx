@@ -6,6 +6,7 @@ import {
   AlertTriangle, AlertOctagon, Info,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useFeature } from '@/hooks/useFeatureFlags';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -59,6 +60,7 @@ const saveReadIds = (storageKey, ids) => {
  */
 const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, storageKey = null }) => {
   const navigate = useNavigate();
+  const notificationsEnabled = useFeature('notifications');
   const [open, setOpen]             = useState(false);
   const [expandedKey, setExpandedKey] = useState(null);
   const [readIds, setReadIds]       = useState(() => loadReadIds(storageKey));
@@ -100,6 +102,10 @@ const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, stor
     return n > 99 ? '99+' : n || 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifications, readIds]);
+
+  // Fonctionnalité Notifications (multi-tenant) : masque la cloche dans tous les
+  // espaces si désactivée pour ce client. (Placé après tous les hooks.)
+  if (!notificationsEnabled) return null;
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const go = (to) => {
@@ -249,6 +255,16 @@ const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, stor
                             </div>
                           );
                         })}
+                        {/* Lien vers la page de traitement (demandes à valider/refuser) */}
+                        {n.to && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); go(n.to); }}
+                            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+                          >
+                            {n.ctaLabel || 'Traiter les demandes'} <ChevronRight className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>

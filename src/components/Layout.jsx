@@ -15,6 +15,7 @@ import OfflineSyncIndicator from '@/components/OfflineSyncIndicator';
 import { Home, Briefcase, Users, Settings, BarChart3, LogIn, Sun, Moon, Menu, Wrench, ShieldCheck, Wallet, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
+import { useClient } from '@/hooks/useFeatureFlags';
 import { supabase } from '@/lib/supabaseClient';
 import {
   APP_SPACE_SETTINGS_KEY,
@@ -27,6 +28,7 @@ const Layout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const client = useClient();
   const [isDarkMode, setIsDarkMode] = React.useState(() => {
     // Lire le mode sombre depuis le cache thème pour éviter un flash au rechargement
     try {
@@ -159,8 +161,8 @@ const Layout = () => {
           <Link to="/" className="flex items-center group">
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>
               <img
-                src="/carrus-logo.png"
-                alt="CARRUS Betting Solutions & Services"
+                src={client.logoUrl || "/carrus-logo.png"}
+                alt={client.displayName || "CARRUS Betting Solutions & Services"}
                 className="h-11 w-auto object-contain drop-shadow-sm sm:h-20"
               />
             </motion.div>
@@ -307,7 +309,7 @@ const Layout = () => {
       <footer className="py-6 md:px-8 md:py-0 border-t border-border/40">
         <div className="container flex flex-col items-center justify-between gap-4 md:h-20 md:flex-row">
           <p className="text-center text-sm leading-loose text-muted-foreground md:text-left">
-            © {new Date().getFullYear()} GestionPDV. Tous droits réservés.
+            © {new Date().getFullYear()} {client.displayName || 'GestionPDV'}. Tous droits réservés.
           </p>
            <motion.div 
              initial={{ opacity: 0, y: 10 }}

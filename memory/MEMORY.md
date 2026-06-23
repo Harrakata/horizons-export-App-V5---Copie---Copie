@@ -1,0 +1,1 @@
+- [Architecture multi-tenant](multi-tenant-architecture.md) — silo (1 projet Supabase/client) ; source unique des flags = functionalites_espaces ; provisioning dans scripts/multi-client/

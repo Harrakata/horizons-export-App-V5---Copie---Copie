@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCap
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase, publicSupabase } from '@/lib/supabaseClient';
+import { STORAGE_BUCKET } from '@/lib/clientConfig';
 import { motion } from 'framer-motion';
 import SignatureCanvas from 'react-signature-canvas';
 import { Building2, CalendarClock, Globe, Wrench, ClipboardList, PlusCircle, Trash2, MapPin, AlertTriangle, FileText, CheckCircle2 } from 'lucide-react';
@@ -2049,7 +2050,7 @@ const MaintenanceTab = ({ technicien }) => {
 
     try {
       const { data, error } = await supabase.storage
-        .from('pmu-mali-storage')
+        .from(STORAGE_BUCKET)
         .upload(filePath, fileContent, {
           contentType: 'text/html; charset=utf-8',
           upsert: true,
@@ -2061,7 +2062,7 @@ const MaintenanceTab = ({ technicien }) => {
       }
 
       const { data: publicUrlData } = supabase.storage
-        .from('pmu-mali-storage')
+        .from(STORAGE_BUCKET)
         .getPublicUrl(data.path);
 
       const updateQuery = supabase

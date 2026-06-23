@@ -1021,6 +1021,7 @@ CREATE TABLE IF NOT EXISTS public.demandes_paiement_gain (
   "dateCourse" DATE,
   "nomGagnant" TEXT,
   "prenomGagnant" TEXT,
+  "telephoneGagnant" TEXT,
   "secteurResidence" TEXT,
   "provinceResidence" TEXT,
   "numeroPieceIdentite" TEXT,

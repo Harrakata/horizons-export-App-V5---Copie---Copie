@@ -1,0 +1,22 @@
+# Ordre d'application des migrations (multi-clients).
+# Une migration par ligne, dans l'ordre d'exécution. Lignes vides et # ignorées.
+#
+# ⚠ Les noms n'étant pas horodatés, CE FICHIER fait foi pour l'ordre.
+#   → Toute NOUVELLE migration doit être AJOUTÉE EN FIN de liste.
+#   → Recommandé pour les nouvelles : préfixe horodaté AAAAMMJJHHMM_description.sql
+#
+# Pour un client existant (ou cloné via provision-client.sh) dont la base est
+# déjà à jour, exécuter une seule fois :  bash migrate.sh --baseline <client>
+# afin de marquer ces migrations comme appliquées sans les rejouer.
+
+add_secteurs.sql
+add_scd2_agences.sql
+add_scd2_chefs_agence.sql
+add_scd2_guichetieres.sql
+add_geolocation.sql
+add_geo_refusal.sql
+add_equipments_alimentations.sql
+add_audit_log.sql
+add_user_activity_tracking.sql
+add_profils_exploitation_photo.sql
+add_paiement_gain_sms.sql

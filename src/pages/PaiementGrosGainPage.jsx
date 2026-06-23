@@ -4,17 +4,22 @@ import { usePageState } from '@/hooks/usePageState';
 import { motion } from 'framer-motion';
 import {
   Building2,
+  CalendarClock,
   Camera,
   CheckCircle2,
   Clock3,
+  CreditCard,
   FileText,
+  History,
   Landmark,
   Loader2,
   LogIn,
   MapPin,
   Search,
   ShieldCheck,
+  Ticket,
   UploadCloud,
+  User,
   Wallet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -54,6 +59,7 @@ import {
 import {
   buildFullName,
   normalizeBigIntIdentifier,
+  notifyParieurBySms,
   recordPaiementGainEvent,
   uploadPaiementGainIdentityPhoto,
 } from '@/lib/paiementGainService';
@@ -70,6 +76,7 @@ const DEFAULT_FORM_DATA = {
   dateCourse: '',
   nomGagnant: '',
   prenomGagnant: '',
+  telephoneGagnant: '',
   secteurResidence: '',
   provinceResidence: '',
   numeroPieceIdentite: '',
@@ -92,6 +99,23 @@ const notifyPaiementGainLoadError = (toast, error, title, description) => {
     variant: 'destructive',
   });
 };
+
+const DetailField = ({ label, value }) => (
+  <div className="min-w-0">
+    <p className="text-[10px] font-medium uppercase leading-3 text-muted-foreground">{label}</p>
+    <p className="truncate text-xs font-semibold leading-4 text-foreground" title={String(value ?? '')}>{value || 'N/A'}</p>
+  </div>
+);
+
+const DetailSection = ({ title, icon: Icon, children, className = '' }) => (
+  <section className={`self-start rounded-lg border bg-background/70 p-3 shadow-sm transition-colors hover:border-primary/30 ${className}`}>
+    <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-primary">
+      {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
+      {title}
+    </h3>
+    <div className="grid gap-x-3 gap-y-1.5 sm:grid-cols-2 xl:grid-cols-3">{children}</div>
+  </section>
+);
 
 const PaiementGrosGainPage = () => {
   const location = useLocation();
@@ -590,6 +614,7 @@ const PaiementGrosGainPage = () => {
         formData.dateCourse,
         formData.nomGagnant,
         formData.prenomGagnant,
+        formData.telephoneGagnant,
         formData.secteurResidence,
         formData.provinceResidence,
         formData.numeroPieceIdentite,
@@ -688,6 +713,7 @@ const PaiementGrosGainPage = () => {
       dateCourse: formData.dateCourse || null,
       nomGagnant: formData.nomGagnant.trim() || null,
       prenomGagnant: formData.prenomGagnant.trim() || null,
+      telephoneGagnant: formData.telephoneGagnant.trim() || null,
       secteurResidence: formData.secteurResidence.trim() || null,
       provinceResidence: formData.provinceResidence.trim() || null,
       numeroPieceIdentite: formData.numeroPieceIdentite.trim() || null,
@@ -841,6 +867,20 @@ const PaiementGrosGainPage = () => {
       className: decision === 'approve' ? 'bg-green-500 text-white' : 'bg-red-500 text-white',
     });
 
+    // Notification SMS du parieur en cas de refus (best-effort).
+    if (decision === 'reject') {
+      const { data: smsResult, error: smsError } = await notifyParieurBySms(demandeToHandle.id, 'rejected');
+      if (smsError || smsResult?.skipped) {
+        toast({
+          title: 'SMS non envoyé',
+          description: smsResult?.reason === 'no_phone'
+            ? 'Numéro de téléphone du parieur absent ou invalide : aucun SMS envoyé.'
+            : 'Le refus est enregistré mais l’envoi du SMS au parieur a échoué.',
+          variant: 'destructive',
+        });
+      }
+    }
+
     setChefDecisionComment('');
     await loadData();
     setIsChefDecisionLoading(false);
@@ -894,6 +934,18 @@ const PaiementGrosGainPage = () => {
       className: 'bg-green-500 text-white',
     });
 
+    // Notification SMS du parieur (confirmation de paiement, best-effort).
+    const { data: smsResult, error: smsError } = await notifyParieurBySms(demandeToPay.id, 'paid');
+    if (smsError || smsResult?.skipped) {
+      toast({
+        title: 'SMS non envoyé',
+        description: smsResult?.reason === 'no_phone'
+          ? 'Numéro de téléphone du parieur absent ou invalide : aucun SMS envoyé.'
+          : 'Le paiement est confirmé mais l’envoi du SMS au parieur a échoué.',
+        variant: 'destructive',
+      });
+    }
+
     setPaymentComment('');
     await loadData();
     setIsPaymentSubmitting(false);
@@ -905,22 +957,22 @@ const PaiementGrosGainPage = () => {
     }
 
     return (
-      <div className="space-y-3">
+      <div className="max-h-80 space-y-1.5 overflow-y-auto pr-1">
         {workflowEvents.map((event) => (
-          <div key={event.id} className="rounded-xl border bg-background/70 p-4 text-sm">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="font-medium">{event.actionType}</p>
-                <p className="text-muted-foreground">
+          <div key={event.id} className="rounded-md border bg-background/80 p-2 text-xs">
+            <div className="flex flex-col gap-1 md:flex-row md:items-start md:justify-between">
+              <div className="min-w-0">
+                <p className="truncate font-medium">{event.actionType}</p>
+                <p className="truncate text-xs text-muted-foreground">
                   {event.actorName} {event.actorFunction ? `• ${event.actorFunction}` : ''}
                 </p>
               </div>
-              <p className="text-xs text-muted-foreground">{formatDisplayDateTime(event.created_at)}</p>
+              <p className="shrink-0 text-xs text-muted-foreground">{formatDisplayDateTime(event.created_at)}</p>
             </div>
-            <p className="mt-2 text-muted-foreground">
+            <p className="mt-1 text-xs text-muted-foreground">
               {event.statusBefore || 'Création'} {' -> '} {event.statusAfter || 'N/A'}
             </p>
-            {event.commentaire ? <p className="mt-2">{event.commentaire}</p> : null}
+            {event.commentaire ? <p className="mt-1 text-sm">{event.commentaire}</p> : null}
           </div>
         ))}
       </div>
@@ -928,114 +980,97 @@ const PaiementGrosGainPage = () => {
   };
 
   const renderDemandeDetailsSections = (demande) => (
-    <>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl border bg-background/70 p-4">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Montant</p>
-          <p className="mt-1 text-lg font-semibold">{formatCurrency(demande.montantGain)}</p>
+    <div className="space-y-2">
+      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-lg border bg-background/70 p-3 shadow-sm">
+          <p className="text-[10px] font-medium uppercase leading-3 text-muted-foreground">Montant</p>
+          <p className="mt-1 text-base font-bold text-primary">{formatCurrency(demande.montantGain)}</p>
         </div>
-        <div className="rounded-xl border bg-background/70 p-4">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Statut global</p>
-          <Badge variant="outline" className={getStatusBadgeClass(getEffectiveDemandeStatus(demande))}>
+        <div className="rounded-lg border bg-background/70 p-3 shadow-sm">
+          <p className="text-[10px] font-medium uppercase leading-3 text-muted-foreground">Statut global</p>
+          <Badge variant="outline" className={`mt-1 ${getStatusBadgeClass(getEffectiveDemandeStatus(demande))}`}>
             {getEffectiveDemandeStatus(demande)}
           </Badge>
         </div>
-        <div className="rounded-xl border bg-background/70 p-4">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Etape en cours</p>
-          <p className="mt-1 font-medium">{getWorkflowStageLabel(getEffectiveWorkflowStage(demande))}</p>
+        <div className="rounded-lg border bg-background/70 p-3 shadow-sm">
+          <p className="text-[10px] font-medium uppercase leading-3 text-muted-foreground">Étape en cours</p>
+          <p className="mt-1 text-xs font-semibold">{getWorkflowStageLabel(getEffectiveWorkflowStage(demande))}</p>
         </div>
-        <div className="rounded-xl border bg-background/70 p-4">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Agence de paiement</p>
-          <p className="mt-1 font-medium">{demande.agencePaiementNom || 'Non attribuee'}</p>
+        <div className="rounded-lg border bg-background/70 p-3 shadow-sm">
+          <p className="text-[10px] font-medium uppercase leading-3 text-muted-foreground">Agence de paiement</p>
+          <p className="mt-1 text-xs font-semibold">{demande.agencePaiementNom || 'Non attribuée'}</p>
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg text-primary">Informations du gagnant</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 text-sm">
-            <p><span className="font-medium">Nom :</span> {demande.nomGagnant || 'N/A'}</p>
-            <p><span className="font-medium">Prenom :</span> {demande.prenomGagnant || 'N/A'}</p>
-            <p><span className="font-medium">Secteur de residence :</span> {demande.secteurResidence || 'N/A'}</p>
-            <p><span className="font-medium">Province de residence :</span> {demande.provinceResidence || 'N/A'}</p>
-            <p><span className="font-medium">Region souhaitee :</span> {demande.directeurRegionalRegion || 'N/A'}</p>
-            <p><span className="font-medium">Agence souhaitee :</span> {demande.localitePaiementSouhaitee || 'N/A'}</p>
-          </CardContent>
-        </Card>
+      <div className="grid items-start gap-2 xl:grid-cols-[minmax(0,1fr),260px]">
+        <div className="grid auto-rows-min items-start gap-2 lg:grid-cols-2">
+          <DetailSection title="Informations du gagnant" icon={User}>
+            <DetailField label="Nom" value={demande.nomGagnant} />
+            <DetailField label="Prénom" value={demande.prenomGagnant} />
+            <DetailField label="Téléphone" value={demande.telephoneGagnant} />
+            <DetailField label="Secteur de résidence" value={demande.secteurResidence} />
+            <DetailField label="Province de résidence" value={demande.provinceResidence} />
+            <DetailField label="Région souhaitée" value={demande.directeurRegionalRegion} />
+            <DetailField label="Agence souhaitée" value={demande.localitePaiementSouhaitee} />
+          </DetailSection>
 
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg text-primary">Informations de course et ticket</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 text-sm">
-            <p><span className="font-medium">Numero de course :</span> {demande.numeroCourse || 'N/A'}</p>
-            <p><span className="font-medium">Type de pari :</span> {demande.typePari || 'N/A'}</p>
-            <p><span className="font-medium">Date de reunion :</span> {formatDisplayDate(demande.dateReunionCourse)}</p>
-            <p><span className="font-medium">Date de course :</span> {formatDisplayDate(demande.dateCourse)}</p>
-            <p><span className="font-medium">Numero du ticket gagnant :</span> {demande.numeroTicketGagnant || 'N/A'}</p>
-            <p><span className="font-medium">Procedure :</span> {demande.procedureResume || 'N/A'}</p>
-          </CardContent>
-        </Card>
+          <DetailSection title="Course et ticket" icon={Ticket}>
+            <DetailField label="Numéro de course" value={demande.numeroCourse} />
+            <DetailField label="Type de pari" value={demande.typePari} />
+            <DetailField label="Date de réunion" value={formatDisplayDate(demande.dateReunionCourse)} />
+            <DetailField label="Date de course" value={formatDisplayDate(demande.dateCourse)} />
+            <DetailField label="Ticket gagnant" value={demande.numeroTicketGagnant} />
+            <DetailField label="Procédure" value={demande.procedureResume} />
+          </DetailSection>
+
+          <DetailSection title="Pièce d'identité et paiement" icon={CreditCard}>
+            <DetailField label="Numéro de pièce" value={demande.numeroPieceIdentite} />
+            <DetailField label="Date d'établissement" value={formatDisplayDate(demande.dateEtablissementPiece)} />
+            <DetailField label="Autorité" value={demande.autoritePieceIdentite} />
+            <DetailField label="Mode de paiement" value={demande.modePaiement} />
+            <DetailField label="Lieu de paiement" value={demande.lieuPaiement} />
+          </DetailSection>
+
+          <DetailSection title="Agences et validation" icon={Building2}>
+            <DetailField label="Chef d'agence" value={demande.chefAgenceNom} />
+            <DetailField label="Agence source" value={demande.agenceOrigineNom} />
+            <DetailField label="Code PDV source" value={demande.agenceOrigineCodePDV} />
+            <DetailField label="Agence de paiement" value={demande.agencePaiementNom || 'Non attribuée'} />
+            <DetailField label="Code PDV paiement" value={demande.agencePaiementCodePDV} />
+          </DetailSection>
+        </div>
+
+        {demande.photoPieceUrl && (
+          <section className="self-start rounded-lg border bg-background/70 p-3 shadow-sm">
+            <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-primary">
+              <FileText className="h-3.5 w-3.5" />
+              Pièce d'identité jointe
+            </h3>
+            <a
+              href={demande.photoPieceUrl}
+              target="_blank"
+              rel="noreferrer"
+              title="Ouvrir la pièce en grand"
+              className="group block overflow-hidden rounded-md border"
+            >
+              <img
+                src={demande.photoPieceUrl}
+                alt="Pièce d'identité"
+                className="h-48 w-full object-cover transition-transform duration-200 group-hover:scale-105"
+              />
+            </a>
+          </section>
+        )}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg text-primary">Piece d'identite et paiement</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 text-sm">
-            <p><span className="font-medium">Numero de piece :</span> {demande.numeroPieceIdentite || 'N/A'}</p>
-            <p><span className="font-medium">Date d'etablissement :</span> {formatDisplayDate(demande.dateEtablissementPiece)}</p>
-            <p><span className="font-medium">Autorite :</span> {demande.autoritePieceIdentite || 'N/A'}</p>
-            <p><span className="font-medium">Mode de paiement :</span> {demande.modePaiement || 'N/A'}</p>
-            <p><span className="font-medium">Lieu de paiement :</span> {demande.lieuPaiement || 'N/A'}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg text-primary">Agences et validation</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 text-sm">
-            <p><span className="font-medium">Chef d'agence :</span> {demande.chefAgenceNom || 'N/A'}</p>
-            <p><span className="font-medium">Agence source :</span> {demande.agenceOrigineNom || 'N/A'}</p>
-            <p><span className="font-medium">Code PDV source :</span> {demande.agenceOrigineCodePDV || 'N/A'}</p>
-            <p><span className="font-medium">Agence de paiement :</span> {demande.agencePaiementNom || 'Non attribuee'}</p>
-            <p><span className="font-medium">Code PDV paiement :</span> {demande.agencePaiementCodePDV || 'N/A'}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg text-primary">Dates de validation</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-3">
-          <p><span className="font-medium">Validation chef d'agence :</span> {formatDisplayDateTime(demande.dateValidationChef)}</p>
-          <p><span className="font-medium">Validation directeur regional :</span> {formatDisplayDateTime(demande.dateValidationDirecteurRegional)}</p>
-          <p><span className="font-medium">Validation directeur general :</span> {formatDisplayDateTime(demande.dateValidationDirecteurGeneral)}</p>
-          <p><span className="font-medium">Autorisation exploitation :</span> {formatDisplayDateTime(demande.dateAutorisationExploitation)}</p>
-          <p><span className="font-medium">Paiement final :</span> {formatDisplayDateTime(demande.datePaiementFinal)}</p>
-        </CardContent>
-      </Card>
-
-      {demande.photoPieceUrl && (
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg text-primary">Piece d'identite jointe</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <img
-              src={demande.photoPieceUrl}
-              alt="Piece d'identite"
-              className="max-h-80 rounded-xl border object-contain"
-            />
-          </CardContent>
-        </Card>
-      )}
-    </>
+      <DetailSection title="Dates de validation" icon={CalendarClock} className="[&>div]:sm:grid-cols-2 [&>div]:xl:grid-cols-5">
+        <DetailField label="Chef d'agence" value={formatDisplayDateTime(demande.dateValidationChef)} />
+        <DetailField label="Directeur régional" value={formatDisplayDateTime(demande.dateValidationDirecteurRegional)} />
+        <DetailField label="Directeur général" value={formatDisplayDateTime(demande.dateValidationDirecteurGeneral)} />
+        <DetailField label="Autorisation exploitation" value={formatDisplayDateTime(demande.dateAutorisationExploitation)} />
+        <DetailField label="Paiement final" value={formatDisplayDateTime(demande.datePaiementFinal)} />
+      </DetailSection>
+    </div>
   );
 
   if (!chefInfo?.id) {
@@ -1267,7 +1302,10 @@ const PaiementGrosGainPage = () => {
 
                   <Card className="shadow-sm">
                     <CardHeader>
-                      <CardTitle className="text-lg text-primary">Historique du workflow</CardTitle>
+                      <CardTitle className="flex items-center gap-1.5 text-lg text-primary">
+                        <History className="h-4 w-4" />
+                        Historique du workflow
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>{renderWorkflowEvents(selectedChefActionDemandeEvents)}</CardContent>
                   </Card>
@@ -1377,7 +1415,10 @@ const PaiementGrosGainPage = () => {
 
                   <Card className="shadow-sm">
                     <CardHeader>
-                      <CardTitle className="text-lg text-primary">Historique du workflow</CardTitle>
+                      <CardTitle className="flex items-center gap-1.5 text-lg text-primary">
+                        <History className="h-4 w-4" />
+                        Historique du workflow
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>{renderWorkflowEvents(selectedAgencyDemandeEvents)}</CardContent>
                   </Card>
@@ -1545,6 +1586,19 @@ const PaiementGrosGainPage = () => {
                         onChange={(event) => handleFormFieldChange('prenomGagnant', event.target.value)}
                         disabled={isSubmitting}
                       />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Téléphone du gagnant</Label>
+                      <Input
+                        type="tel"
+                        value={formData.telephoneGagnant}
+                        onChange={(event) => handleFormFieldChange('telephoneGagnant', event.target.value)}
+                        placeholder="Ex : 70 00 00 00 ou +226 70 00 00 00"
+                        disabled={isSubmitting}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Utilisé pour notifier le parieur par SMS dès l’autorisation du paiement.
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label>Secteur de résidence</Label>
@@ -1782,29 +1836,15 @@ const PaiementGrosGainPage = () => {
                   </Card>
                 )}
 
-                <div className="space-y-3">
-                  {selectedOwnDemandeEvents.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Aucun événement enregistré pour cette demande.</p>
-                  ) : (
-                    selectedOwnDemandeEvents.map((event) => (
-                      <div key={event.id} className="rounded-xl border bg-background/70 p-4 text-sm">
-                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                          <div>
-                            <p className="font-medium">{event.actionType}</p>
-                            <p className="text-muted-foreground">
-                              {event.actorName} {event.actorFunction ? `• ${event.actorFunction}` : ''}
-                            </p>
-                          </div>
-                          <p className="text-xs text-muted-foreground">{formatDisplayDateTime(event.created_at)}</p>
-                        </div>
-                        <p className="mt-2 text-muted-foreground">
-                          {event.statusBefore || 'Création'} {' -> '} {event.statusAfter || 'N/A'}
-                        </p>
-                        {event.commentaire ? <p className="mt-2">{event.commentaire}</p> : null}
-                      </div>
-                    ))
-                  )}
-                </div>
+                <Card className="shadow-sm">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-1.5 text-lg text-primary">
+                      <History className="h-4 w-4" />
+                      Historique du workflow
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>{renderWorkflowEvents(selectedOwnDemandeEvents)}</CardContent>
+                </Card>
               </CardContent>
             </Card>
           )}

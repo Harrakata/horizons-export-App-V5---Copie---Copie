@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CalendarCheck, Users, BarChart3, Settings, LogIn } from 'lucide-react';
+import { CalendarCheck, Users, BarChart3, Settings, LogIn, Wallet } from 'lucide-react';
 import InstallAppButton from '@/components/InstallAppButton';
+import { useClient } from '@/hooks/useFeatureFlags';
 import {
   APP_SPACE_SETTINGS_KEY,
   buildDefaultAppSpaceFunctionalities,
@@ -33,6 +34,7 @@ const FeatureCard = ({ icon, title, description, delay }) => (
 );
 
 const HomePage = () => {
+  const client = useClient();
   const [spaceFunctionalities, setSpaceFunctionalities] = React.useState(() => {
     try {
       return normalizeAppSpaceFunctionalities(
@@ -52,6 +54,7 @@ const HomePage = () => {
   }, []);
 
   const isPointageEnabled = isAppSpaceFunctionalityEnabled(spaceFunctionalities, 'pointage');
+  const isPaiementGrosGainEnabled = isAppSpaceFunctionalityEnabled(spaceFunctionalities, 'paiement-gros-gain');
 
   return (
     <div className="min-h-[calc(100vh-10rem)] flex flex-col items-center justify-center p-4 md:p-8 bg-gradient-to-br from-background to-secondary/30 dark:from-background dark:to-secondary/10">
@@ -67,8 +70,8 @@ const HomePage = () => {
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
           <CardContent className="relative flex flex-col items-center text-center py-6 px-4 sm:py-8 sm:px-6 md:py-10 md:px-12">
             <img
-              src="/carrus-logo.png"
-              alt="CARRUS Betting Solutions & Services"
+              src={client.logoUrl || "/carrus-logo.png"}
+              alt={client.displayName || "CARRUS Betting Solutions & Services"}
               className="mx-auto mb-3 h-16 sm:mb-5 sm:h-24 md:h-44 w-auto object-contain drop-shadow-md"
             />
             <h1 className="text-3xl sm:text-4xl md:text-6xl font-extrabold mb-2 sm:mb-4">
@@ -76,19 +79,33 @@ const HomePage = () => {
                 GestionPDV
               </span>
             </h1>
+            {client.displayName && client.displayName !== 'PMU' && (
+              <p className="text-sm sm:text-lg md:text-xl font-bold text-primary mb-1">
+                {client.displayName}
+              </p>
+            )}
             <p className="text-base sm:text-2xl md:text-3xl font-semibold text-foreground mb-1 sm:mb-2">
               Gestion de Planning & Pointage
             </p>
             <p className="text-xs sm:text-base md:text-lg text-muted-foreground max-w-2xl">
               Optimisez la gestion de vos agences avec une solution moderne, intuitive et performante.
             </p>
-            {isPointageEnabled && (
-              <div className="mt-4 sm:mt-8">
-                <Button asChild size="lg" className="text-sm sm:text-lg px-6 py-4 sm:px-10 sm:py-7 rounded-full shadow-lg bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90 text-primary-foreground transition-transform hover:scale-105">
-                  <Link to="/pointage">
-                    <LogIn className="mr-3 h-5 w-5" /> Commencer vos Pointages
-                  </Link>
-                </Button>
+            {(isPointageEnabled || isPaiementGrosGainEnabled) && (
+              <div className="mt-4 sm:mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
+                {isPointageEnabled && (
+                  <Button asChild size="lg" className="text-sm sm:text-lg px-6 py-4 sm:px-10 sm:py-7 rounded-full shadow-lg bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90 text-primary-foreground transition-transform hover:scale-105">
+                    <Link to="/pointage">
+                      <LogIn className="mr-3 h-5 w-5" /> Commencer vos Pointages
+                    </Link>
+                  </Button>
+                )}
+                {isPaiementGrosGainEnabled && (
+                  <Button asChild size="lg" className="text-sm sm:text-lg px-6 py-4 sm:px-10 sm:py-7 rounded-full shadow-lg bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90 text-primary-foreground transition-transform hover:scale-105">
+                    <Link to="/paiement-gros-gain">
+                      <Wallet className="mr-3 h-5 w-5" /> Demande de Paiement
+                    </Link>
+                  </Button>
+                )}
               </div>
             )}
             {/* Installation PWA (s'affiche seulement si installable et pas déjà installée) */}

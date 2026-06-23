@@ -40,6 +40,7 @@ import { logAudit, AUDIT_ACTIONS, AUDIT_ENTITIES } from '@/lib/auditLog';
 import RegionalMaintenanceSection from '@/components/directeur_regional/RegionalMaintenanceSection';
 import RegionalPointageSection from '@/components/directeur_regional/RegionalPointageSection';
 import CcopePage from '@/pages/exploitation/CcopePage';
+import { useFeature } from '@/hooks/useFeatureFlags';
 import { supabase } from '@/lib/supabaseClient';
 import {
   canValidatorHandleRequest,
@@ -1036,6 +1037,9 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
     'chiffres-daffaires': 'Comptable',
   };
 
+  // Fonctionnalité CCOPE (multi-tenant) : masque l'onglet « Etat comptable » si désactivée pour ce client.
+  const ccopeEnabled = useFeature('ccope');
+
   const menuItems = useMemo(() => [
     {
       key: 'paiement',
@@ -1061,7 +1065,10 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
       icon: <BarChart2 className="h-5 w-5" />,
       disabled: false,
     },
-  ].filter((item) => isAppSpaceTabEnabled(spaceTabFunctionalities, currentSpaceKey, item.key)), [
+  ]
+    .filter((item) => isAppSpaceTabEnabled(spaceTabFunctionalities, currentSpaceKey, item.key))
+    .filter((item) => item.key !== 'chiffres-daffaires' || ccopeEnabled), [
+    ccopeEnabled,
     currentSpaceKey,
     isGeneralProfile,
     isRegionalProfile,
