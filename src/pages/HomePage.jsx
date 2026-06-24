@@ -75,7 +75,7 @@ const HomePage = () => {
               className="mx-auto mb-3 h-16 sm:mb-5 sm:h-24 md:h-44 w-auto object-contain drop-shadow-md"
             />
             <h1 className="text-3xl sm:text-4xl md:text-6xl font-extrabold mb-2 sm:mb-4">
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-green-400">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-cyan-400">
                 GestionPDV
               </span>
             </h1>
@@ -93,14 +93,14 @@ const HomePage = () => {
             {(isPointageEnabled || isPaiementGrosGainEnabled) && (
               <div className="mt-4 sm:mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
                 {isPointageEnabled && (
-                  <Button asChild size="lg" className="text-sm sm:text-lg px-6 py-4 sm:px-10 sm:py-7 rounded-full shadow-lg bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90 text-primary-foreground transition-transform hover:scale-105">
+                  <Button asChild size="lg" className="text-sm sm:text-lg px-6 py-4 sm:px-10 sm:py-7 rounded-full shadow-lg bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90 text-primary-foreground transition-transform hover:scale-105">
                     <Link to="/pointage">
                       <LogIn className="mr-3 h-5 w-5" /> Commencer vos Pointages
                     </Link>
                   </Button>
                 )}
                 {isPaiementGrosGainEnabled && (
-                  <Button asChild size="lg" className="text-sm sm:text-lg px-6 py-4 sm:px-10 sm:py-7 rounded-full shadow-lg bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90 text-primary-foreground transition-transform hover:scale-105">
+                  <Button asChild size="lg" className="text-sm sm:text-lg px-6 py-4 sm:px-10 sm:py-7 rounded-full shadow-lg bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90 text-primary-foreground transition-transform hover:scale-105">
                     <Link to="/paiement-gros-gain">
                       <Wallet className="mr-3 h-5 w-5" /> Demande de Paiement
                     </Link>

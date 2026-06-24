@@ -642,7 +642,7 @@ const MaintenanceAgenciesMap = ({
 
   return (
     <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-      <div className="flex flex-col gap-3 border-b bg-gradient-to-br from-primary/5 via-white to-emerald-50/50 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 border-b bg-gradient-to-br from-primary/5 via-white to-cyan-50/50 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="flex items-center gap-2 text-xl font-semibold text-primary">
             <MapPinned className="h-5 w-5" />

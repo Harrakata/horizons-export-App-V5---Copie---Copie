@@ -30,7 +30,7 @@ const MatriculeStep = ({ matricule, setMatricule, onSubmit, isLoading }) => {
       </div>
       <Button 
         onClick={onSubmit} 
-        className="w-full text-lg py-6 bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90 text-white"
+        className="w-full text-lg py-6 bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90 text-white"
         disabled={isLoading}
       >
         {isLoading ? 'Vérification...' : 'Vérifier Matricule'} <UserCheck className="ml-2 h-5 w-5" />

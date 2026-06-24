@@ -109,7 +109,7 @@ const PointageTimeline = ({ currentTime, creneaux, guichetieresPlanifiees, point
       {/* Barre de progression avec l'heure actuelle */}
       <div className="relative h-6 sm:h-8 mb-6 sm:mb-8 bg-muted rounded-full overflow-hidden">
           <div 
-            className="absolute top-0 left-0 h-full bg-gradient-to-r from-primary to-green-500 transition-all duration-1000 ease-linear"
+            className="absolute top-0 left-0 h-full bg-gradient-to-r from-primary to-cyan-500 transition-all duration-1000 ease-linear"
             style={{ width: `${progressPercent}%` }}
           />
         

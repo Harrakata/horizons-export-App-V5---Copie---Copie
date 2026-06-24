@@ -346,7 +346,7 @@ const RegionalMaintenanceSection = ({ regionName = '', allowAllRegions = false, 
                   type="button"
                   variant={showMaintenanceMap ? 'default' : 'outline'}
                   onClick={() => setShowMaintenanceMap((previousValue) => !previousValue)}
-                  className={showMaintenanceMap ? 'bg-gradient-to-r from-primary to-emerald-600 text-white' : ''}
+                  className={showMaintenanceMap ? 'bg-gradient-to-r from-primary to-cyan-600 text-white' : ''}
                 >
                   {showMaintenanceMap ? (
                     <List className="mr-2 h-4 w-4" />

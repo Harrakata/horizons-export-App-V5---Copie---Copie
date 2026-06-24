@@ -84,7 +84,7 @@ const AgencyDailySummary = ({ guichetieresPlanifiees, pointagesData, creneauxPoi
           <Label className="text-xs text-primary">Taux de complétion global</Label>
           <div className="w-full bg-background dark:bg-gray-700 rounded-full h-3 mt-0.5 overflow-hidden">
             <motion.div 
-              className={`h-3 rounded-full ${completionGlobaleAgence >= 100 ? 'bg-green-500' : 'bg-gradient-to-r from-primary to-green-500'}`}
+              className={`h-3 rounded-full ${completionGlobaleAgence >= 100 ? 'bg-green-500' : 'bg-gradient-to-r from-primary to-cyan-500'}`}
               initial={{ width: 0 }}
               animate={{ width: `${Math.min(100, completionGlobaleAgence)}%`}}
               transition={{ duration: 0.5, ease: "circOut", delay: 0.3 }}

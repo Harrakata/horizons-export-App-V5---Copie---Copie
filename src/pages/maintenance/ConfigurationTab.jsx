@@ -1104,7 +1104,7 @@ const ConfigurationTab = ({
             <Button
               onClick={handleSaveTerminal}
               disabled={!agenceId || !formData.ref || isLoading || !canManage || selectedAgencyHasReachedCapacity || Boolean(editingTerminalId)}
-              className="bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90"
+              className="bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90"
             >
               Sauvegarder le terminal
             </Button>
@@ -1457,7 +1457,7 @@ const ConfigurationTab = ({
             <Button
               onClick={handleSaveTerminal}
               disabled={!agenceId || !formData.ref || isLoading}
-              className="bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90"
+              className="bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90"
             >
               {isLoading ? 'Enregistrement...' : 'Mettre à jour le terminal'}
             </Button>

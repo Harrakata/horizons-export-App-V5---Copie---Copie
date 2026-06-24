@@ -3,15 +3,15 @@ import { motion } from 'framer-motion';
 import { Activity, BarChart3, Gauge, PieChart } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-const CHART_COLORS = ['#22c55e', '#0ea5e9', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+const CHART_COLORS = ['#0d9488', '#0ea5e9', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#22c55e', '#f97316'];
 const CHART_SOFT_BACKGROUNDS = [
-  'rgba(34, 197, 94, 0.12)',
+  'rgba(13, 148, 136, 0.12)',
   'rgba(14, 165, 233, 0.12)',
   'rgba(245, 158, 11, 0.12)',
   'rgba(239, 68, 68, 0.12)',
   'rgba(139, 92, 246, 0.12)',
   'rgba(236, 72, 153, 0.12)',
-  'rgba(20, 184, 166, 0.12)',
+  'rgba(34, 197, 94, 0.12)',
   'rgba(249, 115, 22, 0.12)',
 ];
 

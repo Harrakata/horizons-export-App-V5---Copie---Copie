@@ -1038,7 +1038,7 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
                       {/* Barre dégradée progressive */}
                       <div className="relative h-2 rounded-full bg-muted overflow-hidden">
                         <div
-                          className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary to-green-500 transition-all duration-300"
+                          className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary to-cyan-500 transition-all duration-300"
                           style={{ width: `${25 + Math.round((wizardCheckedIds.size / Math.max(wizardChecks.length, 1)) * 75)}%` }}
                         />
                       </div>

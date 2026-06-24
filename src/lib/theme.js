@@ -4,8 +4,8 @@ export const THEME_STORAGE_KEY = 'theme_colors';
 const THEME_LOCAL_KEY = 'app_theme_cache';
 
 export const DEFAULT_THEME = {
-  primaryHsl: '145 63% 49%',
-  radius: 0.75,
+  primaryHsl: '174 84% 32%',
+  radius: 0.875,
   darkMode: false,
   fontId: 'inter',
   zoom: 16,
@@ -18,6 +18,7 @@ export const DEFAULT_THEME = {
 
 // ── Couleurs ──────────────────────────────────────────────────────────────────
 export const COLOR_PRESETS = [
+  { name: 'Sarcelle',  hex: '#0d9488', hsl: '174 84% 32%' },
   { name: 'Vert',      hex: '#22c55e', hsl: '142 71% 45%' },
   { name: 'Émeraude',  hex: '#10b981', hsl: '160 84% 39%' },
   { name: 'Bleu',      hex: '#3b82f6', hsl: '217 91% 60%' },

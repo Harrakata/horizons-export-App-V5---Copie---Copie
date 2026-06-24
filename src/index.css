@@ -5,34 +5,34 @@
 
 :root {
   --background: 0 0% 100%; /* Light background */
-  --foreground: 224 71.4% 4.1%; /* Dark text */
+  --foreground: 222 47% 11%; /* Slate-900 text */
 
   --card: 0 0% 100%;
-  --card-foreground: 224 71.4% 4.1%;
+  --card-foreground: 222 47% 11%;
 
   --popover: 0 0% 100%;
-  --popover-foreground: 224 71.4% 4.1%;
+  --popover-foreground: 222 47% 11%;
 
-  --primary: 145 63% 49%; /* Vibrant Green */
-  --primary-foreground: 355.7 100% 97.3%;
+  --primary: 174 84% 32%; /* Teal #0D9488 */
+  --primary-foreground: 0 0% 100%;
 
-  --secondary: 220 14.3% 95.9%; /* Light Grayish Blue */
-  --secondary-foreground: 220.9 39.3% 11%;
+  --secondary: 166 76% 96%; /* Light teal tint */
+  --secondary-foreground: 174 84% 22%;
 
-  --muted: 220 14.3% 95.9%;
-  --muted-foreground: 220 8.9% 46.1%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
 
-  --accent: 220 14.3% 95.9%;
-  --accent-foreground: 220.9 39.3% 11%;
+  --accent: 166 76% 95%;
+  --accent-foreground: 174 84% 26%;
 
-  --destructive: 0 84.2% 60.2%; /* Red */
-  --destructive-foreground: 355.7 100% 97.3%;
+  --destructive: 350 89% 60%; /* Rose */
+  --destructive-foreground: 0 0% 100%;
 
-  --border: 220 13% 91%;
-  --input: 220 13% 91%;
-  --ring: 145 63% 49%; /* Ring color matches primary (Green) */
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 174 84% 32%; /* Ring matches primary (Teal) */
 
-  --radius: 0.75rem; /* Slightly larger radius for modern feel */
+  --radius: 0.875rem; /* Generous rounding (14px) */
 
   /* ── Variables de personnalisation App Mobile ──────────────────────────────
      Modifiables via Paramètres > Personnalisation App Mobile.
@@ -49,33 +49,33 @@
 }
 
 .dark {
-  --background: 224 71.4% 4.1%; /* Dark background */
-  --foreground: 210 20% 98%; /* Light text */
+  --background: 222 47% 11%; /* Dark slate background */
+  --foreground: 210 40% 98%; /* Light text */
 
-  --card: 224 71.4% 4.1%;
-  --card-foreground: 210 20% 98%;
+  --card: 222 47% 11%;
+  --card-foreground: 210 40% 98%;
 
-  --popover: 224 71.4% 4.1%;
-  --popover-foreground: 210 20% 98%;
+  --popover: 222 47% 11%;
+  --popover-foreground: 210 40% 98%;
 
-  --primary: 145 63% 49%; /* Vibrant Green */
-  --primary-foreground: 355.7 100% 97.3%;
+  --primary: 174 80% 42%; /* Teal (lighter for dark) */
+  --primary-foreground: 222 47% 11%;
 
-  --secondary: 215 27.9% 16.9%; /* Darker Grayish Blue */
-  --secondary-foreground: 210 20% 98%;
+  --secondary: 217 33% 17%; /* Dark slate */
+  --secondary-foreground: 210 40% 98%;
 
-  --muted: 215 27.9% 16.9%;
-  --muted-foreground: 217.9 10.6% 64.9%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
 
-  --accent: 215 27.9% 16.9%;
-  --accent-foreground: 210 20% 98%;
+  --accent: 217 33% 20%;
+  --accent-foreground: 174 80% 55%;
 
-  --destructive: 0 62.8% 30.6%; /* Darker Red */
-  --destructive-foreground: 210 20% 98%;
+  --destructive: 350 70% 45%; /* Darker rose */
+  --destructive-foreground: 210 40% 98%;
 
-  --border: 215 27.9% 16.9%;
-  --input: 215 27.9% 16.9%;
-  --ring: 145 63% 49%; /* Ring color matches primary (Green) */
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --ring: 174 80% 42%; /* Ring matches primary (Teal) */
 }
 
 @layer base {
@@ -181,7 +181,7 @@ aside,
     115deg,
     hsl(var(--primary) / 0.14) 0%,
     transparent 28%,
-    rgba(168, 85, 247, 0.12) 52%,
+    rgba(6, 182, 212, 0.12) 52%,
     transparent 74%,
     hsl(var(--primary) / 0.14) 100%
   );

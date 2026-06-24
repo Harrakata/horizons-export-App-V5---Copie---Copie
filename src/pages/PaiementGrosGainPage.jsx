@@ -1089,7 +1089,7 @@ const PaiementGrosGainPage = () => {
             <p className="text-muted-foreground">
               Connectez-vous d’abord avec votre matricule et votre mot de passe chef d’agence, puis revenez ici pour créer les demandes et finaliser les paiements autorisés.
             </p>
-            <Button asChild className="bg-gradient-to-r from-primary to-emerald-600 text-white hover:from-primary/90 hover:to-emerald-600/90">
+            <Button asChild className="bg-gradient-to-r from-primary to-cyan-600 text-white hover:from-primary/90 hover:to-cyan-600/90">
               <Link to="/espace-chef-agence/paiement-gros-gain">
                 <LogIn className="mr-2 h-4 w-4" />
                 Accéder à l’espace Chef d’agence
@@ -1681,7 +1681,7 @@ const PaiementGrosGainPage = () => {
                 <Button
                   onClick={handleSubmitDemande}
                   disabled={isSubmitting}
-                  className="bg-gradient-to-r from-primary to-emerald-600 text-white hover:from-primary/90 hover:to-emerald-600/90"
+                  className="bg-gradient-to-r from-primary to-cyan-600 text-white hover:from-primary/90 hover:to-cyan-600/90"
                 >
                   {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
                   Envoyer la demande

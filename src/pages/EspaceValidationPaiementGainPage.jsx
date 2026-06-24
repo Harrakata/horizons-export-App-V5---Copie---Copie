@@ -208,7 +208,7 @@ const LoginPage = ({ onLogin, spaceConfig }) => {
             </div>
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r from-primary to-emerald-600 text-white hover:from-primary/90 hover:to-emerald-600/90"
+              className="w-full bg-gradient-to-r from-primary to-cyan-600 text-white hover:from-primary/90 hover:to-cyan-600/90"
               disabled={isLoading}
             >
               {isLoading ? (

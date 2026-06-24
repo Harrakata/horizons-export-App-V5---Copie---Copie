@@ -408,7 +408,7 @@ const LoginPageChef = ({ onLogin }) => {
             </div>
               <Button 
                 type="submit" 
-                className="w-full text-lg py-3 bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90 text-white" 
+                className="w-full text-lg py-3 bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90 text-white" 
                 disabled={isLoading}
               >
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -436,7 +436,7 @@ const LoginPageChef = ({ onLogin }) => {
               <div className="grid grid-cols-1 gap-3">
                 <Button 
                   onClick={() => setAuthStep('facial')} 
-                  className="py-6 bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90 text-white"
+                  className="py-6 bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90 text-white"
                 >
                   <Camera className="mr-2 h-5 w-5" />
                   Continuer avec la reconnaissance faciale
@@ -489,7 +489,7 @@ const LoginPageChef = ({ onLogin }) => {
               <div className="grid grid-cols-1 gap-3">
                 <Button 
                   type="submit" 
-                  className="py-6 bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90 text-white" 
+                  className="py-6 bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90 text-white" 
                   disabled={isLoading}
                 >
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-5 w-5" />}
@@ -576,7 +576,7 @@ const LoginPageChef = ({ onLogin }) => {
                       <Button 
                         type="button"
                         onClick={authenticateWithFacialRecognition}
-                        className="bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90 text-white"
+                        className="bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90 text-white"
                         disabled={facialAuthInProgress}
                       >
                         {facialAuthInProgress ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
