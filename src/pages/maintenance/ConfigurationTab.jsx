@@ -847,7 +847,6 @@ const ConfigurationTab = ({
     <div className={showEquipmentManagement ? 'space-y-6' : 'space-y-4'}>
       <Card className="relative overflow-hidden shadow-lg">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader className="relative">
           <CardTitle>Configuration des terminaux</CardTitle>
           <CardDescription>
@@ -1104,7 +1103,7 @@ const ConfigurationTab = ({
             <Button
               onClick={handleSaveTerminal}
               disabled={!agenceId || !formData.ref || isLoading || !canManage || selectedAgencyHasReachedCapacity || Boolean(editingTerminalId)}
-              className="bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90"
+              className="bg-primary hover:bg-primary/90"
             >
               Sauvegarder le terminal
             </Button>
@@ -1117,7 +1116,6 @@ const ConfigurationTab = ({
 
       <Card className="relative overflow-hidden shadow-lg">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader className={showEquipmentManagement ? 'relative space-y-4' : 'relative space-y-3'}>
           <div className="flex flex-col gap-2">
             <CardTitle>Parc de Terminaux</CardTitle>
@@ -1340,7 +1338,6 @@ const ConfigurationTab = ({
     <Dialog open={isEditDialogOpen} onOpenChange={(open) => { if (!open) resetForm(); }}>
       <DialogContent className="sm:max-w-3xl relative overflow-hidden p-0">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <div className="relative max-h-[90vh] overflow-y-auto px-6 pb-6 pt-6">
         <DialogHeader className="mb-4">
           <DialogTitle className="text-xl text-primary">
@@ -1457,7 +1454,7 @@ const ConfigurationTab = ({
             <Button
               onClick={handleSaveTerminal}
               disabled={!agenceId || !formData.ref || isLoading}
-              className="bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90"
+              className="bg-primary hover:bg-primary/90"
             >
               {isLoading ? 'Enregistrement...' : 'Mettre à jour le terminal'}
             </Button>

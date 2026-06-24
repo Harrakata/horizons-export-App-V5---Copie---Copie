@@ -101,10 +101,8 @@ const EquipmentTable = ({ type, config, allEquipments, filteredEquipments, hasDa
   };
 
   return (
-  <Card className="relative overflow-hidden shadow-lg">
-    <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
-    <CardHeader className="relative space-y-4">
+  <Card glass={false} className="relative overflow-hidden border border-primary/20 bg-primary/10 shadow-lg">
+    <CardHeader className="space-y-4">
       <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
         <div className="flex items-center gap-2">
           {config.icon}
@@ -143,7 +141,7 @@ const EquipmentTable = ({ type, config, allEquipments, filteredEquipments, hasDa
           </Button>
           <Button
             onClick={() => onOpenDialog(null, type)}
-            className="bg-gradient-to-r from-primary to-blue-600 text-white hover:from-primary/90 hover:to-blue-600/90"
+            className="bg-primary text-white hover:bg-primary/90"
             disabled={isLoading || !canManage}
           >
             <PlusCircle className="mr-2 h-4 w-4" />
@@ -155,7 +153,7 @@ const EquipmentTable = ({ type, config, allEquipments, filteredEquipments, hasDa
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {KPI_STATS.map(({ key, label, helper, tone, icon }) => (
-          <KpiStatCard key={key} icon={icon} label={label} value={kpi[key]} helper={helper} tone={tone} />
+          <KpiStatCard key={key} icon={icon} label={label} value={kpi[key]} helper={helper} tone={tone} solid />
         ))}
       </div>
 
@@ -166,15 +164,16 @@ const EquipmentTable = ({ type, config, allEquipments, filteredEquipments, hasDa
           placeholder={`Rechercher dans les ${config.label.toLowerCase()}...`}
           value={searchTerm}
           onChange={(event) => onSearchChange(type, event.target.value)}
-          className="pl-10"
+          className="bg-white pl-10 shadow-sm"
           disabled={isLoading}
         />
       </div>
     </CardHeader>
-    <CardContent>
+    <CardContent className="pb-6">
       {isLoading && !hasData ? (
         <p className="py-8 text-center text-muted-foreground">Chargement...</p>
       ) : (
+        <div className="overflow-hidden rounded-lg border border-border/70 bg-white shadow-sm">
         <Table>
           <TableCaption>
             {filteredEquipments.length === 0
@@ -250,6 +249,7 @@ const EquipmentTable = ({ type, config, allEquipments, filteredEquipments, hasDa
             ))}
           </TableBody>
         </Table>
+        </div>
       )}
     </CardContent>
   </Card>
@@ -544,7 +544,6 @@ const EquipmentManager = ({ canManage = true, readOnlyMessage = '' }) => {
 
       <Card className="relative overflow-hidden shadow-xl glassmorphism">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader className="relative">
           <CardTitle className="text-2xl font-bold text-primary">Gestion de sous-ensembles</CardTitle>
           <CardDescription>Gérez les imprimantes, écrans, lecteurs, afficheur client, BUC, carrosseries et alimentations disponibles pour les terminaux.</CardDescription>

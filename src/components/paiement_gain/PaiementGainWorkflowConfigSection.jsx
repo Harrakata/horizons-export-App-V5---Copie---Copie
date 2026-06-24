@@ -133,7 +133,7 @@ const PaiementGainWorkflowConfigSection = ({
   };
 
   const addButtonClassName = canWriteCurrentPage
-    ? 'bg-gradient-to-r from-primary to-cyan-600 text-white hover:from-primary/90 hover:to-cyan-600/90'
+    ? 'bg-primary text-white hover:bg-primary/90'
     : 'bg-slate-200 text-slate-500 hover:bg-slate-200 hover:text-slate-500 cursor-not-allowed';
 
   const editButtonClassName = canWriteCurrentPage && !isLoading && !isMissingTable

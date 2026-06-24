@@ -484,7 +484,6 @@ const PointsVenteMobiChefPage = () => {
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader>
           <CardTitle className="flex items-center text-3xl font-bold text-primary">
             <MapPin className="mr-3 h-8 w-8" />
@@ -530,7 +529,6 @@ const PointsVenteMobiChefPage = () => {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[340px_1fr] lg:items-start">
         <Card className="relative overflow-hidden border border-primary/20 bg-white/90 shadow-xl backdrop-blur lg:order-1">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
           <CardHeader className="relative space-y-3">
             <div className="flex items-start justify-between gap-2">
               <div>
@@ -642,7 +640,6 @@ const PointsVenteMobiChefPage = () => {
 
         <Card className="relative overflow-hidden border border-primary/20 bg-white/90 shadow-xl backdrop-blur lg:order-2">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
           <CardHeader className="relative">
             <div className="flex items-start justify-between gap-4">
               <div>

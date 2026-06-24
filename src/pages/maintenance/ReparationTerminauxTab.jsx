@@ -370,7 +370,6 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
     <div className="space-y-6">
       <Card className="relative overflow-hidden shadow-xl glassmorphism">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader className="relative">
           <CardTitle className="flex items-center gap-2 text-2xl font-bold text-primary">
             <Wrench className="h-6 w-6" /> Réparation des Sous-ensembles
@@ -386,7 +385,6 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
         <div className="lg:col-span-2">
           <Card className="relative overflow-hidden shadow-lg">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
             <CardHeader className="relative pb-3">
               <CardTitle className="flex items-center gap-2 text-xl text-primary">
                 <Package2 className="h-5 w-5" /> Sous-ensembles à traiter
@@ -563,7 +561,6 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
           {!selectedItem ? (
             <Card className="relative overflow-hidden flex items-center justify-center py-20">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
               <div className="text-center text-muted-foreground">
                 <Package2 className="mx-auto h-12 w-12 mb-3 opacity-30" />
                 <p>Sélectionnez un sous-ensemble pour commencer.</p>
@@ -573,7 +570,6 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
             <>
               <Card className="relative overflow-hidden shadow-lg">
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
                 <CardHeader className="relative pb-3">
                   <div className="flex items-start justify-between flex-wrap gap-2">
                     <div>
@@ -678,7 +674,6 @@ const ReparationTerminauxTab = ({ canManage = true }) => {
               {(itemPieces.length > 0 || selectedItem.modele_id) && (
                 <Card className="relative overflow-hidden shadow-lg">
                   <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
                   <CardHeader className="relative py-2 px-4">
                     <CardTitle className="flex items-center gap-2 text-sm text-primary">
                       <Wrench className="h-3.5 w-3.5" /> Pièces du modèle

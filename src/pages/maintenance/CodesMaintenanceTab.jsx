@@ -15,7 +15,6 @@ const DEFAULT_FORM = { code: '', libelle: '', descriptif: '' };
 const CodeTable = ({ title, description, icon, rows, canManage, onAdd, onEdit, onDelete, isLoading }) => (
   <Card className="relative overflow-hidden shadow-lg">
     <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
     <CardHeader className="relative">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -126,7 +125,6 @@ const CodesMaintenanceTab = ({ canManage = true }) => {
     <div className="space-y-6">
       <Card className="relative overflow-hidden shadow-xl glassmorphism">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader className="relative">
           <CardTitle className="flex items-center gap-2 text-2xl font-bold text-primary">
             <Wrench className="h-6 w-6" /> Codes de Maintenance

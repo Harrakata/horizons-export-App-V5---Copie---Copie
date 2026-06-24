@@ -477,7 +477,6 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
       {!hideTitle && (
         <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
           <CardHeader>
             <CardTitle className="flex items-center text-3xl font-bold text-primary">
               {view === 'reparation' ? (
@@ -652,7 +651,6 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
 
       <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader className="relative px-3 pb-0 pt-3 sm:px-6 sm:pt-6">
           <CardTitle className="flex items-center gap-2 text-base font-semibold text-primary sm:text-xl">
             <CalendarDays className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -695,7 +693,7 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
               disabled={isLoading}
               value={format(currentMonth, 'yyyy-MM-dd')}
               onChange={(e) => { if (e.target.value) setCurrentMonth(parseISO(e.target.value)); }}
-              className="hidden h-7 rounded-md border border-input bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 sm:block"
+              className="hidden h-7 rounded-md border border-input bg-white px-2 text-xs text-slate-900 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 sm:block"
               title="Aller à une date"
             />
           </div>
@@ -708,7 +706,7 @@ const MonPlanningMaintenancePage = ({ technicien, view, hideTitle = false }) => 
           {isLoading && planningEntries.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Chargement du planning...</p>
           ) : (
-            <div className="overflow-hidden rounded-lg border border-border shadow-sm">
+            <div className="planning-calendar overflow-hidden rounded-lg border border-border bg-white shadow-sm">
               {/* En-tête jours */}
               <div className="grid grid-cols-7 bg-muted/60">
                 {(viewMode === 'week'

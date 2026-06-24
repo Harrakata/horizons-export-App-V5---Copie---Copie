@@ -121,36 +121,29 @@ aside,
   overflow: hidden;
   border: 1px solid hsl(var(--primary) / 0.2);
   box-shadow: 0 22px 60px -30px rgba(15, 23, 42, 0.28);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  background: hsl(var(--card));
+  background: hsl(var(--primary) / 0.1);
 }
 
-/* Rail dégradé en haut */
+/* Rail haut uniforme */
 .glassmorphism::before {
   content: '';
   position: absolute;
   left: 0;
   right: 0;
   top: 0;
-  height: 6px;
-  background: linear-gradient(to right, hsl(var(--primary)), hsl(var(--primary) / 0.8), hsl(var(--primary) / 0.35));
+  height: 3px;
+  background: hsl(var(--primary));
   pointer-events: none;
   z-index: 10;
 }
 
-/* Fond teinté accent */
+/* Pas de voile teinté sur le contenu */
 .glassmorphism::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--primary) / 0.04), transparent);
-  pointer-events: none;
-  z-index: 0;
+  content: none;
 }
 
 .dark .glassmorphism {
-  background: hsl(var(--card));
+  background: hsl(var(--primary) / 0.16);
   border-color: hsl(var(--primary) / 0.3);
   box-shadow: 0 22px 60px -30px rgba(15, 23, 42, 0.5);
 }
@@ -161,6 +154,116 @@ aside,
   z-index: 1;
 }
 
+/* ── Aspect « verre teal » de la navigation principale ───────────────────────
+   Reproduit l'aspect translucide du menu de navigation (fond teinté primaire +
+   flou + bordure primaire + liseré dégradé en haut) sur toutes les fenêtres
+   flottantes (dropdown, popover, select, dialog, tooltip, combobox,
+   notifications) ET sur les cartes. Règle non-layered → prioritaire sur les
+   utilitaires Tailwind bg-popover / bg-card / bg-background (pas de !important
+   nécessaire). */
+.surface-glass {
+  position: relative;
+  border-color: hsl(var(--primary) / 0.2);
+  background-color: hsl(var(--primary) / 0.1);
+  background-image: none;
+}
+/* Liseré haut uniforme. */
+.surface-glass::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: hsl(var(--primary));
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+}
+.dark .surface-glass {
+  background-color: hsl(var(--primary) / 0.16);
+  border-color: hsl(var(--primary) / 0.32);
+}
+
+/* Repli : sans support du flou, on reste opaque pour préserver la lisibilité. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .surface-glass { background-color: hsl(var(--primary) / 0.1); }
+}
+
+/* Les sous-titres de carte ne portent aucune ombre propre (le préréglage
+   d'ombre des cartes ne doit cibler que les conteneurs, pas .card-description). */
+.card-description {
+  box-shadow: none;
+}
+
+/* ── Fenêtres flottantes (filtres/combobox, popovers, menus, tooltips,
+   Notifications) : fond OPAQUE pour la lisibilité ───────────────────────────
+   Le rendu « verre » par défaut (surface-glass → primary/0.1) laisse passer le
+   contenu de la page derrière la fenêtre (tableaux, listes), ce qui nuit à la
+   lisibilité des filtres déroulants et du panneau de notifications.
+   On utilise un fond OPAQUE plein (pas de backdrop-filter) : le flou
+   d'arrière-plan provoque, en mode PWA / WebView (Android), un bug de rendu qui
+   masque le CONTENU de la fenêtre. Un fond solide est lisible ET fiable partout.
+   Ciblé via bg-popover (et la classe notification) → n'affecte pas les cartes. */
+.surface-glass.bg-popover,
+.notification-bell-popover.surface-glass,
+.notification-bell-popover {
+  background-color: hsl(var(--popover));
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.surface-glass > .pointer-events-none.absolute.inset-0,
+.glassmorphism > .pointer-events-none.absolute.inset-0 {
+  display: none;
+}
+
+.surface-glass > .pointer-events-none.absolute.inset-x-0.top-0,
+.glassmorphism > .pointer-events-none.absolute.inset-x-0.top-0 {
+  background: hsl(var(--primary));
+}
+
+/* ── Liseré/rail supérieur des cartes : épouse l'arrondi de la carte ─────────
+   De nombreuses cartes (KPI, en-têtes, dialogues…) posent un rail décoratif en
+   haut via un <div> absolu plein largeur (inset-x-0 top-0). Ses angles carrés
+   dépassent alors des coins arrondis de la carte. On lui fait hériter le rayon
+   du parent → plus aucun débordement, partout dans l'application. */
+.pointer-events-none.absolute.inset-x-0.top-0 {
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+}
+
+.planning-calendar {
+  background: #fff;
+}
+
+.planning-calendar .bg-muted\/60,
+.planning-calendar .bg-muted\/50,
+.planning-calendar .bg-muted\/40,
+.planning-calendar .bg-muted\/30,
+.planning-calendar .bg-muted\/20,
+.planning-calendar .bg-muted\/10,
+.planning-calendar .bg-slate-50\/40,
+.planning-calendar .bg-card,
+.planning-calendar .bg-background,
+.planning-calendar .bg-primary\/5 {
+  background-color: #fff !important;
+}
+
+.planning-calendar [class*="bg-muted/"]:not([class*="text-"]),
+.planning-calendar [class*="bg-slate-50/"] {
+  background-color: #fff !important;
+}
+
+.surface-glass .bg-muted\/30,
+.surface-glass .bg-muted\/20,
+.surface-glass .bg-primary\/5,
+.glassmorphism .bg-muted\/30,
+.glassmorphism .bg-muted\/20,
+.glassmorphism .bg-primary\/5 {
+  background-color: #fff !important;
+}
 /* Les DIALOGS gardent leur position fixed (centrage écran) même avec glassmorphism.
    IMPORTANT : on NE force PLUS la position des popovers/dropdowns/selects.
    Ils sont positionnés par Radix (wrapper + transform + collision) ; tout override
@@ -168,28 +271,6 @@ aside,
 [role="dialog"][data-state],
 [data-radix-dialog-content] {
   position: fixed !important;
-}
-
-/* Dégradé « aurora » animé très lent pour l'en-tête (effet premium discret) */
-@keyframes header-aurora {
-  0%   { background-position:   0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position:   0% 50%; }
-}
-.app-header-aurora {
-  background-image: linear-gradient(
-    115deg,
-    hsl(var(--primary) / 0.14) 0%,
-    transparent 28%,
-    rgba(6, 182, 212, 0.12) 52%,
-    transparent 74%,
-    hsl(var(--primary) / 0.14) 100%
-  );
-  background-size: 240% 100%;
-  animation: header-aurora 18s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .app-header-aurora { animation: none; }
 }
 
 /* Custom scrollbar (optional, for aesthetics) */
@@ -235,22 +316,6 @@ aside,
 
 /* Téléphones uniquement : le menu d'espace passe en tiroir.
    Les tablettes (≥ 768px) conservent la mise en page PC (barre latérale verticale). */
-@media (max-width: 767px) {
-  .app-space-layout {
-    max-width: 100%;
-  }
-
-  .app-space-sidebar {
-    width: 100%;
-    max-width: 100%;
-  }
-
-  .app-space-main {
-    width: 100%;
-    max-width: 100%;
-  }
-}
-
 @media (max-width: 767px) {
   .container {
     width: 100%;

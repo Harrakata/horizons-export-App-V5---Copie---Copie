@@ -1,0 +1,27 @@
+/* Or & Ardoise — dark-first premium theme (preview comparison only). */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  --card: 218 33% 14%;
+  --card-foreground: 210 40% 98%;
+  --popover: 218 33% 14%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 43 89% 48%;            /* gold #E0A615 */
+  --primary-foreground: 222 47% 11%;
+  --secondary: 217 33% 20%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 33% 20%;
+  --muted-foreground: 215 20% 70%;
+  --accent: 217 33% 24%;
+  --accent-foreground: 43 89% 62%;
+  --destructive: 0 72% 58%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217 33% 24%;
+  --input: 217 33% 24%;
+  --ring: 43 89% 48%;
+  --radius: 0.5rem;
+}

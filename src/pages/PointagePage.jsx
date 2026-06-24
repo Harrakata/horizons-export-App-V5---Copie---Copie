@@ -113,13 +113,12 @@ const PointagePage = () => {
       >
         <Card className="relative overflow-hidden w-full max-w-lg border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur p-4 md:p-8">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
           <AlertTriangle className="h-10 w-10 md:h-16 md:w-16 text-primary mx-auto mb-3 md:mb-6" />
           <CardTitle className="text-xl md:text-3xl font-bold text-primary mb-2 md:mb-4">Accès Chef d'Agence Requis</CardTitle>
           <p className="text-sm md:text-lg text-muted-foreground mb-4 md:mb-8">
             Pour accéder à la fonctionnalité de pointage pour une agence spécifique, veuillez d'abord vous connecter à votre Espace Chef d'Agence.
           </p>
-          <Button asChild size={isMobile ? "default" : "lg"} className="bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90 text-white text-xs md:text-base w-full md:w-auto">
+          <Button asChild size={isMobile ? "default" : "lg"} className="bg-primary hover:bg-primary/90 text-white text-xs md:text-base w-full md:w-auto">
             <Link to="/espace-chef-agence">
               <UserCheck className="mr-2 h-4 w-4 md:h-5 md:w-5" /> Se Connecter (Chef d'Agence)
             </Link>
@@ -170,7 +169,6 @@ const PointagePage = () => {
       >
         <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
           <CardContent className="relative py-5 px-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
@@ -215,7 +213,6 @@ const PointagePage = () => {
       >
         <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
           <CardHeader className="relative px-3 sm:px-6 pt-3 sm:pt-5 pb-2">
             <div className="flex justify-between items-center">
               <CardTitle className="text-lg sm:text-xl font-semibold text-primary flex items-center">
@@ -275,7 +272,6 @@ const PointagePage = () => {
         >
           <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
             <CardHeader className="relative px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4">
                 <div className="flex justify-between items-center">
                     <CardTitle className="text-lg sm:text-xl md:text-2xl text-primary">Processus de Pointage</CardTitle>
@@ -301,7 +297,6 @@ const PointagePage = () => {
         >
           <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
             <CardHeader className="relative px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4">
               <CardTitle className="text-base sm:text-lg md:text-xl text-primary flex items-center">
                 <Info className="mr-2 h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" /> Statut Quotidien

@@ -66,10 +66,10 @@ export const BG_PRESETS = [
 
 // ── Ombre des cartes ──────────────────────────────────────────────────────────
 export const SHADOW_PRESETS = [
-  { id: 'none',   name: 'Aucune',   hint: 'Plat',      css: `[class*="card"], .card { box-shadow: none !important; }` },
+  { id: 'none',   name: 'Aucune',   hint: 'Plat',      css: `[class*="card"]:not(.card-description), .card { box-shadow: none !important; }` },
   { id: 'soft',   name: 'Légère',   hint: 'Défaut',    css: '' },
-  { id: 'medium', name: 'Moyenne',  hint: 'Élevée',    css: `[class*="card"], .card { box-shadow: 0 4px 24px -4px rgba(0,0,0,0.14) !important; }` },
-  { id: 'strong', name: 'Marquée',  hint: 'Profonde',  css: `[class*="card"], .card { box-shadow: 0 12px 40px -8px rgba(0,0,0,0.22) !important; }` },
+  { id: 'medium', name: 'Moyenne',  hint: 'Élevée',    css: `[class*="card"]:not(.card-description), .card { box-shadow: 0 4px 24px -4px rgba(0,0,0,0.14) !important; }` },
+  { id: 'strong', name: 'Marquée',  hint: 'Profonde',  css: `[class*="card"]:not(.card-description), .card { box-shadow: 0 12px 40px -8px rgba(0,0,0,0.22) !important; }` },
 ];
 
 // ── Largeur du contenu ────────────────────────────────────────────────────────

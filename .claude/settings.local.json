@@ -16,7 +16,19 @@
       "Bash(bash scripts/dump-schema.sh --help)",
       "Bash(git check-ignore *)",
       "Bash(bash scripts/dump-schema.sh)",
-      "Bash(echo \"\\(exit=$?\\)\")"
+      "Bash(echo \"\\(exit=$?\\)\")",
+      "Bash(npm i *)",
+      "Bash(node .ds-sync/package-build.mjs --config .design-sync/config.json --node-modules ./node_modules --out ./ds-bundle)",
+      "Bash(node -e \"const {chromium}=require\\('playwright'\\); console.log\\('playwright OK', chromium.name\\(\\)\\)\")",
+      "Bash(node .ds-sync/package-validate.mjs ./ds-bundle)",
+      "Bash(node .ds-sync/package-capture.mjs --out ./ds-bundle)",
+      "Bash(node -e \"const h=require\\('fs'\\).readFileSync\\('ds-bundle/_ds_bundle.js','utf8'\\).split\\('\\\\n'\\)[0];const j=JSON.parse\\(h.match\\(/@ds-bundle:\\\\s*\\(\\\\{.*\\\\}\\)\\\\s*\\\\*/\\)[1]\\);console.log\\(j.components.join\\(', '\\)\\)\")",
+      "Bash(node .ds-sync/storybook/http-serve.mjs ./ds-bundle)",
+      "PowerShell(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.OwningProcess -and \\(Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue\\).ProcessName -eq 'node' } | Select-Object LocalAddress,LocalPort,OwningProcess | Sort-Object LocalPort -Unique)",
+      "PowerShell(try { $r = Invoke-WebRequest \"http://127.0.0.1:57620/.review.html\" -UseBasicParsing -TimeoutSec 5; \"HTTP $\\($r.StatusCode\\) — $\\([math]::Round\\($r.RawContentLength/1KB,1\\)\\) KB\" } catch { \"not this port: $\\($_.Exception.Message\\)\" })",
+      "Bash(npx tailwindcss *)",
+      "Bash(node -e \"const fs=require\\('fs'\\);const j=JSON.parse\\(fs.readFileSync\\('ds-bundle/_ds_bundle.js','utf8'\\).split\\('\\\\n'\\)[0].match\\(/@ds-bundle:\\\\s*\\(\\\\{.*\\\\}\\)\\\\s*\\\\*/\\)[1]\\);console.log\\(j.components.map\\(c=>c.name||c\\).join\\(' '\\)\\)\")",
+      "Bash(echo \"EXIT=$?\")"
     ]
   }
 }

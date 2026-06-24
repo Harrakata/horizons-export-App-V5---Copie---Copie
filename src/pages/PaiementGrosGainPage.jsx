@@ -1078,7 +1078,6 @@ const PaiementGrosGainPage = () => {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-3xl">
         <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
           <CardHeader>
             <CardTitle className="text-3xl text-primary">Paiement Gros Gain</CardTitle>
             <CardDescription>
@@ -1089,7 +1088,7 @@ const PaiementGrosGainPage = () => {
             <p className="text-muted-foreground">
               Connectez-vous d’abord avec votre matricule et votre mot de passe chef d’agence, puis revenez ici pour créer les demandes et finaliser les paiements autorisés.
             </p>
-            <Button asChild className="bg-gradient-to-r from-primary to-cyan-600 text-white hover:from-primary/90 hover:to-cyan-600/90">
+            <Button asChild className="bg-primary text-white hover:bg-primary/90">
               <Link to="/espace-chef-agence/paiement-gros-gain">
                 <LogIn className="mr-2 h-4 w-4" />
                 Accéder à l’espace Chef d’agence
@@ -1105,7 +1104,6 @@ const PaiementGrosGainPage = () => {
     <div className="space-y-6">
       <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader>
           <div>
             <CardTitle className="flex items-center text-3xl font-bold text-primary">
@@ -1681,7 +1679,7 @@ const PaiementGrosGainPage = () => {
                 <Button
                   onClick={handleSubmitDemande}
                   disabled={isSubmitting}
-                  className="bg-gradient-to-r from-primary to-cyan-600 text-white hover:from-primary/90 hover:to-cyan-600/90"
+                  className="bg-primary text-white hover:bg-primary/90"
                 >
                   {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
                   Envoyer la demande

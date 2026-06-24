@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 const TONE_STYLES = {
   primary: {
@@ -40,15 +41,23 @@ const TONE_STYLES = {
   },
 };
 
-const KpiStatCard = ({ icon, label, value, helper = '', tone = 'primary' }) => {
+const KpiStatCard = ({ icon, label, value, helper = '', tone = 'primary', solid = true, className = '' }) => {
   const toneStyle = TONE_STYLES[tone] || TONE_STYLES.primary;
   const isIconElement = React.isValidElement(icon);
   const Icon = isIconElement ? null : icon;
 
   return (
-    <Card className={`kpi-stat-card relative overflow-hidden border bg-white/92 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur ${toneStyle.border}`}>
+    <Card
+      glass={false}
+      className={cn(
+        'kpi-stat-card relative overflow-hidden border shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)]',
+        solid ? 'bg-white' : 'bg-white/75 backdrop-blur-md',
+        toneStyle.border,
+        className,
+      )}
+    >
       <div className={`pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r sm:h-1.5 ${toneStyle.rail}`} />
-      <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${toneStyle.accent}`} />
+      {!solid ? <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${toneStyle.accent}`} /> : null}
       <CardContent className="relative px-2 py-1.5 sm:px-4 sm:py-3">
         <div className="flex items-center gap-1.5 sm:gap-3">
           <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ring-1 sm:h-10 sm:w-10 sm:rounded-xl ${toneStyle.iconWrap} shadow-[0_8px_16px_-10px_rgba(15,23,42,0.35)]`}>

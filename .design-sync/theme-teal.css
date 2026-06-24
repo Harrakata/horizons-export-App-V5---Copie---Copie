@@ -1,0 +1,27 @@
+/* Teal Frais — light, energetic theme (preview comparison only). */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 174 84% 32%;           /* teal #0D9488 */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 166 76% 96%;
+  --secondary-foreground: 174 84% 22%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 166 76% 95%;
+  --accent-foreground: 174 84% 26%;
+  --destructive: 350 89% 60%;       /* rose */
+  --destructive-foreground: 0 0% 100%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 174 84% 32%;
+  --radius: 0.875rem;
+}

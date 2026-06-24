@@ -22,7 +22,6 @@ const FeatureCard = ({ icon, title, description, delay }) => (
     className="relative overflow-hidden rounded-xl border border-primary/20 bg-background shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur hover:shadow-[0_30px_70px_-20px_rgba(15,23,42,0.38)] transition-shadow duration-300 p-4 sm:p-6"
   >
     <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
     <div className="relative">
       <div className="flex items-center justify-center w-11 h-11 sm:w-14 sm:h-14 mb-3 sm:mb-4 rounded-[1rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white ring-1 ring-primary/20 shadow-[0_8px_20px_-10px_rgba(15,23,42,0.35)] text-primary">
         {React.cloneElement(icon, { size: 22 })}
@@ -67,7 +66,6 @@ const HomePage = () => {
       >
         <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
           <CardContent className="relative flex flex-col items-center text-center py-6 px-4 sm:py-8 sm:px-6 md:py-10 md:px-12">
             <img
               src={client.logoUrl || "/carrus-logo.png"}
@@ -93,14 +91,14 @@ const HomePage = () => {
             {(isPointageEnabled || isPaiementGrosGainEnabled) && (
               <div className="mt-4 sm:mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
                 {isPointageEnabled && (
-                  <Button asChild size="lg" className="text-sm sm:text-lg px-6 py-4 sm:px-10 sm:py-7 rounded-full shadow-lg bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90 text-primary-foreground transition-transform hover:scale-105">
+                  <Button asChild size="lg" className="text-sm sm:text-lg px-6 py-4 sm:px-10 sm:py-7 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground transition-transform hover:scale-105">
                     <Link to="/pointage">
                       <LogIn className="mr-3 h-5 w-5" /> Commencer vos Pointages
                     </Link>
                   </Button>
                 )}
                 {isPaiementGrosGainEnabled && (
-                  <Button asChild size="lg" className="text-sm sm:text-lg px-6 py-4 sm:px-10 sm:py-7 rounded-full shadow-lg bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90 text-primary-foreground transition-transform hover:scale-105">
+                  <Button asChild size="lg" className="text-sm sm:text-lg px-6 py-4 sm:px-10 sm:py-7 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground transition-transform hover:scale-105">
                     <Link to="/paiement-gros-gain">
                       <Wallet className="mr-3 h-5 w-5" /> Demande de Paiement
                     </Link>

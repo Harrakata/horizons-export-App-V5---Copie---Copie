@@ -340,7 +340,7 @@ const StatsChartCard = ({ title, description, type = 'pie', data = [] }) => {
 
   return (
     <Card className="overflow-hidden border-white/70 bg-white/75 shadow-sm backdrop-blur">
-      <CardHeader className="border-b border-border/60 bg-gradient-to-br from-white/70 via-white/40 to-transparent px-4 py-3">
+      <CardHeader className="border-b border-border/60 px-4 py-3">
         <CardTitle className="flex items-center gap-2 text-sm font-semibold text-primary">
           <Icon className="h-4 w-4 shrink-0" />
           {title}

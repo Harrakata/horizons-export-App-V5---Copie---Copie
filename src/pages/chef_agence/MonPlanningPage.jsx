@@ -530,7 +530,6 @@ const MonPlanningPage = () => {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 md:space-y-6 p-2 md:p-0">
       <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader className="relative">
           <CardTitle className="flex items-center text-3xl font-bold text-primary">
             <Calendar className="mr-3 h-8 w-8" />
@@ -568,7 +567,6 @@ const MonPlanningPage = () => {
 
       <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader className="p-3 md:p-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4">
             <div>
@@ -595,7 +593,7 @@ const MonPlanningPage = () => {
                 disabled={isLoading}
                 value={format(currentMonth, 'yyyy-MM-dd')}
                 onChange={(e) => { if (e.target.value) setCurrentMonth(parseISO(e.target.value)); }}
-                className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                className="h-8 rounded-md border border-input bg-white px-2 text-xs text-slate-900 shadow-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                 title="Aller à une date"
               />
             </div>
@@ -609,7 +607,7 @@ const MonPlanningPage = () => {
           {isLoading && Object.keys(planning).length === 0 ? (
             <p className="text-center text-muted-foreground py-8 text-sm md:text-base">Chargement du planning...</p>
           ) : (
-            <div className="overflow-hidden rounded-lg border border-border shadow-sm">
+            <div className="planning-calendar overflow-hidden rounded-lg border border-border bg-white shadow-sm">
               {/* En-tête jours */}
               <div className="grid grid-cols-7 bg-muted/60">
                 {(viewMode === 'week'

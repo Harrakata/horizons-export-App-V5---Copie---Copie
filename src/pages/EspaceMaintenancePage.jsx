@@ -167,7 +167,7 @@ const LoginPage = ({ onLogin }) => {
                 autoComplete="current-password"
               />
             </div>
-            <Button type="submit" className="w-full bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90" disabled={isLoading}>
+            <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
               {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Connexion...</>) : 'Se connecter'}
             </Button>
             <div className="text-center">
@@ -413,7 +413,6 @@ const EspaceMaintenancePage = () => {
           <div className="hidden md:block">
             <Card className="relative overflow-hidden border border-primary/20 bg-white/92 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
               <CardContent className="relative p-4">
                 <div className="flex items-center gap-3">
                   {userData?.photo_url ? (
@@ -447,7 +446,6 @@ const EspaceMaintenancePage = () => {
 
           <Card className="relative overflow-hidden border border-primary/20 bg-white/92 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.18)] backdrop-blur">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
             <CardContent className="relative p-3">
               <nav className="space-y-1">
                 {menuItems.map((item) => {
@@ -536,7 +534,6 @@ const EspaceMaintenancePage = () => {
             <div className="space-y-6">
               <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
                 <CardHeader>
                   <CardTitle className="flex items-center text-3xl font-bold text-primary">
                     <CalendarDays className="mr-3 h-8 w-8" /> Maintenance

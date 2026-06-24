@@ -304,7 +304,6 @@ const MonPlanningGuichetierePage = () => {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
       <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader className="relative">
           <CardTitle className="flex items-center text-3xl font-bold text-primary">
             <CalendarDays className="mr-3 h-8 w-8" />
@@ -343,7 +342,6 @@ const MonPlanningGuichetierePage = () => {
 
       <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader className="relative pb-0">
           <CardTitle className="flex items-center gap-2 text-xl font-semibold text-primary">
             <CalendarDays className="h-5 w-5" />
@@ -373,7 +371,7 @@ const MonPlanningGuichetierePage = () => {
               disabled={isLoading}
               value={format(currentMonth, 'yyyy-MM-dd')}
               onChange={(e) => { if (e.target.value) setCurrentMonth(parseISO(e.target.value)); }}
-              className="h-7 rounded-md border border-input bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-7 rounded-md border border-input bg-white px-2 text-xs text-slate-900 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
               title="Aller à une date"
             />
           </div>
@@ -386,7 +384,7 @@ const MonPlanningGuichetierePage = () => {
           {isLoading && planningEntries.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Chargement du planning...</p>
           ) : (
-            <div className="overflow-hidden rounded-lg border border-border shadow-sm">
+            <div className="planning-calendar overflow-hidden rounded-lg border border-border bg-white shadow-sm">
               {/* En-tête jours */}
               <div className="grid grid-cols-7 bg-muted/60">
                 {(viewMode === 'week'

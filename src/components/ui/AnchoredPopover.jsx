@@ -87,7 +87,7 @@ const AnchoredPopover = ({
         <div
           ref={panelRef}
           style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, maxHeight, zIndex: 60, pointerEvents: 'auto' }}
-          className={`overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md ${panelClassName}`}
+          className={`surface-glass overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md ${panelClassName}`}
         >
           {children}
         </div>,

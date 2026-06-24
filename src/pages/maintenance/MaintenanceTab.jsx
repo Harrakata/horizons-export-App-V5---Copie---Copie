@@ -2277,7 +2277,6 @@ const MaintenanceTab = ({ technicien }) => {
     >
       <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader className="relative">
           <CardTitle className="flex items-center text-3xl font-bold text-primary">
             <ClipboardList className="mr-3 h-8 w-8" />
@@ -2974,7 +2973,7 @@ const MaintenanceTab = ({ technicien }) => {
             <Button
               onClick={() => setStep(2)}
               disabled={!form.agence || !form.terminal || isLoading || (form.typeIntervention === 'curative' && !form.sousEnsemble)}
-              className="ml-auto bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90"
+              className="ml-auto bg-primary hover:bg-primary/90"
             >
               Suivant →
             </Button>
@@ -2989,7 +2988,7 @@ const MaintenanceTab = ({ technicien }) => {
                   ? (!form.code || sousEnsemblesOptions.length === 0)
                   : (currentSousEnsembleAlreadyPrepared || (interventionItems.length === 0 && (!form.sousEnsemble || !form.code || (form.remplace === 'oui' && !form.remplacement)))))
               }
-              className="ml-auto bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90"
+              className="ml-auto bg-primary hover:bg-primary/90"
             >
               Passer aux signatures →
             </Button>

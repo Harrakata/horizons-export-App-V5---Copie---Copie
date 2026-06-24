@@ -408,7 +408,7 @@ const LoginPageChef = ({ onLogin }) => {
             </div>
               <Button 
                 type="submit" 
-                className="w-full text-lg py-3 bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90 text-white" 
+                className="w-full text-lg py-3 bg-primary hover:bg-primary/90 text-white" 
                 disabled={isLoading}
               >
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -436,7 +436,7 @@ const LoginPageChef = ({ onLogin }) => {
               <div className="grid grid-cols-1 gap-3">
                 <Button 
                   onClick={() => setAuthStep('facial')} 
-                  className="py-6 bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90 text-white"
+                  className="py-6 bg-primary hover:bg-primary/90 text-white"
                 >
                   <Camera className="mr-2 h-5 w-5" />
                   Continuer avec la reconnaissance faciale
@@ -489,7 +489,7 @@ const LoginPageChef = ({ onLogin }) => {
               <div className="grid grid-cols-1 gap-3">
                 <Button 
                   type="submit" 
-                  className="py-6 bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90 text-white" 
+                  className="py-6 bg-primary hover:bg-primary/90 text-white" 
                   disabled={isLoading}
                 >
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-5 w-5" />}
@@ -576,7 +576,7 @@ const LoginPageChef = ({ onLogin }) => {
                       <Button 
                         type="button"
                         onClick={authenticateWithFacialRecognition}
-                        className="bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90 text-white"
+                        className="bg-primary hover:bg-primary/90 text-white"
                         disabled={facialAuthInProgress}
                       >
                         {facialAuthInProgress ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
@@ -1032,7 +1032,6 @@ const EspaceChefAgencePage = () => {
           <div className="hidden md:block">
           <Card className="relative overflow-hidden border border-primary/20 bg-white/92 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
             <CardContent className="relative p-4">
               <div className="flex items-center gap-3">
                 {(chefDetails?.photo_url || chefAgenceInfo?.photo_url) ? (
@@ -1065,7 +1064,6 @@ const EspaceChefAgencePage = () => {
 
           <Card className="relative overflow-hidden border border-primary/20 bg-white/92 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.18)] backdrop-blur">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
             <CardContent className="relative p-3">
               <nav className="space-y-0.5">
                 {menuItems.map((item) => {

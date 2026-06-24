@@ -208,7 +208,7 @@ const LoginPage = ({ onLogin, spaceConfig }) => {
             </div>
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r from-primary to-cyan-600 text-white hover:from-primary/90 hover:to-cyan-600/90"
+              className="w-full bg-primary text-white hover:bg-primary/90"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -708,7 +708,6 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
     <div className="space-y-6">
       <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <CardHeader>
           <CardTitle className="flex items-center text-3xl font-bold text-primary">
             <ShieldCheck className="mr-3 h-8 w-8" />
@@ -1145,7 +1144,6 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
           <div className="hidden md:block">
           <Card className="relative overflow-hidden border border-primary/20 bg-white/92 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
             <CardContent className="relative p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] bg-gradient-to-br from-primary/20 via-primary/10 to-white text-primary ring-1 ring-primary/20 shadow-[0_8px_20px_-10px_rgba(15,23,42,0.35)]">
@@ -1175,7 +1173,6 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
 
           <Card className="relative overflow-hidden border border-primary/20 bg-white/92 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.18)] backdrop-blur">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
             <CardContent className="relative p-3">
               <nav className="space-y-0.5">
                 {menuItems.map((item) => {
