@@ -1202,7 +1202,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
                   <button
                     type="button"
                     onClick={() => { navigate('/'); setIsMobileMenuOpen(false); }}
-                    className="flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-muted-foreground/70 transition-colors hover:bg-primary/8 hover:text-primary"
+                    className="flex flex-1 flex-col items-center gap-1 rounded-2xl py-2.5 text-muted-foreground/70 transition-colors hover:bg-primary/8 hover:text-primary"
                   >
                     <Home className="h-5 w-5" />
                     <span className="text-[0.6rem] font-semibold">Accueil</span>
@@ -1210,7 +1210,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
                   <button
                     type="button"
                     onClick={() => { setIsProfileDialogOpen(true); setIsMobileMenuOpen(false); }}
-                    className="flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-muted-foreground/70 transition-colors hover:bg-primary/8 hover:text-primary"
+                    className="flex flex-1 flex-col items-center gap-1 rounded-2xl py-2.5 text-muted-foreground/70 transition-colors hover:bg-primary/8 hover:text-primary"
                   >
                     <UserCog className="h-5 w-5" />
                     <span className="text-[0.6rem] font-semibold">Profil</span>
@@ -1218,7 +1218,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                    className="flex flex-1 flex-col items-center gap-1 rounded-2xl py-2.5 text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
                   >
                     <LogOut className="h-5 w-5" />
                     <span className="text-[0.6rem] font-semibold">Déconn.</span>

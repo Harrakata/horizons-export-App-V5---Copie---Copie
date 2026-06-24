@@ -357,7 +357,7 @@ const EspaceChefSecteurPage = () => {
                       key={item.key}
                       type="button"
                       onClick={() => setActiveSection(item.key)}
-                      className={`flex w-full items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-sm font-semibold transition-all ${
+                      className={`flex w-full items-center gap-2.5 rounded-2xl border border-transparent px-3 py-2.5 text-sm font-semibold transition-all ${
                         isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground/80 hover:bg-primary/10 hover:text-primary'
                       }`}
                     >
@@ -376,7 +376,7 @@ const EspaceChefSecteurPage = () => {
                 <button
                   type="button"
                   onClick={() => { navigate('/'); setIsMobileMenuOpen(false); }}
-                  className="flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-muted-foreground/70 transition-colors hover:bg-primary/8 hover:text-primary"
+                  className="flex flex-1 flex-col items-center gap-1 rounded-2xl py-2.5 text-muted-foreground/70 transition-colors hover:bg-primary/8 hover:text-primary"
                 >
                   <Home className="h-5 w-5" />
                   <span className="text-[0.6rem] font-semibold">Accueil</span>
@@ -384,7 +384,7 @@ const EspaceChefSecteurPage = () => {
                 <button
                   type="button"
                   onClick={() => { setIsProfileDialogOpen(true); setIsMobileMenuOpen(false); }}
-                  className="flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-muted-foreground/70 transition-colors hover:bg-primary/8 hover:text-primary"
+                  className="flex flex-1 flex-col items-center gap-1 rounded-2xl py-2.5 text-muted-foreground/70 transition-colors hover:bg-primary/8 hover:text-primary"
                 >
                   <UserCog className="h-5 w-5" />
                   <span className="text-[0.6rem] font-semibold">Profil</span>
@@ -392,7 +392,7 @@ const EspaceChefSecteurPage = () => {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                  className="flex flex-1 flex-col items-center gap-1 rounded-2xl py-2.5 text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
                 >
                   <LogOut className="h-5 w-5" />
                   <span className="text-[0.6rem] font-semibold">Déconn.</span>

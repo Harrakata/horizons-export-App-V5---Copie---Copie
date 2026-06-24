@@ -6,6 +6,7 @@ import {
   getMaintenancePlanningRequestTypeLabel,
 } from '@/lib/maintenancePlanningRequests';
 import { DEMANDE_STATUSES } from '@/lib/paiementGainUtils';
+import { normalizeBigIntIdentifier } from '@/lib/paiementGainService';
 
 const REFRESH_MS = 90 * 1000;
 
@@ -231,7 +232,7 @@ export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }
             envoye_par_nom: r.guichetiere_nom || r.guichetiere_matricule || null,
           }),
         }),
-        countRows('demandes_paiement_gain', [['statutGlobal', DEMANDE_STATUSES.PENDING_CHEF], ['chefAgenceId', ctx.chefId]]),
+        countRows('demandes_paiement_gain', [['statutGlobal', DEMANDE_STATUSES.PENDING_CHEF], ['chefAgenceId', normalizeBigIntIdentifier(ctx.chefId)]]),
         fetchExploitationMessages('chef_agence', { agenceNom: ctx.agenceNom }),
       ]);
       if (maintMsgs.length > 0) list.push({ key: 'maint',    count: maintMsgs.length, title: 'Demandes de maintenance',      description: "À valider pour votre agence",    to: '/espace-chef-agence/maintenance-terminaux', severity: 'amber', messages: maintMsgs });
@@ -247,7 +248,7 @@ export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }
 
     else if (spaceKey === 'espace-directeur-regional') {
       const [pay, explMsgs] = await Promise.all([
-        countRows('demandes_paiement_gain', [['statutGlobal', DEMANDE_STATUSES.PENDING_REGIONAL], ['directeurRegionalId', ctx.validatorId]]),
+        countRows('demandes_paiement_gain', [['statutGlobal', DEMANDE_STATUSES.PENDING_REGIONAL], ['directeurRegionalId', normalizeBigIntIdentifier(ctx.validatorId)]]),
         fetchExploitationMessages('directeur_regional', { regionNom: ctx.regionNom }),
       ]);
       if (pay > 0)             list.push({ key: 'pay',      count: pay,             title: 'Paiements de gain à valider',  description: 'En attente directeur régional', to: '/espace-validation-paiement-gain', severity: 'blue' });

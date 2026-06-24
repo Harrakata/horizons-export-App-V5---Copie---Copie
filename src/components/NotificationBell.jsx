@@ -71,15 +71,27 @@ const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, stor
   // ── Détection mobile ────────────────────────────────────────────────────────
   // Sur mobile, on n'utilise PAS le positionnement de Radix (qui décale le popover
   // hors écran dans l'en-tête sticky) : on rend un panneau fixe centré via portal.
-  const [isMobile, setIsMobile] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
-  );
+  // « Mobile » = écran étroit OU PWA installée (standalone). En PWA, le popover
+  // natif de Radix se positionne hors écran → on force le panneau fixe portalisé,
+  // quel que soit l'appareil (téléphone, tablette).
+  const evalMobile = () =>
+    typeof window !== 'undefined' && (
+      window.matchMedia('(max-width: 767px)').matches ||
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator?.standalone === true
+    );
+  const [isMobile, setIsMobile] = useState(evalMobile);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
-    const mq = window.matchMedia('(max-width: 767px)');
-    const handler = (e) => setIsMobile(e.matches);
-    mq.addEventListener?.('change', handler);
-    return () => mq.removeEventListener?.('change', handler);
+    const update = () => setIsMobile(evalMobile());
+    const mqWidth = window.matchMedia('(max-width: 767px)');
+    const mqStandalone = window.matchMedia('(display-mode: standalone)');
+    mqWidth.addEventListener?.('change', update);
+    mqStandalone.addEventListener?.('change', update);
+    return () => {
+      mqWidth.removeEventListener?.('change', update);
+      mqStandalone.removeEventListener?.('change', update);
+    };
   }, []);
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -284,17 +296,43 @@ const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, stor
       <>
         {bellButton}
         {open && createPortal(
-          <>
-            <div className="fixed inset-0 z-[88]" onClick={() => handleOpenChange(false)} aria-hidden="true" />
+          // Conteneur plein écran en flexbox : centrage horizontal SANS transform
+          // ni marge auto (fiable en PWA/WebView), styles inline (insensibles au
+          // purge/override CSS), z-index très haut pour passer au-dessus de tout.
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 2147483000,
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'flex-start',
+              pointerEvents: 'none',
+            }}
+          >
             <div
-              className="surface-glass notification-bell-popover fixed left-1/2 top-[6rem] z-[90] -translate-x-1/2 overflow-hidden rounded-xl border bg-popover p-0 text-popover-foreground shadow-[0_24px_60px_-12px_rgba(15,23,42,0.45)] animate-in fade-in-0 slide-in-from-top-2 duration-150"
-              style={{ width: 'calc(100vw - 1rem)', maxWidth: '22rem' }}
+              onClick={() => handleOpenChange(false)}
+              aria-hidden="true"
+              style={{ position: 'absolute', inset: 0, pointerEvents: 'auto' }}
+            />
+            <div
+              className="surface-glass notification-bell-popover overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-[0_24px_60px_-12px_rgba(15,23,42,0.45)]"
+              style={{
+                position: 'relative',
+                marginTop: '6.25rem',
+                width: 'calc(100vw - 1rem)',
+                maxWidth: '22rem',
+                maxHeight: 'calc(100dvh - 7.75rem)',
+                display: 'flex',
+                flexDirection: 'column',
+                pointerEvents: 'auto',
+              }}
               role="region"
               aria-label="Notifications"
             >
               {panelBody}
             </div>
-          </>,
+          </div>,
           document.body
         )}
       </>
