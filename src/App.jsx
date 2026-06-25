@@ -5,7 +5,7 @@ import HomePage from '@/pages/HomePage';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { FeatureFlagsProvider } from '@/hooks/useFeatureFlags';
+import { FeatureFlagsProvider, useClient } from '@/hooks/useFeatureFlags';
 import { loadAndApplyTheme, applyThemeFromCache } from '@/lib/theme';
 
 // Application synchrone immédiate depuis le cache (évite le flash au rechargement)
@@ -14,6 +14,18 @@ applyThemeFromCache();
 // Synchronisation asynchrone depuis Supabase après montage
 const ThemeLoader = () => {
   useEffect(() => { loadAndApplyTheme(); }, []);
+  return null;
+};
+
+// Aligne le titre d'onglet sur le nom du client (branding éditable en base).
+// Complète le titre figé au build (VITE_CLIENT_NAME) avec la valeur à jour.
+const ClientTitle = () => {
+  const client = useClient();
+  useEffect(() => {
+    const PRODUCT = 'GestionPDV';
+    const name = (client?.displayName || '').trim();
+    document.title = name && name !== PRODUCT ? `${PRODUCT} ${name}` : PRODUCT;
+  }, [client?.displayName]);
   return null;
 };
 
@@ -93,6 +105,7 @@ const App = () => (
     <TooltipProvider>
     <BrowserRouter>
       <ThemeLoader />
+      <ClientTitle />
       <Routes>
         <Route path="/pbi-viewer" element={<LazyRoute><PbiViewerPage /></LazyRoute>} />
         <Route element={<Layout />}>

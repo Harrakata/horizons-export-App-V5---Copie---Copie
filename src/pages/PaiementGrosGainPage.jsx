@@ -1075,26 +1075,26 @@ const PaiementGrosGainPage = () => {
 
   if (!chefInfo?.id) {
     return (
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-3xl">
-        <Card className="relative overflow-hidden border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] p-3 md:p-8 text-center"
+      >
+        <Card className="relative overflow-hidden w-full max-w-lg border border-primary/20 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur p-4 md:p-8">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-primary/35" />
-          <CardHeader>
-            <CardTitle className="text-3xl text-primary">Paiement Gros Gain</CardTitle>
-            <CardDescription>
-              Cet espace est accessible une fois connecté à votre espace Chef d’agence.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-muted-foreground">
-              Connectez-vous d’abord avec votre matricule et votre mot de passe chef d’agence, puis revenez ici pour créer les demandes et finaliser les paiements autorisés.
-            </p>
-            <Button asChild className="bg-primary text-white hover:bg-primary/90">
-              <Link to="/espace-chef-agence/paiement-gros-gain">
-                <LogIn className="mr-2 h-4 w-4" />
-                Accéder à l’espace Chef d’agence
-              </Link>
-            </Button>
-          </CardContent>
+          <Wallet className="h-10 w-10 md:h-16 md:w-16 text-primary mx-auto mb-3 md:mb-6" />
+          <CardTitle className="text-xl md:text-3xl font-bold text-primary mb-2 md:mb-4">Paiement Gros Gain</CardTitle>
+          <p className="text-sm md:text-lg text-muted-foreground mb-4 md:mb-8">
+            Connectez-vous d’abord avec votre matricule et votre mot de passe chef d’agence, puis revenez ici pour créer les demandes et finaliser les paiements autorisés.
+          </p>
+          <Button asChild className="bg-primary hover:bg-primary/90 text-white text-xs md:text-base w-full md:w-auto">
+            <Link to="/espace-chef-agence/paiement-gros-gain">
+              <LogIn className="mr-2 h-4 w-4 md:h-5 md:w-5" /> Accéder à l’espace Chef d’agence
+            </Link>
+          </Button>
+          <p className="text-xs md:text-sm text-muted-foreground mt-4 md:mt-6">
+            Cet espace est accessible une fois connecté à votre espace Chef d’agence.
+          </p>
         </Card>
       </motion.div>
     );

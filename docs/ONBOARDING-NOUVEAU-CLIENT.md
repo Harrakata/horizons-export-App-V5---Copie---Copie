@@ -111,13 +111,29 @@ Chaque projet étant isolé, il faut créer le bucket dans le nouveau projet :
 | `notify-parieur-sms` | SMS parieur (Twilio) | notifications SMS utilisées |
 | `resolve-map-link` | résolution liens carte/GPS | flag GPS utilisé |
 
+⚠ **Sans déploiement, la création de comptes/profils échoue** avec
+« Failed to send a request to the Edge Function » (la fonction `admin-manage-user`
+n'existe pas sur le projet).
+
+**Prérequis & pièges :**
+- **Docker Desktop doit tourner** (le bundling utilise l'image edge-runtime).
+- **Lancer depuis la RACINE du dépôt de l'app** (celle qui contient
+  `supabase/functions/` ET `supabase/config.toml`). Sinon la CLI « remonte » et
+  prend un mauvais workdir (ex. `C:\Users\<user>`) → erreur
+  « entrypoint path does not exist ». Le `supabase/config.toml` du dépôt sert
+  d'ancre ; le projet distant est choisi avec `--project-ref`.
+
 ```bash
-# Lier la CLI au nouveau projet (project-ref = identifiant du projet Supabase)
-npx supabase link --project-ref <ref-du-projet-niger>
-# Déployer une fonction
-npx supabase functions deploy admin-manage-user
-# … répéter pour chaque fonction nécessaire
+cd "<racine-du-dépôt>"           # dossier contenant supabase/functions/
+npx supabase login               # une fois
+
+# Déployer une fonction sur le bon projet (ref = identifiant du projet Supabase)
+npx supabase functions deploy admin-manage-user --project-ref <ref-du-projet>
+
+# Ou TOUTES les fonctions d'un coup :
+npx supabase functions deploy --project-ref <ref-du-projet>
 ```
+La CLI doit afficher `Using workdir …/<dépôt>` (et non le dossier home).
 
 **Secrets des Edge Functions** (Dashboard → Edge Functions → Secrets, ou
 `npx supabase secrets set CLE=valeur`). `SUPABASE_URL`, `SUPABASE_ANON_KEY` et
@@ -156,7 +172,7 @@ si besoin). Voir `.env.example` pour la liste de référence.
 | Variable | Valeur | Obligatoire |
 |---|---|---|
 | `VITE_CLIENT_ID` | `pmu-niger` | ✅ (doit matcher le `.env` du registre) |
-| `VITE_CLIENT_NAME` | `PMU Niger` | ✅ |
+| `VITE_CLIENT_NAME` | `PMU Niger` | ✅ — titre d'onglet + **nom de la PWA** (build-time → redeploy requis) |
 | `VITE_CLIENT_LOGO_URL` | URL du logo (sinon réglable en base) | optionnel |
 | `VITE_STORAGE_BUCKET` | nom du bucket si ≠ `pmu-mali-storage` | si nom custom |
 | `VITE_SUPABASE_URL` | Project URL (étape 1.2) | ✅ |
@@ -214,11 +230,40 @@ Si vous n'avez pas utilisé `--seed`, renseigner :
 
 - [ ] Connexion à `…/espace-exploitation` OK.
 - [ ] Nom + logo client visibles (header/accueil).
+- [ ] Titre de l'onglet = nom du client ; nom de la PWA à l'installation = nom du client.
 - [ ] Création d'un profil + upload d'une photo (vérifie le bucket Storage).
 - [ ] Un module désactivé est bien masqué (ex. couper `ccope` → onglet comptable absent).
 - [ ] Power BI s'affiche (si activé) — sinon message « désactivé ».
 - [ ] Réinitialisation de mot de passe (email) fonctionne.
 - [ ] (Si SMS) un envoi test passe.
+
+---
+
+## Dépannage (erreurs réellement rencontrées)
+
+**« La nouvelle app affiche les données de l'ancien client »**
+Le déploiement pointe encore sur l'ancienne base. Causes :
+- `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` du nouveau projet Vercel pas (ou mal)
+  réglés. ⚠ Les variables `NEXT_PUBLIC_SUPABASE_*` / `SUPABASE_*` créées par
+  l'intégration Vercel↔Supabase sont **ignorées** (l'app est en Vite, lit `VITE_*`).
+- **Vite fige les variables au BUILD** → après modif, **Redeploy** (sans cache).
+- **PWA** : le service worker sert l'ancien bundle. F12 → Application → Service
+  Workers → Unregister, puis Clear site data, puis Ctrl+Shift+R.
+- Vérif : F12 → Network → une requête `*.supabase.co` doit cibler le bon `ref`.
+
+**« No suitable key or wrong key type » à l'enregistrement (écriture)**
+Session périmée : un jeton émis par l'**ancien** projet est encore en cache et envoyé
+au **nouveau** (les lectures passent via un fallback sans `Authorization`, pas les
+écritures). → Clear site data + **re-login** sur le nouveau projet. Si ça persiste,
+utiliser la clé **anon legacy (JWT `eyJ…`)** comme `VITE_SUPABASE_ANON_KEY` (pas la
+clé `sb_publishable_…`).
+
+**« Failed to send a request to the Edge Function » (création de profil)**
+La fonction `admin-manage-user` n'est pas déployée sur le projet → voir étape 1.6.
+
+**`entrypoint path does not exist` au deploy d'une fonction**
+La CLI n'est pas lancée depuis la racine du dépôt (workdir incorrect) → `cd` dans le
+dépôt (qui contient `supabase/config.toml`) et utiliser `--project-ref`.
 
 ---
 

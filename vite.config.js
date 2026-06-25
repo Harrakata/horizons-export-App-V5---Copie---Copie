@@ -3,6 +3,15 @@ import react from '@vitejs/plugin-react';
 import { createLogger, defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Titre de l'app pour l'onglet, le meta iOS et le manifeste PWA.
+// Format : "GestionPDV <client>" (ex. "GestionPDV SONAL", "GestionPDV PMU Mali").
+// Sur Vercel, VITE_CLIENT_NAME est présent dans process.env au moment du build.
+const PRODUCT_NAME = 'GestionPDV';
+const CLIENT_NAME = (process.env.VITE_CLIENT_NAME || '').trim();
+const APP_TITLE = CLIENT_NAME && CLIENT_NAME !== PRODUCT_NAME
+	? `${PRODUCT_NAME} ${CLIENT_NAME}`
+	: PRODUCT_NAME;
+
 const configHorizonsViteErrorHandler = `
 const observer = new MutationObserver((mutations) => {
 	for (const mutation of mutations) {
@@ -137,8 +146,15 @@ window.fetch = function(...args) {
 const addTransformIndexHtml = {
 	name: 'add-transform-index-html',
 	transformIndexHtml(html) {
+		// Injecte le nom du client dans le titre d'onglet et le titre PWA iOS.
+		const htmlWithClientName = html
+			.replace(/<title>[\s\S]*?<\/title>/, `<title>${APP_TITLE}</title>`)
+			.replace(
+				/(<meta name="apple-mobile-web-app-title" content=")[^"]*(")/,
+				`$1${APP_TITLE}$2`
+			);
 		return {
-			html,
+			html: htmlWithClientName,
 			tags: [
 				{
 					tag: 'script',
@@ -191,8 +207,8 @@ export default defineConfig({
 			registerType: 'autoUpdate',
 			includeAssets: ['carrus-logo.png', 'pwa-icon.svg', 'apple-touch-icon.png'],
 			manifest: {
-				name: 'GestionPDV',
-				short_name: 'GestionPDV',
+				name: APP_TITLE,
+				short_name: APP_TITLE,
 				description: 'Gestion des points de vente : planning, pointage, paiements et maintenance.',
 				lang: 'fr',
 				theme_color: '#2563eb',

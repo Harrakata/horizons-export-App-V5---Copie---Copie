@@ -1,0 +1,4 @@
+# Racine du projet Supabase pour la CLI (déploiement des Edge Functions).
+# project_id sert d'identifiant LOCAL ; le projet distant ciblé est choisi
+# avec --project-ref lors des commandes (multi-clients).
+project_id = "gestion-pdv"

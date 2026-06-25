@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { UserCog, Loader2, Camera, UploadCloud, X, Mail, Phone, KeyRound, ShieldCheck, Eye, EyeOff, User } from 'lucide-react';
 import {
   Dialog,
@@ -52,6 +52,11 @@ const EditProfileDialog = ({
   const [photoFile, setPhotoFile] = useState(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
+  // ── Capture caméra ──
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
   // ── Onglet Sécurité ──
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -96,6 +101,61 @@ const EditProfileDialog = ({
     reader.onloadend = () => setPhotoUrl(reader.result);
     reader.readAsDataURL(file);
   };
+
+  // ── Caméra : ouvrir / fermer / capturer ──
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraOpen(false);
+  }, []);
+
+  const startCamera = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast({ title: 'Caméra indisponible', description: "Votre appareil ou navigateur ne permet pas l'accès à la caméra.", variant: 'destructive' });
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+      streamRef.current = stream;
+      setIsCameraOpen(true);
+    } catch (err) {
+      toast({ title: 'Accès caméra refusé', description: "Autorisez l'accès à la caméra pour prendre une photo.", variant: 'destructive' });
+    }
+  };
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+    const size = Math.min(w, h); // recadrage carré centré
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, (w - size) / 2, (h - size) / 2, size, size, 0, 0, size, size);
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const file = new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      setPhotoFile(file);
+      setPhotoUrl(canvas.toDataURL('image/jpeg', 0.9));
+      stopCamera();
+    }, 'image/jpeg', 0.9);
+  };
+
+  // Branche le flux sur la balise vidéo une fois affichée ; coupe la caméra à la fermeture/démontage.
+  useEffect(() => {
+    if (isCameraOpen && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [isCameraOpen]);
+
+  useEffect(() => {
+    if (!open) stopCamera();
+    return () => stopCamera();
+  }, [open, stopCamera]);
 
   const uploadPhoto = async (file) => {
     if (!file) return null;
@@ -227,29 +287,52 @@ const EditProfileDialog = ({
               <form onSubmit={handleProfileSubmit} className="space-y-4">
                 {withPhoto && (
                   <div className="flex flex-col items-center gap-2">
-                    {photoUrl ? (
-                      <div className="relative">
-                        <img src={photoUrl} alt="Photo de profil" className="h-24 w-24 rounded-full border-2 border-primary object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => { setPhotoFile(null); setPhotoUrl(null); }}
-                          className="absolute -right-1 -top-1 rounded-full bg-red-500 p-1 text-white shadow hover:bg-red-600"
-                          disabled={busy}
-                          aria-label="Retirer la photo"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
+                    {isCameraOpen ? (
+                      <>
+                        <div className="overflow-hidden rounded-2xl border-2 border-primary/40 bg-black shadow-inner">
+                          <video ref={videoRef} autoPlay playsInline muted className="h-48 w-48 object-cover" />
+                        </div>
+                        <div className="flex flex-wrap justify-center gap-2">
+                          <Button type="button" size="sm" onClick={capturePhoto} disabled={busy}>
+                            <Camera className="mr-1.5 h-4 w-4" /> Capturer
+                          </Button>
+                          <Button type="button" variant="outline" size="sm" onClick={stopCamera} disabled={busy}>
+                            <X className="mr-1.5 h-4 w-4" /> Annuler
+                          </Button>
+                        </div>
+                      </>
                     ) : (
-                      <div className="flex h-24 w-24 items-center justify-center rounded-full border-2 border-dashed border-primary/30 bg-primary/5 text-primary">
-                        <Camera className="h-8 w-8 opacity-50" />
-                      </div>
+                      <>
+                        {photoUrl ? (
+                          <div className="relative">
+                            <img src={photoUrl} alt="Photo de profil" className="h-24 w-24 rounded-full border-2 border-primary object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => { setPhotoFile(null); setPhotoUrl(null); }}
+                              className="absolute -right-1 -top-1 rounded-full bg-red-500 p-1 text-white shadow hover:bg-red-600"
+                              disabled={busy}
+                              aria-label="Retirer la photo"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex h-24 w-24 items-center justify-center rounded-full border-2 border-dashed border-primary/30 bg-primary/5 text-primary">
+                            <Camera className="h-8 w-8 opacity-50" />
+                          </div>
+                        )}
+                        <Input id="edit-profile-photo" type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" disabled={busy} />
+                        <div className="flex flex-wrap justify-center gap-2">
+                          <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById('edit-profile-photo')?.click()} disabled={busy}>
+                            <UploadCloud className="mr-1.5 h-4 w-4" />
+                            {photoUrl ? 'Changer la photo' : 'Ajouter une photo'}
+                          </Button>
+                          <Button type="button" variant="outline" size="sm" onClick={startCamera} disabled={busy}>
+                            <Camera className="mr-1.5 h-4 w-4" /> Prendre une photo
+                          </Button>
+                        </div>
+                      </>
                     )}
-                    <Input id="edit-profile-photo" type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" disabled={busy} />
-                    <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById('edit-profile-photo')?.click()} disabled={busy}>
-                      <UploadCloud className="mr-1.5 h-4 w-4" />
-                      {photoUrl ? 'Changer la photo' : 'Ajouter une photo'}
-                    </Button>
                   </div>
                 )}
 
