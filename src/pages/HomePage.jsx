@@ -73,7 +73,7 @@ const HomePage = () => {
               className="mx-auto mb-3 h-16 sm:mb-5 sm:h-24 md:h-44 w-auto object-contain drop-shadow-md"
             />
             <h1 className="text-3xl sm:text-4xl md:text-6xl font-extrabold mb-2 sm:mb-4">
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-cyan-400">
+              <span className="text-primary">
                 GestionPDV
               </span>
             </h1>

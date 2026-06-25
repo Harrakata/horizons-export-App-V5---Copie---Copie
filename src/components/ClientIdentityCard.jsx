@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Save, Loader2 } from 'lucide-react';
+import { Building2, Save, Loader2, UploadCloud } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useFeatureFlags } from '@/hooks/useFeatureFlags';
-import { CLIENT_ID } from '@/lib/clientConfig';
+import { CLIENT_ID, STORAGE_BUCKET } from '@/lib/clientConfig';
+import { supabase } from '@/lib/supabaseClient';
 
 // ════════════════════════════════════════════════════════════════════════════
 //  Carte « Identité client » (multi-tenant)
@@ -20,12 +21,42 @@ const ClientIdentityCard = ({ canWrite = true }) => {
   const [displayName, setDisplayName] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Synchronise les champs quand le branding est chargé/mis à jour.
   useEffect(() => {
     setDisplayName(client.displayName || '');
     setLogoUrl(client.logoUrl || '');
   }, [client.displayName, client.logoUrl]);
+
+  // Import d'un logo local : upload vers le stockage puis renseigne l'URL publique.
+  const handleLogoUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (event.target) event.target.value = null;
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Format invalide', description: 'Choisissez une image (PNG, JPG, SVG…).', variant: 'destructive' });
+      return;
+    }
+    setIsUploading(true);
+    try {
+      const ext = (file.name?.split('.').pop() || 'png').toLowerCase();
+      const fileName = `branding/${CLIENT_ID}_logo_${Date.now()}.${ext}`;
+      const { data, error } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(fileName, file, { cacheControl: '3600', upsert: true });
+      if (error) {
+        toast({ title: "Erreur d'import", description: error.message, variant: 'destructive' });
+      } else {
+        const { data: pub } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(data.path);
+        setLogoUrl(pub.publicUrl);
+        toast({ title: 'Logo importé', description: "Cliquez sur « Sauvegarder l'identité » pour l'appliquer.", className: 'bg-green-500 text-white' });
+      }
+    } catch (err) {
+      toast({ title: 'Erreur', description: "Échec de l'import du logo.", variant: 'destructive' });
+    }
+    setIsUploading(false);
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -74,15 +105,35 @@ const ClientIdentityCard = ({ canWrite = true }) => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="client-logo-url">URL du logo</Label>
+            <Label htmlFor="client-logo-url">Logo</Label>
             <Input
               id="client-logo-url"
               value={logoUrl}
               onChange={(e) => setLogoUrl(e.target.value)}
               placeholder="https://…/logo.png"
-              disabled={!canWrite || isSaving}
+              disabled={!canWrite || isSaving || isUploading}
             />
-            <p className="text-xs text-muted-foreground">Lien direct vers l'image du logo (PNG/SVG).</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                id="client-logo-file"
+                type="file"
+                accept="image/*"
+                onChange={handleLogoUpload}
+                className="hidden"
+                disabled={!canWrite || isSaving || isUploading}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => document.getElementById('client-logo-file')?.click()}
+                disabled={!canWrite || isSaving || isUploading}
+              >
+                {isUploading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-1.5 h-4 w-4" />}
+                Importer un logo
+              </Button>
+              <p className="text-xs text-muted-foreground">…ou collez un lien direct (PNG/SVG).</p>
+            </div>
           </div>
         </div>
 
@@ -99,7 +150,7 @@ const ClientIdentityCard = ({ canWrite = true }) => {
         ) : null}
 
         <div className="flex justify-end border-t pt-4">
-          <Button onClick={handleSave} disabled={!canWrite || isSaving} className="gap-2">
+          <Button onClick={handleSave} disabled={!canWrite || isSaving || isUploading} className="gap-2">
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Sauvegarder l'identité
           </Button>
