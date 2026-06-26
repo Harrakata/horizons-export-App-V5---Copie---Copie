@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Loader2, Building, Smartphone, Users, UserCog, CornerDownLeft } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { supabase } from '@/lib/supabaseClient';
+import { isGuichetiereAgenceVisible } from '@/lib/orgStructureConfig';
 
 // Nettoie le terme pour l'usage dans un filtre PostgREST `or(...)`.
 const sanitize = (q) => q.replace(/[,()*%]/g, ' ').trim();
@@ -37,7 +38,8 @@ async function runSearch(raw) {
     to: `/espace-exploitation/maintenance-terminaux?q=${encodeURIComponent(t.reference || '')}`,
   }));
   guichetieres.forEach((g) => results.push({
-    type: 'guichetiere', id: g.id, title: `${g.prenom || ''} ${g.nom || ''}`.trim(), subtitle: [g.matricule, g.agenceAssigne].filter(Boolean).join(' • '),
+    type: 'guichetiere', id: g.id, title: `${g.prenom || ''} ${g.nom || ''}`.trim(),
+    subtitle: [g.matricule, isGuichetiereAgenceVisible() ? g.agenceAssigne : null].filter(Boolean).join(' • '),
     to: `/espace-exploitation/guichetieres?q=${encodeURIComponent(g.matricule || g.nom || '')}`,
   }));
   chefs.forEach((c) => results.push({

@@ -2,12 +2,16 @@ import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
-  Network, Globe, Building2, User, Loader2, Check, X, Link2, Unlink,
+  Network, Globe, Building2, User, Loader2, Check, X, Link2, Unlink, EyeOff,
   UserCog, Briefcase, Wrench, ShieldCheck, Layers, Pencil,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useFeatureFlags } from '@/hooks/useFeatureFlags';
-import { isSecteurEnabled, isGuichetiereAgenceRequired } from '@/lib/orgStructureConfig';
+import {
+  isSecteurEnabled,
+  getGuichetiereAgenceMode,
+  GUICHETIERE_AGENCE_MODES,
+} from '@/lib/orgStructureConfig';
 import { APP_SPACE_FUNCTIONALITIES, EXPLOITATION_MENU_PERMISSIONS } from '@/lib/exploitationProfiles';
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -205,7 +209,9 @@ const OrgStructureCard = ({
   const [pending, setPending] = useState(null);
 
   const secteurEnabled = isSecteurEnabled(org);
-  const agenceRequired = isGuichetiereAgenceRequired(org);
+  const agenceMode = getGuichetiereAgenceMode(org);
+  const agenceRequired = agenceMode === GUICHETIERE_AGENCE_MODES.REQUIRED;
+  const agenceHidden = agenceMode === GUICHETIERE_AGENCE_MODES.HIDDEN;
 
   const spaceEnabled = (key) => spaceFunctionalities?.[key] !== false;
   const tabEnabled = (key) => spaceTabFunctionalities?.['espace-exploitation']?.[key] !== false;
@@ -424,12 +430,15 @@ const OrgStructureCard = ({
             {renderManage(['agences', 'chefs-agence'])}
           </Node>
 
-          {/* Lien Agence → Guichetière (pointillés si rattachement optionnel) */}
+          {/* Lien Agence → Guichetière (pointillés si optionnel / masqué) */}
           <Connector
             dashed={!agenceRequired}
+            muted={agenceHidden}
             label={
               agenceRequired ? (
                 <><Link2 className="h-3 w-3" /> Rattachement obligatoire</>
+              ) : agenceHidden ? (
+                <><EyeOff className="h-3 w-3" /> Sans rattachement agence</>
               ) : (
                 <><Unlink className="h-3 w-3" /> Rattachement optionnel</>
               )
@@ -443,20 +452,23 @@ const OrgStructureCard = ({
             subtitle={
               agenceRequired
                 ? 'Obligatoirement rattachée à une agence.'
-                : 'Peut exister sans rattachement à une agence.'
+                : agenceHidden
+                  ? 'Sans rattachement à une agence (champ Agence masqué).'
+                  : 'Peut exister sans rattachement à une agence.'
             }
             badge={ALWAYS_ACTIVE_BADGE}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-[11px] font-medium text-muted-foreground">Rattachement&nbsp;:</span>
               <SegmentedToggle
-                value={agenceRequired}
-                onChange={(v) => applyStructure('guichetiere', { guichetiere: { agenceRequired: v } })}
+                value={agenceMode}
+                onChange={(v) => applyStructure('guichetiere', { guichetiere: { agenceMode: v } })}
                 disabled={!canWrite}
                 busy={pending === 'guichetiere'}
                 options={[
-                  { value: true, label: 'Obligatoire', icon: <Link2 className="h-3 w-3" /> },
-                  { value: false, label: 'Optionnel', icon: <Unlink className="h-3 w-3" /> },
+                  { value: GUICHETIERE_AGENCE_MODES.REQUIRED, label: 'Obligatoire', icon: <Link2 className="h-3 w-3" /> },
+                  { value: GUICHETIERE_AGENCE_MODES.OPTIONAL, label: 'Optionnel', icon: <Unlink className="h-3 w-3" /> },
+                  { value: GUICHETIERE_AGENCE_MODES.HIDDEN, label: 'Masqué', icon: <EyeOff className="h-3 w-3" /> },
                 ]}
               />
             </div>

@@ -29,10 +29,32 @@ const ORG_STRUCTURE_CACHE_KEY = 'org_structure_cache';
 const ENV_SECTEUR_DISABLED =
   String(import.meta.env.VITE_HIERARCHY_SECTEUR || '').trim().toLowerCase() === 'off';
 
+// Modes de rattachement d'une guichetière à une agence.
+//  - required : agence obligatoire (comportement historique)
+//  - optional : agence facultative (champ visible, valeur nullable)
+//  - hidden   : pas de rattachement — le champ Agence est masqué partout
+export const GUICHETIERE_AGENCE_MODES = {
+  REQUIRED: 'required',
+  OPTIONAL: 'optional',
+  HIDDEN: 'hidden',
+};
+const AGENCE_MODE_VALUES = Object.values(GUICHETIERE_AGENCE_MODES);
+
 // ── Structure par défaut = comportement historique ─────────────────────────────
 export const DEFAULT_ORG_STRUCTURE = {
   secteur: { enabled: true },
-  guichetiere: { agenceRequired: true },
+  guichetiere: { agenceMode: GUICHETIERE_AGENCE_MODES.REQUIRED },
+};
+
+/** Résout le mode de rattachement agence, avec rétrocompat de l'ancien booléen. */
+const normalizeAgenceMode = (guichetiere) => {
+  const mode = guichetiere?.agenceMode;
+  if (AGENCE_MODE_VALUES.includes(mode)) return mode;
+  // Rétrocompat : ancienne config booléenne `agenceRequired`.
+  if (typeof guichetiere?.agenceRequired === 'boolean') {
+    return guichetiere.agenceRequired ? GUICHETIERE_AGENCE_MODES.REQUIRED : GUICHETIERE_AGENCE_MODES.OPTIONAL;
+  }
+  return DEFAULT_ORG_STRUCTURE.guichetiere.agenceMode;
 };
 
 /** Fusionne une config partielle avec les défauts (deep merge des 2 axes connus). */
@@ -46,10 +68,7 @@ const normalizeOrgStructure = (raw) => {
           : DEFAULT_ORG_STRUCTURE.secteur.enabled,
     },
     guichetiere: {
-      agenceRequired:
-        typeof value?.guichetiere?.agenceRequired === 'boolean'
-          ? value.guichetiere.agenceRequired
-          : DEFAULT_ORG_STRUCTURE.guichetiere.agenceRequired,
+      agenceMode: normalizeAgenceMode(value?.guichetiere),
     },
   };
 };
@@ -81,8 +100,16 @@ export const getOrgStructure = () => _orgStructure;
 export const isSecteurEnabled = (structure = _orgStructure) =>
   structure?.secteur?.enabled !== false;
 
+/** Mode de rattachement agence courant : 'required' | 'optional' | 'hidden'. */
+export const getGuichetiereAgenceMode = (structure = _orgStructure) =>
+  normalizeAgenceMode(structure?.guichetiere);
+
 export const isGuichetiereAgenceRequired = (structure = _orgStructure) =>
-  structure?.guichetiere?.agenceRequired !== false;
+  getGuichetiereAgenceMode(structure) === GUICHETIERE_AGENCE_MODES.REQUIRED;
+
+/** Le champ/colonne Agence doit-il être affiché ? (faux en mode 'hidden'). */
+export const isGuichetiereAgenceVisible = (structure = _orgStructure) =>
+  getGuichetiereAgenceMode(structure) !== GUICHETIERE_AGENCE_MODES.HIDDEN;
 
 // ── Synchronisation depuis Supabase ────────────────────────────────────────────
 export const loadOrgStructure = async () => {

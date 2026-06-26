@@ -16,6 +16,8 @@ import {
   saveOrgStructure,
   isSecteurEnabled,
   isGuichetiereAgenceRequired,
+  isGuichetiereAgenceVisible,
+  getGuichetiereAgenceMode,
 } from '@/lib/orgStructureConfig';
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -129,6 +131,14 @@ export const useSecteurEnabled = () =>
 /** Raccourci : une guichetière doit-elle être rattachée à une agence ? */
 export const useGuichetiereAgenceRequired = () =>
   isGuichetiereAgenceRequired(useContext(FeatureFlagsContext).org);
+
+/** Raccourci : le champ/colonne Agence des guichetières est-il visible ? */
+export const useGuichetiereAgenceVisible = () =>
+  isGuichetiereAgenceVisible(useContext(FeatureFlagsContext).org);
+
+/** Raccourci : mode de rattachement agence ('required' | 'optional' | 'hidden'). */
+export const useGuichetiereAgenceMode = () =>
+  getGuichetiereAgenceMode(useContext(FeatureFlagsContext).org);
 
 /**
  * Composant utilitaire : n'affiche `children` que si la fonctionnalité est active.

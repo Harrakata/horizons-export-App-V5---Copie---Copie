@@ -272,17 +272,19 @@ const EspaceChefSecteurPage = () => {
     navigate('/');
   }, [navigate]);
 
+  // ⚠ Tous les hooks doivent être appelés inconditionnellement, AVANT tout return
+  // conditionnel (sinon « Rendered more hooks than during the previous render »).
+  const { notifications: chefNotifications, totalCount: chefNotifCount, refresh: refreshChefNotifs } = useSpaceNotifications({
+    spaceKey: SPACE_KEY,
+    enabled: isAuthenticated && !!chef,
+    context: { secteurNom: chef?.secteurEnCharge },
+  });
+
   if (!isAuthenticated || !chef) {
     return <LoginPage onLogin={handleLogin} />;
   }
 
   const initials = `${chef.prenom?.charAt(0) || ''}${chef.nom?.charAt(0) || ''}`.toUpperCase() || 'CS';
-
-  const { notifications: chefNotifications, totalCount: chefNotifCount, refresh: refreshChefNotifs } = useSpaceNotifications({
-    spaceKey: SPACE_KEY,
-    enabled: true,
-    context: { secteurNom: chef.secteurEnCharge },
-  });
 
   return (
     <div className="app-space-layout has-mobile-header flex flex-col gap-4 md:flex-row lg:gap-8">

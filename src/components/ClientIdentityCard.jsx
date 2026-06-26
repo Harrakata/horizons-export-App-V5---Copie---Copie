@@ -71,27 +71,22 @@ const ClientIdentityCard = ({ canWrite = true }) => {
 
   return (
     <Card className="shadow-xl glassmorphism">
-      <CardHeader>
-        <div className="flex flex-col gap-2">
-          <CardTitle className="flex items-center gap-2 text-2xl text-primary">
-            <Building2 className="h-6 w-6" /> Identité client
-          </CardTitle>
-          <CardDescription>
-            Branding propre à ce client (chaque client dispose de son propre déploiement et de sa propre base).
-          </CardDescription>
-        </div>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-xl text-primary">
+          <Building2 className="h-5 w-5" /> Identité client
+        </CardTitle>
+        <CardDescription className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span>Branding propre à ce client.</span>
+          <span className="flex items-center gap-1.5">
+            <Badge variant="outline" className="border-primary/30 bg-primary/5 font-mono text-primary">
+              {CLIENT_ID}
+            </Badge>
+            <span className="text-xs text-muted-foreground">VITE_CLIENT_ID — non modifiable</span>
+          </span>
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-5">
-        {/* Identifiant technique — figé par le déploiement (variable d'env) */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Label className="text-sm text-muted-foreground">Identifiant client (déploiement) :</Label>
-          <Badge variant="outline" className="border-primary/30 bg-primary/5 font-mono text-primary">
-            {CLIENT_ID}
-          </Badge>
-          <span className="text-xs text-muted-foreground">défini par VITE_CLIENT_ID — non modifiable ici</span>
-        </div>
-
-        <div className="grid gap-5 md:grid-cols-2">
+      <CardContent className="space-y-3 pb-4">
+        <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="client-display-name">Nom affiché</Label>
             <Input
@@ -101,7 +96,6 @@ const ClientIdentityCard = ({ canWrite = true }) => {
               placeholder="Ex. PMU Mali"
               disabled={!canWrite || isSaving}
             />
-            <p className="text-xs text-muted-foreground">Nom du client affiché dans l'interface.</p>
           </div>
 
           <div className="space-y-2">
@@ -137,19 +131,18 @@ const ClientIdentityCard = ({ canWrite = true }) => {
           </div>
         </div>
 
-        {logoUrl ? (
-          <div className="flex items-center gap-3 rounded-xl border bg-background/70 p-3">
-            <span className="text-xs font-medium text-muted-foreground">Aperçu :</span>
-            <img
-              src={logoUrl}
-              alt="Aperçu du logo"
-              className="h-10 max-w-[160px] object-contain"
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-            />
-          </div>
-        ) : null}
-
-        <div className="flex justify-end border-t pt-4">
+        <div className="flex items-center justify-between gap-3 border-t pt-3">
+          {logoUrl ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground">Aperçu :</span>
+              <img
+                src={logoUrl}
+                alt="Aperçu du logo"
+                className="h-9 max-w-[140px] object-contain"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            </div>
+          ) : <span />}
           <Button onClick={handleSave} disabled={!canWrite || isSaving || isUploading} className="gap-2">
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Sauvegarder l'identité
