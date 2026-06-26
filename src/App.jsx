@@ -145,7 +145,8 @@ const App = () => (
             <Route path="regions"                     element={<LazyRoute><RegionsPage /></LazyRoute>} />
             <Route path="secteurs"                    element={<LazyRoute><SecteursPage /></LazyRoute>} />
             <Route path="chefs-secteur"               element={<LazyRoute><ChefsSecteurPage /></LazyRoute>} />
-            <Route path="validation-paiement-gain"    element={<LazyRoute><ValidationPaiementGainPage /></LazyRoute>} />
+            <Route path="validation-paiement-gain"    element={<LazyRoute><ValidationPaiementGainPage scope="regional" /></LazyRoute>} />
+            <Route path="direction-generale"          element={<LazyRoute><ValidationPaiementGainPage scope="general" /></LazyRoute>} />
             <Route path="autorisation-paiement-gain"  element={<LazyRoute><AutorisationsPaiementGainPage /></LazyRoute>} />
             <Route path="referentiel-parametres"      element={<LazyRoute><ReferentielParametresPage /></LazyRoute>} />
             <Route path="etat-planning-general"       element={<LazyRoute><EtatPlanningGeneralPage /></LazyRoute>} />

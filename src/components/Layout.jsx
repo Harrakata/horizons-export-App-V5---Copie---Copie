@@ -15,7 +15,7 @@ import OfflineSyncIndicator from '@/components/OfflineSyncIndicator';
 import { Home, Briefcase, Users, Settings, BarChart3, LogIn, Sun, Moon, Menu, Wrench, ShieldCheck, Wallet, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
-import { useClient } from '@/hooks/useFeatureFlags';
+import { useClient, useSecteurEnabled } from '@/hooks/useFeatureFlags';
 import { supabase } from '@/lib/supabaseClient';
 import {
   APP_SPACE_SETTINGS_KEY,
@@ -29,6 +29,7 @@ const Layout = () => {
   const location = useLocation();
   const { toast } = useToast();
   const client = useClient();
+  const secteurEnabled = useSecteurEnabled();
   const [isDarkMode, setIsDarkMode] = React.useState(() => {
     // Lire le mode sombre depuis le cache thème pour éviter un flash au rechargement
     try {
@@ -118,7 +119,7 @@ const Layout = () => {
   const dropdownLinks = [
       { to: '/espace-exploitation', label: 'Espace Exploitation', icon: <Briefcase className="mr-2 h-4 w-4" /> },
       { to: '/espace-chef-agence', label: "Espace Chef d'agence", icon: <Users className="mr-2 h-4 w-4" />, featureKey: 'espace-chef-agence' },
-      { to: '/espace-chef-secteur', label: 'Espace Chef de secteur', icon: <Users className="mr-2 h-4 w-4" />, featureKey: 'espace-chef-secteur' },
+      { to: '/espace-chef-secteur', label: 'Espace Chef de secteur', icon: <Users className="mr-2 h-4 w-4" />, featureKey: 'espace-chef-secteur', requiresSecteur: true },
       { to: '/espace-guichetiere', label: 'Espace Guichetière', icon: <User className="mr-2 h-4 w-4" />, featureKey: 'espace-guichetiere' },
       { to: '/espace-validation-paiement-gain', label: 'Espace Directeur régional', icon: <ShieldCheck className="mr-2 h-4 w-4" />, featureKey: 'espace-directeur-regional' },
       { to: '/espace-directeur-general', label: 'Espace Directeur général', icon: <ShieldCheck className="mr-2 h-4 w-4" />, featureKey: 'espace-directeur-general' },
@@ -126,13 +127,20 @@ const Layout = () => {
   ];
 
   const availableDropdownLinks = dropdownLinks.filter(
-    (link) => !link.featureKey || spaceFunctionalities[link.featureKey] !== false
+    (link) => (!link.featureKey || spaceFunctionalities[link.featureKey] !== false)
+      && (!link.requiresSecteur || secteurEnabled)
   );
   const availableNavLinks = navLinks.filter(
     (link) => !link.featureKey || spaceFunctionalities[link.featureKey] !== false
   );
 
   React.useEffect(() => {
+    // Structure : niveau secteur désactivé → l'espace chef de secteur est inaccessible.
+    if (!secteurEnabled && location.pathname.startsWith('/espace-chef-secteur')) {
+      navigate('/', { replace: true });
+      return;
+    }
+
     if (!hasLoadedSpaceFunctionalities) return;
 
     const matchedFeature = getAppSpaceFeatureForPathname(location.pathname);
@@ -146,7 +154,7 @@ const Layout = () => {
       });
       navigate('/', { replace: true });
     }
-  }, [hasLoadedSpaceFunctionalities, location.pathname, navigate, spaceFunctionalities, toast]);
+  }, [hasLoadedSpaceFunctionalities, location.pathname, navigate, secteurEnabled, spaceFunctionalities, toast]);
 
   return (
     <div className="flex min-h-screen flex-col bg-white dark:bg-slate-900">

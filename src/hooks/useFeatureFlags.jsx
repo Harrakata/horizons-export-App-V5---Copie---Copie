@@ -10,6 +10,13 @@ import {
   saveClientBranding,
   applyFeatureEnvOverrides,
 } from '@/lib/clientConfig';
+import {
+  getOrgStructure,
+  loadOrgStructure,
+  saveOrgStructure,
+  isSecteurEnabled,
+  isGuichetiereAgenceRequired,
+} from '@/lib/orgStructureConfig';
 
 // ════════════════════════════════════════════════════════════════════════════
 //  Feature flags + identité client (multi-tenant) — couche unifiée
@@ -42,8 +49,10 @@ const readFunctionalitiesFromCache = () => {
 const FeatureFlagsContext = createContext({
   flags: applyFeatureEnvOverrides(buildDefaultAppSpaceFunctionalities()),
   client: getClientConfig(),
+  org: getOrgStructure(),
   isLoaded: false,
   setBranding: async () => {},
+  setOrgStructure: async () => {},
 });
 
 export const FeatureFlagsProvider = ({ children }) => {
@@ -52,6 +61,7 @@ export const FeatureFlagsProvider = ({ children }) => {
     applyFeatureEnvOverrides(readFunctionalitiesFromCache())
   );
   const [client, setClient] = useState(() => getClientConfig());
+  const [org, setOrg] = useState(() => getOrgStructure());
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Suit les mises à jour du système existant (émises par Layout / page admin).
@@ -63,12 +73,14 @@ export const FeatureFlagsProvider = ({ children }) => {
     return () => window.removeEventListener('app-functionalities-updated', handler);
   }, []);
 
-  // Charge le branding client depuis Supabase (en plus des fonctionnalités).
+  // Charge le branding client + la structure organisationnelle depuis Supabase
+  // (en plus des fonctionnalités).
   useEffect(() => {
     let active = true;
-    loadClientBranding()
-      .then((cfg) => { if (active) setClient(cfg); })
-      .finally(() => { if (active) setIsLoaded(true); });
+    Promise.all([
+      loadClientBranding().then((cfg) => { if (active) setClient(cfg); }),
+      loadOrgStructure().then((structure) => { if (active) setOrg(structure); }),
+    ]).finally(() => { if (active) setIsLoaded(true); });
     return () => { active = false; };
   }, []);
 
@@ -79,7 +91,14 @@ export const FeatureFlagsProvider = ({ children }) => {
     return cfg;
   }, []);
 
-  const value = { flags, client, isLoaded, setBranding };
+  // Édite la structure organisationnelle (réservé à l'admin exploitation).
+  const setOrgStructure = useCallback(async (partial) => {
+    const structure = await saveOrgStructure(partial);
+    setOrg(structure);
+    return structure;
+  }, []);
+
+  const value = { flags, client, org, isLoaded, setBranding, setOrgStructure };
 
   return (
     <FeatureFlagsContext.Provider value={value}>
@@ -99,6 +118,17 @@ export const useFeature = (key) => {
 
 /** Identité/branding du client courant : { id, name, displayName, logoUrl }. */
 export const useClient = () => useContext(FeatureFlagsContext).client;
+
+/** Structure organisationnelle courante : { secteur: {enabled}, guichetiere: {agenceRequired} }. */
+export const useOrgStructure = () => useContext(FeatureFlagsContext).org;
+
+/** Raccourci : le niveau « secteur » est-il actif dans la hiérarchie ? */
+export const useSecteurEnabled = () =>
+  isSecteurEnabled(useContext(FeatureFlagsContext).org);
+
+/** Raccourci : une guichetière doit-elle être rattachée à une agence ? */
+export const useGuichetiereAgenceRequired = () =>
+  isGuichetiereAgenceRequired(useContext(FeatureFlagsContext).org);
 
 /**
  * Composant utilitaire : n'affiche `children` que si la fonctionnalité est active.
