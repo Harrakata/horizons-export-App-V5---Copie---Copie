@@ -10,6 +10,7 @@ import { fr } from 'date-fns/locale';
 import { useOutletContext } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { supabase } from '@/lib/supabaseClient';
+import { isGuichetiereAgenceVisible } from '@/lib/orgStructureConfig';
 import { Combobox } from '@/components/ui/Combobox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -117,6 +118,8 @@ const MonPlanningPage = () => {
     const buildQuery = (withIsCurrent) => {
       const base = supabase.from('guichetieres').select(SELECT_FIELDS);
       const filtered = withIsCurrent ? base.eq('is_current', true) : base;
+      // Structure : rattachement agence masqué → le chef peut planifier TOUTES les guichetières.
+      if (!isGuichetiereAgenceVisible()) return filtered;
       return currentCodes.length > 0
         ? filtered.in('codePrepose', currentCodes)
         : filtered.eq('agenceAssigne', nomAgence);

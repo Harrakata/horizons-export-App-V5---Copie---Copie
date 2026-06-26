@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 
-test('l’application se charge correctement', async ({ page }) => {
-  await page.goto('https://gestionpdv.vercel.app');
-
-  await expect(page).toHaveTitle(/Gestion|PDV|PMU/i);
+// Test minimal : l'application répond sur la BASE_URL configurée.
+// (Scénarios complets : 01-public-smoke / 02-exploitation / 03-spaces.)
+test('chargement de base', async ({ page }) => {
+  await page.goto('/');
+  await expect(page).toHaveTitle(/.+/);
 });

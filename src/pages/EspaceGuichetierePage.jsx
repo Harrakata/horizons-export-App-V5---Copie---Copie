@@ -24,6 +24,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/lib/supabaseClient';
 import { GUICHETIERE_AUTH_KEY, buildGuichetiereDisplayName } from '@/lib/guichetiereSpace';
+import { isGuichetiereAgenceVisible } from '@/lib/orgStructureConfig';
 import { smartSignIn, fetchAuthLinkedProfile, fetchOrLinkAuthProfile } from '@/lib/smartAuth';
 import { useActivityTracker } from '@/hooks/useActivityTracker';
 import {
@@ -588,7 +589,9 @@ const EspaceGuichetierePage = () => {
                   <div className="min-w-0 flex-1">
                     <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">Guichetière</p>
                     <p className="mt-0.5 truncate text-sm font-bold text-foreground">{guichetiereInfo?.nomComplet}</p>
-                    <p className="text-[0.68rem] text-muted-foreground">Agence : {guichetiereInfo?.nomAgence}</p>
+                    {isGuichetiereAgenceVisible() && (
+                      <p className="text-[0.68rem] text-muted-foreground">Agence : {guichetiereInfo?.nomAgence}</p>
+                    )}
                   </div>
                   <NotificationBell
                     notifications={guichetiereNotifications}
