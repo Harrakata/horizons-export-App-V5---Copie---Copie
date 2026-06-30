@@ -75,6 +75,7 @@ const SuiviPointageChefPage                 = lazy(() => import('@/pages/chef_ag
 const PointsVenteMobiChefPage               = lazy(() => import('@/pages/chef_agence/PointsVenteMobiChefPage'));
 
 // Guichetière
+const RapportsChefAgencePage                = lazy(() => import('@/pages/chef_agence/RapportsChefAgencePage'));
 const MonPlanningGuichetierePage            = lazy(() => import('@/pages/guichetiere/MonPlanningGuichetierePage'));
 const MesPointagesPage                      = lazy(() => import('@/pages/guichetiere/MesPointagesPage'));
 const MesPointsVenteMobiPage                = lazy(() => import('@/pages/guichetiere/MesPointsVenteMobiPage'));
@@ -169,6 +170,7 @@ const App = () => (
             <Route path="suivi-pointage"          element={<LazyRoute><SuiviPointageChefPage /></LazyRoute>} />
             <Route path="points-vente-mobi"       element={<LazyRoute><PointsVenteMobiChefPage /></LazyRoute>} />
             <Route path="paiement-gros-gain"      element={<LazyRoute><PaiementGrosGainPage /></LazyRoute>} />
+            <Route path="rapports"                element={<LazyRoute><RapportsChefAgencePage /></LazyRoute>} />
           </Route>
 
           <Route path="/espace-chef-secteur" element={<LazyRoute><EspaceChefSecteurPage /></LazyRoute>} />

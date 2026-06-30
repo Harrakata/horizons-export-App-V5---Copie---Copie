@@ -1,6 +1,15 @@
 # Cahier des charges — Centre de rapports exportables
 
-> Statut : proposition (non implémenté). Fonctionnalité optionnelle, pilotée par feature flag, multi-client.
+> Statut : **Lot 1 + Lot 2 implémentés**. Fonctionnalité optionnelle (gating par permissions de profil), multi-client.
+>
+> Implémenté :
+> - 6 rapports (`src/lib/reportsService.js`) : Planning, Pointages, État de caisse (versements), Maintenance terminaux, Paiement gros gains, Chiffre d'affaires (CCOPE, exploitation uniquement).
+> - Exporteurs CSV / Excel / PDF (`src/lib/exporters.js`, libs en import dynamique).
+> - Page réutilisable selon le périmètre (`src/pages/exploitation/RapportsPage.jsx`) : filtres période + région/secteur/agence.
+> - Périmètre par rôle : Exploitation (tout), Chef d'agence (son agence), Chef de secteur (agences de son secteur).
+> - Audit des exports (`AUDIT_ACTIONS.EXPORT` / entité `rapport`).
+>
+> Reste (Lot 3) : rapports planifiés (Edge Function + cron + envoi e-mail/SMS) ; filtre région/secteur réservé à l'exploitation ; le rapport CA est un extrait brut CCOPE (colonnes dynamiques) non scopé par agence.
 
 ## 1. Objectif & valeur
 

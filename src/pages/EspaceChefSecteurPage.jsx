@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ListTree, Loader2, LogOut, AtSign, UserCog, Menu, X, Building, Smartphone,
-  MapPin, Globe, ClipboardCheck, Wrench, Wallet, Home,
+  MapPin, Globe, ClipboardCheck, Wrench, Wallet, Home, FileDown,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -44,6 +44,8 @@ import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PointagesSecteurSection, MaintenanceSecteurSection, PaiementsSecteurSection } from '@/components/chef_secteur/SecteurSupervision';
+import RapportsPage from '@/pages/exploitation/RapportsPage';
+import { REPORT_SCOPES } from '@/lib/reportsService';
 import MobileTabBar from '@/components/mobile/MobileTabBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
 import SwipeTabs from '@/components/mobile/SwipeTabs';
@@ -137,7 +139,38 @@ const NAV_ITEMS = [
   { key: 'pointages', label: 'Pointages', icon: ClipboardCheck },
   { key: 'maintenance', label: 'Maintenance', icon: Wrench },
   { key: 'paiements', label: 'Paiements de gain', icon: Wallet },
+  { key: 'rapports', label: 'Rapports', icon: FileDown },
 ];
+
+// Centre de rapports pour le Chef de secteur : périmètre = agences du secteur.
+const RapportsSecteurSection = ({ chef }) => {
+  const [agenceNames, setAgenceNames] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('agences')
+        .select('nom')
+        .eq('is_current', true)
+        .eq('secteur', chef.secteurEnCharge)
+        .order('nom', { ascending: true });
+      if (!cancelled) setAgenceNames((data || []).map((a) => a.nom).filter(Boolean));
+    })();
+    return () => { cancelled = true; };
+  }, [chef.secteurEnCharge]);
+
+  return (
+    <RapportsPage
+      scope={REPORT_SCOPES.CHEF_SECTEUR}
+      allowedAgenceNames={agenceNames}
+      actor={{
+        id: chef?.id || null,
+        name: [chef?.prenom, chef?.nom].filter(Boolean).join(' ') || 'Chef de secteur',
+        role: 'Chef de secteur',
+      }}
+    />
+  );
+};
 
 const AgencesSecteurSection = ({ chef }) => {
   const { toast } = useToast();
@@ -418,6 +451,7 @@ const EspaceChefSecteurPage = () => {
           {activeSection === 'pointages' && <PointagesSecteurSection chef={chef} />}
           {activeSection === 'maintenance' && <MaintenanceSecteurSection chef={chef} />}
           {activeSection === 'paiements' && <PaiementsSecteurSection chef={chef} />}
+          {activeSection === 'rapports' && <RapportsSecteurSection chef={chef} />}
         </motion.div>
         </PullToRefresh>
         </SwipeTabs>

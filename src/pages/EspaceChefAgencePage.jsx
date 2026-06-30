@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { UserCog, CalendarDays, ShieldCheck, LogOut, Loader2, Camera, RotateCcw, Timer, Wallet, Wrench, MapPin, ClipboardCheck, Menu, X, Home } from 'lucide-react';
+import { UserCog, CalendarDays, ShieldCheck, LogOut, Loader2, Camera, RotateCcw, Timer, Wallet, Wrench, MapPin, ClipboardCheck, Menu, X, Home, FileDown } from 'lucide-react';
 import EditProfileDialog from '@/components/EditProfileDialog';
 import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 import NotificationBell from '@/components/NotificationBell';
@@ -941,6 +941,7 @@ const EspaceChefAgencePage = () => {
       icon: <Wallet className="h-5 w-5" />,
       featureKey: 'paiement-gros-gain',
     },
+    { path: 'rapports', label: 'Rapports', icon: <FileDown className="h-5 w-5" /> },
   ].filter(
     (item) =>
       (!item.featureKey || spaceFunctionalities[item.featureKey] !== false) &&
