@@ -15,12 +15,24 @@
 //  alourdir le bundle initial : elles ne chargent qu'au premier export.
 // ════════════════════════════════════════════════════════════════════════════
 
-/** Valeur d'une cellule, en appliquant le formateur de colonne s'il existe. */
-const cellValue = (col, row) => {
+/** Coerce une valeur en quelque chose d'affichable (les objets → JSON, jamais "[object Object]"). */
+const coerce = (value) => {
+  if (value == null) return '';
+  if (typeof value === 'object') {
+    try { return JSON.stringify(value); } catch { return String(value); }
+  }
+  return value;
+};
+
+/** Valeur formatée pour l'affichage (CSV / PDF) — applique le formateur de colonne. */
+const displayCell = (col, row) => {
   const raw = row?.[col.key];
   const value = typeof col.format === 'function' ? col.format(raw, row) : raw;
-  return value == null ? '' : value;
+  return coerce(value);
 };
+
+/** Valeur brute pour Excel — conserve les nombres en numérique (somme/tri possibles). */
+const rawCell = (col, row) => coerce(row?.[col.key]);
 
 /** Déclenche le téléchargement d'un Blob côté navigateur. */
 const downloadBlob = (blob, filename) => {
@@ -46,7 +58,7 @@ const csvEscape = (value) => {
 const exportCsv = ({ columns, rows }, filename) => {
   const header = columns.map((c) => csvEscape(c.label)).join(',');
   const body = rows
-    .map((row) => columns.map((c) => csvEscape(cellValue(c, row))).join(','))
+    .map((row) => columns.map((c) => csvEscape(displayCell(c, row))).join(','))
     .join('\r\n');
   // BOM UTF-8 pour qu'Excel détecte l'encodage (accents).
   const blob = new Blob(['﻿', header, '\r\n', body], {
@@ -60,14 +72,14 @@ const exportXlsx = async ({ columns, rows, meta }, filename) => {
   const XLSX = await import('xlsx');
   const aoa = [
     columns.map((c) => c.label),
-    ...rows.map((row) => columns.map((c) => cellValue(c, row))),
+    ...rows.map((row) => columns.map((c) => rawCell(c, row))),
   ];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  // Largeurs de colonnes approximatives selon le contenu.
+  // Largeurs de colonnes approximatives selon le contenu (longueur affichée).
   ws['!cols'] = columns.map((c) => {
     const maxLen = Math.max(
       String(c.label).length,
-      ...rows.map((row) => String(cellValue(c, row)).length)
+      ...rows.map((row) => String(displayCell(c, row)).length)
     );
     return { wch: Math.min(Math.max(maxLen + 2, 10), 40) };
   });
@@ -140,7 +152,7 @@ const exportPdf = async ({ columns, rows, meta }, filename) => {
   autoTable(doc, {
     startY: 78,
     head: [columns.map((c) => c.label)],
-    body: rows.map((row) => columns.map((c) => String(cellValue(c, row)))),
+    body: rows.map((row) => columns.map((c) => String(displayCell(c, row)))),
     styles: { fontSize: 8, cellPadding: 3 },
     headStyles: { fillColor: [30, 41, 59], textColor: 255 },
     alternateRowStyles: { fillColor: [245, 247, 250] },

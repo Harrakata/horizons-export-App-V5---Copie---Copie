@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
+import { fetchApprovedAbsencesInRange, findBlockingAbsence } from '@/lib/absences';
 import {
   REQUEST_STATUS,
   PLANNING_REQUEST_TYPES,
@@ -283,6 +284,20 @@ const MonPlanningPage = () => {
     }
     setIsLoading(true);
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
+
+    // Garde-fou : pas de planification sur une absence VALIDÉE de la guichetière.
+    const absences = await fetchApprovedAbsencesInRange({ role_demandeur: 'guichetiere', start: dateStr, end: dateStr });
+    const blocking = findBlockingAbsence(absences, selectedGuichetiereId, dateStr);
+    if (blocking) {
+      toast({
+        title: 'Absence validée',
+        description: `${blocking.demandeur_nom || 'Cette guichetière'} est en absence validée le ${dateStr} — planification impossible.`,
+        variant: 'destructive',
+      });
+      setIsLoading(false);
+      return;
+    }
+
     const { error } = await supabase.from('planning').insert({
       date: dateStr,
       agenceNom: nomAgence,

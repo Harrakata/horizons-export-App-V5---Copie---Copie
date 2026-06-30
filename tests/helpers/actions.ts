@@ -58,18 +58,29 @@ export async function loginGeneric(page: Page, creds: Creds) {
     .first();
   await emailField.fill(login);
 
+  // Login en 2 étapes (ex. Chef d'agence) : identifiant → « Continuer » → mot de passe.
+  if (!(await page.locator('input[type="password"]').count())) {
+    const next = page.getByRole('button', { name: /continuer|suivant/i }).first();
+    if (await next.count()) {
+      await next.click().catch(() => {});
+      await settle(page, 700);
+    }
+  }
+
   const pwField = page.locator('input[type="password"]').first();
-  await pwField.fill(creds.password || '');
+  if (await pwField.count()) await pwField.fill(creds.password || '');
 
   // Bouton de connexion (texte tolérant)
   const submit = page.getByRole('button', { name: /connexion|connecter|se connecter|valider|entrer|accéder/i }).first();
   await submit.click();
-  await settle(page, 800);
+  await settle(page, 1200);
 }
 
-/** Connecte l'espace courant si un champ mot de passe est présent, sinon ne fait rien. */
+/** Connecte l'espace courant si un écran de connexion (mot de passe ou étape identifiant) est présent. */
 export async function loginIfNeeded(page: Page, creds: Creds) {
-  if (await page.locator('input[type="password"]').count()) {
+  const hasPassword = await page.locator('input[type="password"]').count();
+  const hasContinue = await page.getByRole('button', { name: /continuer|suivant/i }).count();
+  if (hasPassword || hasContinue) {
     await loginGeneric(page, creds);
   }
   await settle(page, 600);

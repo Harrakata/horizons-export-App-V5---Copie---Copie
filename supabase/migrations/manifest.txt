@@ -20,3 +20,7 @@ add_audit_log.sql
 add_user_activity_tracking.sql
 add_profils_exploitation_photo.sql
 add_paiement_gain_sms.sql
+add_demandes_absence.sql
+add_tickets_incidents.sql
+add_tickets_intervention_link.sql
+add_demandes_absence_creneau.sql

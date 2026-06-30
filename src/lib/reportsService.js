@@ -14,6 +14,9 @@
 // ════════════════════════════════════════════════════════════════════════════
 
 import { publicSupabase, supabase } from './supabaseClient';
+import { ticketLabel } from './tickets';
+
+const toDate = (v) => (v ? String(v).slice(0, 10) : '');
 
 export const REPORT_SCOPES = {
   EXPLOITATION: 'exploitation',
@@ -305,12 +308,45 @@ const caReport = {
   },
 };
 
+// ── Rapport : Tickets / Incidents ───────────────────────────────────────────────
+const ticketsReport = {
+  key: 'tickets',
+  label: 'Tickets / Incidents',
+  scopes: ALL_AGENCE_SCOPES,
+  columns: [
+    { key: 'code', label: 'Réf.' },
+    { key: 'titre', label: 'Titre' },
+    { key: 'categorie', label: 'Catégorie', format: (v) => ticketLabel(v) },
+    { key: 'priorite', label: 'Priorité', format: (v) => ticketLabel(v) },
+    { key: 'statut', label: 'Statut', format: (v) => ticketLabel(v) },
+    { key: 'agence_nom', label: 'Agence' },
+    { key: 'terminal_reference', label: 'Terminal' },
+    { key: 'createur_nom', label: 'Déclarant' },
+    { key: 'assigne_a_nom', label: 'Assigné à' },
+    { key: 'created_at', label: 'Créé le', format: toDate },
+    { key: 'date_resolution', label: 'Résolu le', format: toDate },
+  ],
+  async run({ start, end, agenceNames }) {
+    let query = supabase
+      .from('tickets_incidents')
+      .select('code, titre, categorie, priorite, statut, agence_nom, terminal_reference, createur_nom, assigne_a_nom, created_at, date_resolution')
+      .gte('created_at', start)
+      .lte('created_at', `${end}T23:59:59.999Z`)
+      .order('created_at', { ascending: false });
+    if (hasNames(agenceNames)) query = query.in('agence_nom', agenceNames);
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  },
+};
+
 export const REPORTS = [
   planningReport,
   pointagesReport,
   caisseReport,
   maintenanceReport,
   paiementGainReport,
+  ticketsReport,
   caReport,
 ];
 

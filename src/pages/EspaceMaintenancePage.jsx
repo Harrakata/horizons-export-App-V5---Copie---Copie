@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Wrench, Loader2, LogOut, CalendarDays, AtSign, UserCog, Menu, X, Home } from 'lucide-react';
+import { Wrench, Loader2, LogOut, CalendarDays, AtSign, UserCog, Menu, X, Home, CalendarOff, Ticket } from 'lucide-react';
 import EditProfileDialog from '@/components/EditProfileDialog';
 import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 import NotificationBell from '@/components/NotificationBell';
@@ -36,6 +36,9 @@ import { useActivityTracker } from '@/hooks/useActivityTracker';
 // technicien authentifié, et non au premier rendu de l'écran de connexion.
 const MaintenanceTab = lazy(() => import('@/pages/maintenance/MaintenanceTab'));
 const MonPlanningMaintenancePage = lazy(() => import('@/pages/technicien/MonPlanningMaintenancePage'));
+const AbsenceRequestsPanel = lazy(() => import('@/components/absences/AbsenceRequestsPanel'));
+const TicketsPanel = lazy(() => import('@/components/tickets/TicketsPanel'));
+const ABSENCE_ROLE_TECHNICIEN = 'technicien';
 
 const SectionLoader = () => (
   <div className="flex items-center justify-center py-24">
@@ -315,6 +318,8 @@ const EspaceMaintenancePage = () => {
   const baseMenuItems = [
     { key: 'maintenance', label: 'Maintenance', icon: <CalendarDays className="h-5 w-5" /> },
     { key: 'planning', label: 'Réparation', icon: <Wrench className="h-5 w-5" /> },
+    { key: 'demandes-absence', label: "Demandes d'absence", icon: <CalendarOff className="h-5 w-5" /> },
+    { key: 'tickets', label: 'Tickets', icon: <Ticket className="h-5 w-5" /> },
   ];
 
   const menuItems = useMemo(
@@ -528,6 +533,31 @@ const EspaceMaintenancePage = () => {
                 Aucun onglet n’est actuellement activé pour l’Espace Technicien.
               </CardContent>
             </Card>
+          ) : activeSection === 'demandes-absence' ? (
+            <AbsenceRequestsPanel
+              demandeur={{
+                role: ABSENCE_ROLE_TECHNICIEN,
+                id: userData?.id,
+                matricule: userData?.matricule || null,
+                nom: [userData?.prenom, userData?.nom].filter(Boolean).join(' ') || userData?.matricule || 'Technicien',
+                agence_nom: null,
+                secteur: null,
+                region: null,
+              }}
+            />
+          ) : activeSection === 'tickets' ? (
+            <TicketsPanel
+              mode="technicien"
+              identity={{
+                role: 'Technicien',
+                id: userData?.id,
+                nom: [userData?.prenom, userData?.nom].filter(Boolean).join(' ') || userData?.matricule || 'Technicien',
+              }}
+              filter={{ assigne_a_id: userData?.id }}
+              spaceKey="espace-technicien"
+              title="Mes tickets assignés"
+              description="Incidents qui vous sont assignés : prise en charge et résolution."
+            />
           ) : activeSection === 'planning' ? (
             <MonPlanningMaintenancePage technicien={userData} view="reparation" />
           ) : (

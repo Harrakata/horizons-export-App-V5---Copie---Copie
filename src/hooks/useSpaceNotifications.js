@@ -7,6 +7,7 @@ import {
 } from '@/lib/maintenancePlanningRequests';
 import { DEMANDE_STATUSES } from '@/lib/paiementGainUtils';
 import { normalizeBigIntIdentifier } from '@/lib/paiementGainService';
+import { ticketOverdue } from '@/lib/tickets';
 
 const REFRESH_MS = 90 * 1000;
 
@@ -146,6 +147,45 @@ const countRefused = async (table, idCol, idVal) => {
   }
 };
 
+// Compte les tickets actifs en RETARD (SLA dépassé) selon des `eq` optionnels.
+const countOverdueTickets = async (filters = []) => {
+  try {
+    let query = supabase
+      .from('tickets_incidents')
+      .select('priorite, statut, created_at')
+      .in('statut', ['ouvert', 'en_cours'])
+      .limit(500);
+    for (const [col, val] of filters) {
+      if (val === undefined || val === null || val === '') continue;
+      query = query.eq(col, val);
+    }
+    const { data, error } = await query;
+    if (error || !data) return 0;
+    return data.filter(ticketOverdue).length;
+  } catch {
+    return 0;
+  }
+};
+
+// Compte les tickets « actifs » (ouvert / en cours), filtrés par des `eq` optionnels.
+const countActiveTickets = async (filters = []) => {
+  try {
+    let query = supabase
+      .from('tickets_incidents')
+      .select('id', { count: 'exact', head: true })
+      .in('statut', ['ouvert', 'en_cours']);
+    for (const [col, val] of filters) {
+      if (val === undefined || val === null || val === '') continue;
+      query = query.eq(col, val);
+    }
+    const { count, error } = await query;
+    if (error) return 0;
+    return count || 0;
+  } catch {
+    return 0;
+  }
+};
+
 /**
  * Construit la liste des alertes (notifications) pertinentes selon l'espace/rôle,
  * dérivées en direct des données existantes. Pas de table dédiée.
@@ -202,6 +242,12 @@ export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }
       if (pdvMsgs.length > 0)   list.push({ key: 'pdv',   count: pdvMsgs.length,   title: 'Demandes de modification PDV', description: 'En attente de validation', to: '/espace-exploitation/points-vente-mobi',           severity: 'amber', messages: pdvMsgs });
       if (maintMsgs.length > 0) list.push({ key: 'maint', count: maintMsgs.length, title: 'Demandes de maintenance',      description: 'En attente exploitation', to: '/espace-exploitation/maintenance-terminaux',         severity: 'amber', messages: maintMsgs });
       if (pay > 0)              list.push({ key: 'pay',   count: pay,              title: 'Paiements de gain à autoriser', description: 'En attente exploitation', to: '/espace-exploitation/autorisation-paiement-gain', severity: 'blue' });
+      const [ticketsOpen, ticketsLate] = await Promise.all([
+        countActiveTickets([['statut', 'ouvert']]),
+        countOverdueTickets(),
+      ]);
+      if (ticketsOpen > 0)     list.push({ key: 'tickets', count: ticketsOpen, title: 'Tickets à traiter', description: 'Incidents ouverts à assigner', to: '/espace-exploitation/tickets', severity: 'amber' });
+      if (ticketsLate > 0)     list.push({ key: 'tickets-sla', count: ticketsLate, title: 'Tickets en retard (SLA)', description: 'Délai de résolution dépassé', to: '/espace-exploitation/tickets', severity: 'red' });
     }
 
     else if (spaceKey === 'espace-chef-agence') {
@@ -239,6 +285,8 @@ export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }
       if (planMsgs.length > 0)  list.push({ key: 'planning', count: planMsgs.length,  title: 'Demandes de planning',        description: "À valider pour votre agence",    to: '/espace-chef-agence/mon-planning',          severity: 'amber', messages: planMsgs });
       if (pay > 0)              list.push({ key: 'pay',      count: pay,              title: 'Paiements de gain à valider', description: 'En attente de votre validation', to: '/espace-chef-agence/paiement-gros-gain',    severity: 'blue'  });
       if (explMsgs.length > 0)  list.push({ key: 'msg-expl', count: explMsgs.length,  title: "Message(s) de l'exploitation", description: 'Cliquez pour lire',             to: null,                                        severity: 'blue', messages: explMsgs });
+      const ticketsAgence = await countActiveTickets([['agence_nom', ctx.agenceNom]]);
+      if (ticketsAgence > 0)    list.push({ key: 'tickets', count: ticketsAgence, title: 'Tickets / Incidents actifs', description: 'Incidents en cours sur votre agence', to: '/espace-chef-agence/tickets', severity: 'amber' });
     }
 
     else if (spaceKey === 'espace-chef-secteur') {
@@ -306,6 +354,8 @@ export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }
       if (demandeMsgs.length > 0) list.push({ key: 'demande',    count: demandeMsgs.length, title: 'Vos demandes de planning',        description: 'En cours de traitement',        to: '/espace-technicien', ctaLabel: 'Voir le suivi', severity: 'amber', messages: demandeMsgs });
       if (geoRefused > 0)         list.push({ key: 'geo-refused', count: geoRefused,         title: 'Intervention(s) refusée(s)',      description: 'Hors zone agence — annulée(s)', to: '/espace-technicien',                         severity: 'red'   });
       if (explMsgs.length > 0)    list.push({ key: 'msg-expl',   count: explMsgs.length,    title: "Message(s) de l'exploitation",    description: 'Cliquez pour lire',             to: null,                                        severity: 'blue', messages: explMsgs });
+      const ticketsAssignes = await countActiveTickets([['assigne_a_id', ctx.technicienId != null ? String(ctx.technicienId) : '']]);
+      if (ticketsAssignes > 0)    list.push({ key: 'tickets',    count: ticketsAssignes,    title: 'Tickets assignés',                description: 'Incidents à prendre en charge', to: '/espace-technicien',                         severity: 'amber' });
     }
 
     return list;

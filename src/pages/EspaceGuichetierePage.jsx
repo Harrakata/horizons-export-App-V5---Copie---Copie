@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CalendarDays, LogOut, MapPin, FileText, ShieldCheck, Wallet, AtSign, Loader2, UserCog, Menu, X, Home } from 'lucide-react';
+import { CalendarDays, LogOut, MapPin, FileText, ShieldCheck, Wallet, AtSign, Loader2, UserCog, Menu, X, Home, CalendarOff, Ticket } from 'lucide-react';
 import EditProfileDialog from '@/components/EditProfileDialog';
 import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 import NotificationBell from '@/components/NotificationBell';
@@ -476,6 +476,8 @@ const EspaceGuichetierePage = () => {
     { path: 'mes-pointages', label: 'Mes Pointages', icon: <FileText className="h-5 w-5" /> },
     { path: 'mes-points-vente-mobi', label: 'Mes Points de Vente Mobi', icon: <MapPin className="h-5 w-5" /> },
     { path: 'etat-caisse', label: 'État de Caisse', icon: <Wallet className="h-5 w-5" /> },
+    { path: 'demandes-absence', label: "Demandes d'absence", icon: <CalendarOff className="h-5 w-5" /> },
+    { path: 'tickets', label: 'Tickets', icon: <Ticket className="h-5 w-5" /> },
   ].filter((item) =>
     isAppSpaceTabEnabled(spaceTabFunctionalities, 'espace-guichetiere', item.path)
     && canAccessAppSpaceUserTab(spaceUserProfiles, 'espace-guichetiere', guichetiereDetails?.id, item.path)

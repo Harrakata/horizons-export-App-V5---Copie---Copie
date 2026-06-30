@@ -19,6 +19,7 @@ export const AUDIT_ENTITIES = {
   CHEF: 'chef_agence',
   PROFIL: 'profil',
   RAPPORT: 'rapport',
+  TICKET: 'ticket',
 };
 
 const ACTION_LABELS = {
@@ -40,6 +41,7 @@ const ENTITY_LABELS = {
   chef_agence: "Chef d'agence",
   profil: 'Profil',
   rapport: 'Rapport',
+  ticket: 'Ticket / Incident',
 };
 
 export const auditActionLabel = (action) => ACTION_LABELS[action] || action || '—';

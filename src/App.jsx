@@ -66,6 +66,8 @@ const ActivitesEtAuditPage                  = lazy(() => import('@/pages/exploit
 const TableauDeBordPage                     = lazy(() => import('@/pages/exploitation/TableauDeBordPage'));
 const NotificationsExploitationPage         = lazy(() => import('@/pages/exploitation/NotificationsExploitationPage'));
 const RapportsPage                          = lazy(() => import('@/pages/exploitation/RapportsPage'));
+const AbsencesExploitationPage              = lazy(() => import('@/pages/exploitation/AbsencesExploitationPage'));
+const TicketsExploitationPage               = lazy(() => import('@/pages/exploitation/TicketsExploitationPage'));
 
 // Chef d'agence
 const MesGuichetieresPage                   = lazy(() => import('@/pages/chef_agence/MesGuichetieresPage'));
@@ -78,6 +80,10 @@ const PointsVenteMobiChefPage               = lazy(() => import('@/pages/chef_ag
 const RapportsChefAgencePage                = lazy(() => import('@/pages/chef_agence/RapportsChefAgencePage'));
 const MonPlanningGuichetierePage            = lazy(() => import('@/pages/guichetiere/MonPlanningGuichetierePage'));
 const MesPointagesPage                      = lazy(() => import('@/pages/guichetiere/MesPointagesPage'));
+const DemandesAbsenceGuichetierePage        = lazy(() => import('@/pages/guichetiere/DemandesAbsencePage'));
+const TicketsGuichetierePage                = lazy(() => import('@/pages/guichetiere/TicketsPage'));
+const AbsencesChefAgencePage                = lazy(() => import('@/pages/chef_agence/AbsencesChefAgencePage'));
+const TicketsChefAgencePage                 = lazy(() => import('@/pages/chef_agence/TicketsChefAgencePage'));
 const MesPointsVenteMobiPage                = lazy(() => import('@/pages/guichetiere/MesPointsVenteMobiPage'));
 const EtatCaissePage                        = lazy(() => import('@/pages/guichetiere/EtatCaissePage'));
 
@@ -130,6 +136,8 @@ const App = () => (
             <Route path="mes-pointages"           element={<LazyRoute><MesPointagesPage /></LazyRoute>} />
             <Route path="mes-points-vente-mobi"   element={<LazyRoute><MesPointsVenteMobiPage /></LazyRoute>} />
             <Route path="etat-caisse"             element={<LazyRoute><EtatCaissePage /></LazyRoute>} />
+            <Route path="demandes-absence"        element={<LazyRoute><DemandesAbsenceGuichetierePage /></LazyRoute>} />
+            <Route path="tickets"                 element={<LazyRoute><TicketsGuichetierePage /></LazyRoute>} />
           </Route>
 
           <Route path="/espace-exploitation" element={<LazyRoute><EspaceExploitationPage /></LazyRoute>}>
@@ -160,6 +168,8 @@ const App = () => (
             <Route path="profils-exploitation"              element={<LazyRoute><ProfilsExploitationPage /></LazyRoute>} />
             <Route path="notifications-exploitation"        element={<LazyRoute><NotificationsExploitationPage /></LazyRoute>} />
             <Route path="rapports"                          element={<LazyRoute><RapportsPage /></LazyRoute>} />
+            <Route path="absences"                          element={<LazyRoute><AbsencesExploitationPage /></LazyRoute>} />
+            <Route path="tickets"                           element={<LazyRoute><TicketsExploitationPage /></LazyRoute>} />
           </Route>
 
           <Route path="/espace-chef-agence" element={<LazyRoute><EspaceChefAgencePage /></LazyRoute>}>
@@ -171,6 +181,8 @@ const App = () => (
             <Route path="points-vente-mobi"       element={<LazyRoute><PointsVenteMobiChefPage /></LazyRoute>} />
             <Route path="paiement-gros-gain"      element={<LazyRoute><PaiementGrosGainPage /></LazyRoute>} />
             <Route path="rapports"                element={<LazyRoute><RapportsChefAgencePage /></LazyRoute>} />
+            <Route path="absences"                element={<LazyRoute><AbsencesChefAgencePage /></LazyRoute>} />
+            <Route path="tickets"                 element={<LazyRoute><TicketsChefAgencePage /></LazyRoute>} />
           </Route>
 
           <Route path="/espace-chef-secteur" element={<LazyRoute><EspaceChefSecteurPage /></LazyRoute>} />

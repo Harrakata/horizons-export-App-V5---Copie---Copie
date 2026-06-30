@@ -25,6 +25,7 @@ import KpiStatCard from '@/components/analytics/KpiStatCard';
 import MaintenanceAgenciesMap from '@/components/maintenance/MaintenanceAgenciesMap';
 import { supabase } from '@/lib/supabaseClient';
 import { isSupabaseAuthError } from '@/lib/guichetiereSpace';
+import { fetchApprovedAbsencesInRange, findBlockingAbsence } from '@/lib/absences';
 import { buildRegionOptions, fetchRegions } from '@/lib/regions';
 import { formatMaintenanceDateTime, getMaintenanceInterventionTypeLabel, normalizeMaintenanceText } from '@/lib/maintenanceMonitoring';
 import {
@@ -616,6 +617,20 @@ const MaintenancePlanningSection = ({
     if (conflictMessage) {
       toast({ title: 'Conflit de planning', description: conflictMessage, variant: 'destructive' });
       return;
+    }
+
+    // Garde-fou : pas de planification sur une absence VALIDÉE du technicien (créneau inclus).
+    if (payload.technicien_id) {
+      const absences = await fetchApprovedAbsencesInRange({ role_demandeur: 'technicien', start: payload.date_planification, end: payload.date_planification });
+      const blocking = findBlockingAbsence(absences, payload.technicien_id, payload.date_planification, payload.creneau);
+      if (blocking) {
+        toast({
+          title: 'Absence validée',
+          description: `${payload.technicien_label || 'Ce technicien'} est en absence validée le ${payload.date_planification} — planification impossible sur ce créneau.`,
+          variant: 'destructive',
+        });
+        return;
+      }
     }
 
     setIsLoading(true);
