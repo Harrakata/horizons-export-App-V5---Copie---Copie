@@ -726,6 +726,9 @@ const MaintenancePlanningSection = ({
     }
 
     const pendingEntries = [];
+    // Absences validées des techniciens → on exclut les créneaux concernés de la copie.
+    const techAbsences = await fetchApprovedAbsencesInRange({ role_demandeur: 'technicien' });
+    let skippedForAbsence = 0;
 
     sourceRows.forEach((row) => {
       const sourceDate = parseISO(extractMaintenancePlanningDateKey(row.date_planification));
@@ -757,6 +760,10 @@ const MaintenancePlanningSection = ({
       );
 
       if (!conflictMessage) {
+        if (payload.technicien_id && findBlockingAbsence(techAbsences, payload.technicien_id, payload.date_planification, payload.creneau)) {
+          skippedForAbsence += 1;
+          return;
+        }
         pendingEntries.push(payload);
       }
     });
@@ -764,7 +771,9 @@ const MaintenancePlanningSection = ({
     if (pendingEntries.length === 0) {
       toast({
         title: 'Copie non effectuée',
-        description: 'Tous les créneaux étaient déjà pris ou entraient en conflit.',
+        description: skippedForAbsence > 0
+          ? 'Créneaux déjà pris, en conflit, ou sur une absence validée.'
+          : 'Tous les créneaux étaient déjà pris ou entraient en conflit.',
         variant: 'destructive',
       });
       return;
@@ -778,7 +787,7 @@ const MaintenancePlanningSection = ({
     } else {
       toast({
         title: 'Planning copié',
-        description: `${pendingEntries.length} créneau(x) ont été copiés depuis ${period === 'month' ? 'le mois' : 'la semaine'} précédent(e).`,
+        description: `${pendingEntries.length} créneau(x) copiés depuis ${period === 'month' ? 'le mois' : 'la semaine'} précédent(e).${skippedForAbsence > 0 ? ` ${skippedForAbsence} ignoré(s) (absence validée).` : ''}`,
         className: 'bg-green-500 text-white',
       });
       loadData();

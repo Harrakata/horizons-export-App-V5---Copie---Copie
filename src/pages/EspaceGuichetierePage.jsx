@@ -24,6 +24,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/lib/supabaseClient';
 import { GUICHETIERE_AUTH_KEY, buildGuichetiereDisplayName } from '@/lib/guichetiereSpace';
+import { useFeature } from '@/hooks/useFeatureFlags';
 import { isGuichetiereAgenceVisible } from '@/lib/orgStructureConfig';
 import { smartSignIn, fetchAuthLinkedProfile, fetchOrLinkAuthProfile } from '@/lib/smartAuth';
 import { useActivityTracker } from '@/hooks/useActivityTracker';
@@ -251,6 +252,11 @@ const EspaceGuichetierePage = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const handlePullRefresh = async () => { setRefreshKey((k) => k + 1); await new Promise((r) => setTimeout(r, 500)); };
+  // Activation globale des fonctionnalités (kill-switch « Profil et Fonctionnalité »).
+  const moduleFeatureEnabled = {
+    'tickets-incidents': useFeature('tickets-incidents'),
+    'demandes-absence': useFeature('demandes-absence'),
+  };
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
     try {
@@ -476,10 +482,11 @@ const EspaceGuichetierePage = () => {
     { path: 'mes-pointages', label: 'Mes Pointages', icon: <FileText className="h-5 w-5" /> },
     { path: 'mes-points-vente-mobi', label: 'Mes Points de Vente Mobi', icon: <MapPin className="h-5 w-5" /> },
     { path: 'etat-caisse', label: 'État de Caisse', icon: <Wallet className="h-5 w-5" /> },
-    { path: 'demandes-absence', label: "Demandes d'absence", icon: <CalendarOff className="h-5 w-5" /> },
-    { path: 'tickets', label: 'Tickets', icon: <Ticket className="h-5 w-5" /> },
+    { path: 'demandes-absence', label: "Demandes d'absence", icon: <CalendarOff className="h-5 w-5" />, featureKey: 'demandes-absence' },
+    { path: 'tickets', label: 'Tickets', icon: <Ticket className="h-5 w-5" />, featureKey: 'tickets-incidents' },
   ].filter((item) =>
-    isAppSpaceTabEnabled(spaceTabFunctionalities, 'espace-guichetiere', item.path)
+    (!item.featureKey || moduleFeatureEnabled[item.featureKey] !== false)
+    && isAppSpaceTabEnabled(spaceTabFunctionalities, 'espace-guichetiere', item.path)
     && canAccessAppSpaceUserTab(spaceUserProfiles, 'espace-guichetiere', guichetiereDetails?.id, item.path)
   );
 

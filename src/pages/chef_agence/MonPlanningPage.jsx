@@ -335,12 +335,29 @@ const MonPlanningPage = () => {
         return;
     }
     setIsLoading(true);
+
+    // Garde-fou : la remplaçante ne doit pas être en absence validée ce jour-là.
+    const replDateStr = editingEvent.date || (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null);
+    if (replDateStr) {
+      const absences = await fetchApprovedAbsencesInRange({ role_demandeur: 'guichetiere', start: replDateStr, end: replDateStr });
+      const blocking = findBlockingAbsence(absences, replacementGuichetiereId, replDateStr);
+      if (blocking) {
+        toast({
+          title: 'Absence validée',
+          description: `${blocking.demandeur_nom || 'La remplaçante'} est en absence validée le ${replDateStr} — remplacement impossible.`,
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
+    }
+
     const { error } = await supabase
         .from('planning')
-        .update({ 
-            guichetiereId: replacementGuichetiereId, 
+        .update({
+            guichetiereId: replacementGuichetiereId,
             remplacante_de_id: editingEvent.guichetiereId,
-            est_remplacante: true 
+            est_remplacante: true
         })
         .eq('id', editingEvent.planningId);
 

@@ -942,8 +942,8 @@ const EspaceChefAgencePage = () => {
       featureKey: 'paiement-gros-gain',
     },
     { path: 'rapports', label: 'Rapports', icon: <FileDown className="h-5 w-5" /> },
-    { path: 'absences', label: "Demandes d'absence", icon: <CalendarOff className="h-5 w-5" /> },
-    { path: 'tickets', label: 'Tickets / Incidents', icon: <Ticket className="h-5 w-5" /> },
+    { path: 'absences', label: "Demandes d'absence", icon: <CalendarOff className="h-5 w-5" />, featureKey: 'demandes-absence' },
+    { path: 'tickets', label: 'Tickets / Incidents', icon: <Ticket className="h-5 w-5" />, featureKey: 'tickets-incidents' },
   ].filter(
     (item) =>
       (!item.featureKey || spaceFunctionalities[item.featureKey] !== false) &&

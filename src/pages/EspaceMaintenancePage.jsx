@@ -13,6 +13,7 @@ import { useSpaceNotifications } from '@/hooks/useSpaceNotifications';
 import MobileTabBar from '@/components/mobile/MobileTabBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
 import SwipeTabs from '@/components/mobile/SwipeTabs';
+import { useFeature } from '@/hooks/useFeatureFlags';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
@@ -315,20 +316,28 @@ const EspaceMaintenancePage = () => {
     return () => window.removeEventListener('app-space-user-profiles-updated', handleSpaceUserProfilesUpdated);
   }, []);
 
+  // Activation globale des fonctionnalités (kill-switch « Profil et Fonctionnalité »).
+  const moduleFeatureEnabled = {
+    'tickets-incidents': useFeature('tickets-incidents'),
+    'demandes-absence': useFeature('demandes-absence'),
+  };
+
   const baseMenuItems = [
     { key: 'maintenance', label: 'Maintenance', icon: <CalendarDays className="h-5 w-5" /> },
     { key: 'planning', label: 'Réparation', icon: <Wrench className="h-5 w-5" /> },
-    { key: 'demandes-absence', label: "Demandes d'absence", icon: <CalendarOff className="h-5 w-5" /> },
-    { key: 'tickets', label: 'Tickets', icon: <Ticket className="h-5 w-5" /> },
+    { key: 'demandes-absence', label: "Demandes d'absence", icon: <CalendarOff className="h-5 w-5" />, featureKey: 'demandes-absence' },
+    { key: 'tickets', label: 'Tickets', icon: <Ticket className="h-5 w-5" />, featureKey: 'tickets-incidents' },
   ];
 
   const menuItems = useMemo(
     () =>
       baseMenuItems.filter((item) =>
-        isAppSpaceTabEnabled(spaceTabFunctionalities, 'espace-technicien', item.key)
+        (!item.featureKey || moduleFeatureEnabled[item.featureKey] !== false)
+        && isAppSpaceTabEnabled(spaceTabFunctionalities, 'espace-technicien', item.key)
         && canAccessAppSpaceUserTab(spaceUserProfiles, 'espace-technicien', userData?.id, item.key)
       ),
-    [spaceTabFunctionalities, spaceUserProfiles, userData?.id]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [spaceTabFunctionalities, spaceUserProfiles, userData?.id, moduleFeatureEnabled['tickets-incidents'], moduleFeatureEnabled['demandes-absence']]
   );
 
   useEffect(() => {
