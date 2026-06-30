@@ -6,7 +6,8 @@ import { supabase } from '@/lib/supabaseClient';
 import { isSupabaseAuthError } from '@/lib/guichetiereSpace';
 import { APP_SPACE_SETTINGS_KEY } from '@/lib/exploitationProfiles';
 import { getCurrentPosition, checkAgencyProximity, formatDistance, GEO_DEFAULT_RADIUS_M, GEO_FEATURE_KEY } from '@/lib/geolocation';
-import { enqueueOffline, OFFLINE_FEATURE_KEY } from '@/lib/offlineQueue';
+import { enqueueOffline, isOfflineEnabledForScreen, getCache, putCache } from '@/lib/offlineQueue';
+import { cachedQuery, isOnline } from '@/lib/offlineCache';
 
 const logPointageLoadError = (message, error) => {
   if (isSupabaseAuthError(error)) {
@@ -36,10 +37,15 @@ export const usePointageLogic = () => {
   const [geoEnabled, setGeoEnabled] = useState(false);
   const [offlineEnabled, setOfflineEnabled] = useState(false);
   useEffect(() => {
-    supabase.from('app_settings').select('value').eq('key', APP_SPACE_SETTINGS_KEY).maybeSingle()
+    // Mis en cache : hors-ligne, on doit encore connaître l'état de la fonctionnalité
+    // « usage hors-ligne » pour router le pointage vers la file d'attente.
+    cachedQuery(
+      'pointage:space-settings',
+      () => supabase.from('app_settings').select('value').eq('key', APP_SPACE_SETTINGS_KEY).maybeSingle(),
+    )
       .then(({ data }) => {
         setGeoEnabled(data?.value?.[GEO_FEATURE_KEY] === true);
-        setOfflineEnabled(data?.value?.[OFFLINE_FEATURE_KEY] === true);
+        setOfflineEnabled(isOfflineEnabledForScreen(data?.value, 'pointage'));
       })
       .catch(() => {});
   }, []);
@@ -121,13 +127,12 @@ export const usePointageLogic = () => {
   }, []);
 
   const loadAppSettings = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('app_settings')
-      .select('value')
-      .eq('key', 'general')
-      .single();
+    const { data, error } = await cachedQuery(
+      'pointage:app-settings:general',
+      () => supabase.from('app_settings').select('value').eq('key', 'general').single(),
+    );
 
-    if (error && error.code !== 'PGRST116') { 
+    if (error && error.code !== 'PGRST116') {
       console.error("Erreur chargement paramètres app:", error);
       setCreneauxPointageSettings([{ debut: '09:00', fin: '10:00' }, { debut: '14:00', fin: '15:00' }]); 
       setSessionDureeMinutes(30);
@@ -229,11 +234,14 @@ export const usePointageLogic = () => {
     }
     setIsLoading(true);
     
-    const { data: planningData, error: planifieesError } = await supabase
-      .from('planning')
-      .select('guichetiereId')
-      .eq('agenceNom', agenceNom)
-      .eq('date', todayDateStr);
+    const { data: planningData, error: planifieesError } = await cachedQuery(
+      `pointage:planning:${agenceNom}:${todayDateStr}`,
+      () => supabase
+        .from('planning')
+        .select('guichetiereId')
+        .eq('agenceNom', agenceNom)
+        .eq('date', todayDateStr),
+    );
 
     if (planifieesError) {
       logPointageLoadError('Erreur chargement planning:', planifieesError);
@@ -252,10 +260,13 @@ export const usePointageLogic = () => {
       let planifiees = [];
 
       if (guichetiereIds.length > 0) {
-        const { data: guichetieresData, error: guichetieresError } = await supabase
-          .from('guichetieres')
-          .select('id, matricule, nom, prenom, photo_url')
-          .in('id', guichetiereIds);
+        const { data: guichetieresData, error: guichetieresError } = await cachedQuery(
+          `pointage:guichetieres:${agenceNom}:${todayDateStr}`,
+          () => supabase
+            .from('guichetieres')
+            .select('id, matricule, nom, prenom, photo_url')
+            .in('id', guichetiereIds),
+        );
 
         if (guichetieresError) {
           logPointageLoadError('Erreur chargement guichetières planifiées:', guichetieresError);
@@ -275,13 +286,16 @@ export const usePointageLogic = () => {
 
       if (planifiees.length > 0) {
         const matricules = planifiees.map(g => g.matricule);
-        const { data: pointagesData, error: pointagesError } = await supabase
-          .from('pointages')
-          .select('*')
-          .eq('date', todayDateStr)
-          .eq('agence', agenceNom)
-          .in('guichetiereMatricule', matricules);
-        
+        const { data: pointagesData, error: pointagesError } = await cachedQuery(
+          `pointage:pointages:${agenceNom}:${todayDateStr}`,
+          () => supabase
+            .from('pointages')
+            .select('*')
+            .eq('date', todayDateStr)
+            .eq('agence', agenceNom)
+            .in('guichetiereMatricule', matricules),
+        );
+
         if (pointagesError) {
           logPointageLoadError('Erreur chargement pointages:', pointagesError);
           notifyPointageLoadError(
@@ -386,14 +400,26 @@ export const usePointageLogic = () => {
       return;
     }
     setIsLoading(true);
-    
-    const { data: foundGuichetiere, error } = await supabase
-      .from('guichetieres')
-      .select('id, matricule, nom, prenom, photo_url')
-      .eq('matricule', matricule)
-      .eq('is_current', true)
-      .single();
-    
+
+    // Hors-ligne : on résout le matricule depuis la liste planifiée déjà en cache
+    // (elle contient id/matricule/nom/prenom/photo_url) plutôt que via une requête live.
+    let foundGuichetiere = null;
+    let error = null;
+    if (!isOnline()) {
+      foundGuichetiere = guichetieresPlanifieesAujourdhui.find(
+        (g) => String(g.matricule) === String(matricule),
+      ) || null;
+    } else {
+      const res = await supabase
+        .from('guichetieres')
+        .select('id, matricule, nom, prenom, photo_url')
+        .eq('matricule', matricule)
+        .eq('is_current', true)
+        .single();
+      foundGuichetiere = res.data;
+      error = res.error;
+    }
+
     if (error || !foundGuichetiere) {
       toast({ title: 'Matricule Invalide', description: 'Aucune guichetière trouvée avec ce matricule.', variant: 'destructive' });
       setIdentifiedGuichetiere(null);
@@ -453,7 +479,10 @@ export const usePointageLogic = () => {
     if (geoEnabled) {
       try {
         const pos = await getCurrentPosition();
-        const { data: ag } = await supabase.from('agences').select('latitude, longitude').eq('nom', nomAgenceAffichee).eq('is_current', true).maybeSingle();
+        const { data: ag } = await cachedQuery(
+          `pointage:agence-geo:${nomAgenceAffichee}`,
+          () => supabase.from('agences').select('latitude, longitude').eq('nom', nomAgenceAffichee).eq('is_current', true).maybeSingle(),
+        );
         const res = checkAgencyProximity(pos, ag, GEO_DEFAULT_RADIUS_M);
         geoFields = { latitude: pos.latitude, longitude: pos.longitude, geo_distance_m: res.distance, geo_verified: res.verified };
         if (res.hasReference && !res.ok) {
@@ -478,6 +507,14 @@ export const usePointageLogic = () => {
     if (offlineEnabled && typeof navigator !== 'undefined' && !navigator.onLine) {
       try {
         await enqueueOffline({ type: 'pointage', table: 'pointages', payload: newPointage });
+        // On patche l'instantané en cache pour que le rechargement local reflète
+        // immédiatement ce pointage (et bloque un double-pointage du même créneau).
+        try {
+          const cacheKey = `pointage:pointages:${nomAgenceAffichee}:${todayDateStr}`;
+          const cached = await getCache(cacheKey);
+          const rows = Array.isArray(cached?.data) ? cached.data : [];
+          await putCache(cacheKey, [...rows, newPointage]);
+        } catch { /* le patch de cache est best-effort */ }
         toast({ title: 'Pointage enregistré hors-ligne', description: 'Il sera synchronisé automatiquement dès le retour de la connexion.', className: 'bg-blue-600 text-white' });
         resetProcess();
       } catch (e) {

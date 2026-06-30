@@ -11,6 +11,9 @@ src/lib/supabaseClient.jsx
 .env.local
 .env.*.local
 
+# Artefacts de build (générés par Vercel/CI, ne pas suivre)
+dist/
+
 # Logs de dev / build
 *.log
 vite-dev.out.log

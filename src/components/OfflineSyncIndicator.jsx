@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { CloudOff, RefreshCw, Cloud } from 'lucide-react';
 import { countQueued, subscribeQueue, OFFLINE_FEATURE_KEY } from '@/lib/offlineQueue';
 import { flushQueue } from '@/lib/offlineSync';
+import { cachedQuery } from '@/lib/offlineCache';
 import { supabase } from '@/lib/supabaseClient';
 import { APP_SPACE_SETTINGS_KEY } from '@/lib/exploitationProfiles';
 
@@ -18,7 +19,11 @@ const OfflineSyncIndicator = () => {
   const [offlineEnabled, setOfflineEnabled] = useState(false);
 
   useEffect(() => {
-    supabase.from('app_settings').select('value').eq('key', APP_SPACE_SETTINGS_KEY).maybeSingle()
+    // Mis en cache : le badge « Hors ligne » doit pouvoir s'afficher… hors-ligne.
+    cachedQuery(
+      'offline-indicator:space-settings',
+      () => supabase.from('app_settings').select('value').eq('key', APP_SPACE_SETTINGS_KEY).maybeSingle(),
+    )
       .then(({ data }) => setOfflineEnabled(data?.value?.[OFFLINE_FEATURE_KEY] === true))
       .catch(() => {});
   }, []);

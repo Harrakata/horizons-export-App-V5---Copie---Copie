@@ -65,6 +65,7 @@ const EcartsGpsPage                         = lazy(() => import('@/pages/exploit
 const ActivitesEtAuditPage                  = lazy(() => import('@/pages/exploitation/ActivitesEtAuditPage'));
 const TableauDeBordPage                     = lazy(() => import('@/pages/exploitation/TableauDeBordPage'));
 const NotificationsExploitationPage         = lazy(() => import('@/pages/exploitation/NotificationsExploitationPage'));
+const RapportsPage                          = lazy(() => import('@/pages/exploitation/RapportsPage'));
 
 // Chef d'agence
 const MesGuichetieresPage                   = lazy(() => import('@/pages/chef_agence/MesGuichetieresPage'));
@@ -157,6 +158,7 @@ const App = () => (
             <Route path="parametres"                  element={<LazyRoute><ParametresPage /></LazyRoute>} />
             <Route path="profils-exploitation"              element={<LazyRoute><ProfilsExploitationPage /></LazyRoute>} />
             <Route path="notifications-exploitation"        element={<LazyRoute><NotificationsExploitationPage /></LazyRoute>} />
+            <Route path="rapports"                          element={<LazyRoute><RapportsPage /></LazyRoute>} />
           </Route>
 
           <Route path="/espace-chef-agence" element={<LazyRoute><EspaceChefAgencePage /></LazyRoute>}>

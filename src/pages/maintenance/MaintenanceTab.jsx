@@ -21,7 +21,8 @@ import { fetchRegions, buildRegionOptions, normalizeRegionText } from '@/lib/reg
 import { fetchSecteurs, buildSecteurOptions } from '@/lib/secteurs';
 import { APP_SPACE_SETTINGS_KEY } from '@/lib/exploitationProfiles';
 import { getCurrentPosition, checkAgencyProximity, formatDistance, GEO_DEFAULT_RADIUS_M, GEO_FEATURE_KEY } from '@/lib/geolocation';
-import { enqueueOffline, OFFLINE_FEATURE_KEY } from '@/lib/offlineQueue';
+import { enqueueOffline, isOfflineEnabledForScreen } from '@/lib/offlineQueue';
+import { cachedQuery } from '@/lib/offlineCache';
 
 // Ouvre une fiche HTML stockée en la RENDANT (et non en affichant la source),
 // quel que soit le type MIME avec lequel le storage la sert.
@@ -262,10 +263,13 @@ const MaintenanceTab = ({ technicien }) => {
   const [geoWarn, setGeoWarn] = useState(null); // { distance } quand hors rayon
   const [geoJustification, setGeoJustification] = useState('');
   useEffect(() => {
-    supabase.from('app_settings').select('value').eq('key', APP_SPACE_SETTINGS_KEY).maybeSingle()
+    cachedQuery(
+      'maintenance:space-settings',
+      () => supabase.from('app_settings').select('value').eq('key', APP_SPACE_SETTINGS_KEY).maybeSingle(),
+    )
       .then(({ data }) => {
         setGeoEnabled(data?.value?.[GEO_FEATURE_KEY] === true);
-        setOfflineEnabled(data?.value?.[OFFLINE_FEATURE_KEY] === true);
+        setOfflineEnabled(isOfflineEnabledForScreen(data?.value, 'maintenance'));
       })
       .catch(() => {});
   }, []);
@@ -342,29 +346,41 @@ const MaintenanceTab = ({ technicien }) => {
         // Régions depuis la table dédiée
         fetchRegions(),
         // Agences
-        supabase
-          .from('agences')
-          .select('id, nom, nbreTerminaux, codePDV, region, secteur, latitude, longitude')
-          .eq('is_current', true)
-          .order('nom', { ascending: true }),
+        cachedQuery(
+          'maintenance:agences',
+          () => supabase
+            .from('agences')
+            .select('id, nom, nbreTerminaux, codePDV, region, secteur, latitude, longitude')
+            .eq('is_current', true)
+            .order('nom', { ascending: true }),
+        ),
         // Secteurs (table dédiée)
         fetchSecteurs(),
         // Codes de pannes
-        supabase
-          .from('codes_pannes')
-          .select('*')
-          .order('code', { ascending: true }),
+        cachedQuery(
+          'maintenance:codes_pannes',
+          () => supabase
+            .from('codes_pannes')
+            .select('*')
+            .order('code', { ascending: true }),
+        ),
         // Codes d'interventions
-        supabase
-          .from('codes_interventions')
-          .select('*')
-          .order('code', { ascending: true }),
+        cachedQuery(
+          'maintenance:codes_interventions',
+          () => supabase
+            .from('codes_interventions')
+            .select('*')
+            .order('code', { ascending: true }),
+        ),
         // Pièces de rechange (stock > 0)
-        supabase
-          .from('pieces_rechange')
-          .select('*')
-          .gt('stock_disponible', 0)
-          .order('nom', { ascending: true }),
+        cachedQuery(
+          'maintenance:pieces_rechange',
+          () => supabase
+            .from('pieces_rechange')
+            .select('*')
+            .gt('stock_disponible', 0)
+            .order('nom', { ascending: true }),
+        ),
       ]);
 
       if (!regionsResponse.error) setRegions(regionsResponse.data || []);
@@ -408,11 +424,14 @@ const MaintenanceTab = ({ technicien }) => {
     const terminalSelect = 'id, reference, type_terminal, position, statut, adresse_ip, agence_id, imprimante_reference, lecteur_reference, ecran_reference, afficheur_reference, buc_reference, carrosserie_reference';
 
     try {
-      let { data, error } = await publicSupabase
-        .from('terminaux')
-        .select(terminalSelect)
-        .eq('agence_id', agenceId)
-        .order('reference', { ascending: true });
+      let { data, error } = await cachedQuery(
+        `maintenance:terminaux:${agenceId}`,
+        () => publicSupabase
+          .from('terminaux')
+          .select(terminalSelect)
+          .eq('agence_id', agenceId)
+          .order('reference', { ascending: true }),
+      );
 
       if (!error && (!data || data.length === 0) && agence?.codePDV) {
         const { data: agencyVersions, error: agencyVersionsError } = await publicSupabase
@@ -527,11 +546,14 @@ const MaintenanceTab = ({ technicien }) => {
         }))
       );
     } catch (error) {
-      toast({
-        title: 'Erreur',
-        description: 'Impossible de charger les dernières interventions',
-        variant: 'destructive',
-      });
+      // Hors-ligne : ce panneau secondaire reste simplement vide, sans alerte rouge.
+      if (typeof navigator === 'undefined' || navigator.onLine) {
+        toast({
+          title: 'Erreur',
+          description: 'Impossible de charger les dernières interventions',
+          variant: 'destructive',
+        });
+      }
       console.error('Erreur chargement interventions récentes:', error);
       setRecentInterventions([]);
     } finally {
@@ -551,12 +573,15 @@ const MaintenanceTab = ({ technicien }) => {
       let chef = null;
 
       if (agence.codePDV) {
-        const chefByCodePdv = await publicSupabase
-          .from('chefs_agence')
-          .select('id, matricule, nom, prenom, agenceEnCharge, codePDV, is_current')
-          .eq('codePDV', agence.codePDV)
-          .eq('is_current', true)
-          .limit(1);
+        const chefByCodePdv = await cachedQuery(
+          `maintenance:chef-agence:codepdv:${agence.codePDV}`,
+          () => publicSupabase
+            .from('chefs_agence')
+            .select('id, matricule, nom, prenom, agenceEnCharge, codePDV, is_current')
+            .eq('codePDV', agence.codePDV)
+            .eq('is_current', true)
+            .limit(1),
+        );
 
         if (chefByCodePdv.error) {
           throw chefByCodePdv.error;
@@ -566,12 +591,15 @@ const MaintenanceTab = ({ technicien }) => {
       }
 
       if (!chef) {
-        const { data, error } = await publicSupabase
-          .from('chefs_agence')
-          .select('id, matricule, nom, prenom, agenceEnCharge, codePDV, is_current')
-          .eq('agenceEnCharge', agence.nom)
-          .eq('is_current', true)
-          .limit(1);
+        const { data, error } = await cachedQuery(
+          `maintenance:chef-agence:nom:${agence.nom}`,
+          () => publicSupabase
+            .from('chefs_agence')
+            .select('id, matricule, nom, prenom, agenceEnCharge, codePDV, is_current')
+            .eq('agenceEnCharge', agence.nom)
+            .eq('is_current', true)
+            .limit(1),
+        );
 
         if (error) {
           throw error;

@@ -36,6 +36,18 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import KpiStatCard from '@/components/analytics/KpiStatCard';
 import { buildRegionOptions, fetchRegions } from '@/lib/regions';
+import { cachedQuery, isOnline } from '@/lib/offlineCache';
+import { enqueueOffline, isOfflineEnabledForScreen, getCache, putCache } from '@/lib/offlineQueue';
+import { APP_SPACE_SETTINGS_KEY } from '@/lib/exploitationProfiles';
+import { STORAGE_BUCKET } from '@/lib/clientConfig';
+
+// Lit un File en data URL base64 (pour la mise en file d'un upload différé hors-ligne).
+const fileToDataUrl = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(reader.result);
+  reader.onerror = () => reject(reader.error);
+  reader.readAsDataURL(file);
+});
 import {
   buildProcedureSummary,
   DEMANDE_STATUSES,
@@ -92,6 +104,8 @@ const sortDemandesByUpdatedAt = (firstDemande, secondDemande) =>
 
 const notifyPaiementGainLoadError = (toast, error, title, description) => {
   if (isSupabaseAuthError(error)) return;
+  // Hors-ligne : la page s'affiche depuis le cache, inutile d'alerter en rouge.
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return;
 
   toast({
     title,
@@ -149,6 +163,17 @@ const PaiementGrosGainPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isChefDecisionLoading, setIsChefDecisionLoading] = useState(false);
   const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
+  const [offlineEnabled, setOfflineEnabled] = useState(false);
+
+  useEffect(() => {
+    // Drapeau « hors-ligne · paiement gros gain » (mis en cache pour rester lisible hors-ligne).
+    cachedQuery(
+      'paiement:space-settings',
+      () => supabase.from('app_settings').select('value').eq('key', APP_SPACE_SETTINGS_KEY).maybeSingle(),
+    )
+      .then(({ data }) => setOfflineEnabled(isOfflineEnabledForScreen(data?.value, 'paiementGrosGain')))
+      .catch(() => {});
+  }, []);
 
   const loadData = useCallback(async () => {
     if (!chefInfo?.id) return;
@@ -163,12 +188,12 @@ const PaiementGrosGainPage = () => {
       { data: demandesData, error: demandesError },
       { data: eventsData, error: eventsError },
     ] = await Promise.all([
-      supabase.from('agences').select('*').eq('is_current', true).order('nom', { ascending: true }),
+      cachedQuery('paiement:agences', () => supabase.from('agences').select('*').eq('is_current', true).order('nom', { ascending: true })),
       fetchRegions(),
-      supabase.from('validateurs_paiement_gain').select('*').eq('statut', 'Actif').order('nom', { ascending: true }),
+      cachedQuery('paiement:validateurs', () => supabase.from('validateurs_paiement_gain').select('*').eq('statut', 'Actif').order('nom', { ascending: true })),
       fetchPaiementGainWorkflowConfigs(),
-      supabase.from('demandes_paiement_gain').select('*').order('updated_at', { ascending: false }),
-      supabase.from('paiement_gain_workflow_events').select('*').order('created_at', { ascending: false }),
+      cachedQuery(`paiement:demandes:${chefInfo.id}`, () => supabase.from('demandes_paiement_gain').select('*').order('updated_at', { ascending: false })),
+      cachedQuery(`paiement:events:${chefInfo.id}`, () => supabase.from('paiement_gain_workflow_events').select('*').order('created_at', { ascending: false })),
     ]);
 
     if (agencesError) {
@@ -583,6 +608,18 @@ const PaiementGrosGainPage = () => {
   };
 
   const handleSubmitDemande = async () => {
+    // Hors-ligne : autorisé uniquement si la fonctionnalité « hors-ligne · paiement
+    // gros gain » est activée. La demande est mise en file et synchronisée au retour
+    // du réseau. Les validations/paiements restent en ligne (voir handlers dédiés).
+    const offlineMode = !isOnline();
+    if (offlineMode && !offlineEnabled) {
+      toast({
+        title: 'Indisponible hors-ligne',
+        description: 'La création d’une demande hors-ligne n’est pas activée. Reconnectez-vous pour envoyer la demande.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!chefInfo?.id) {
       toast({
         title: 'Chef non identifié',
@@ -657,7 +694,9 @@ const PaiementGrosGainPage = () => {
     const codeDemande = generateDemandeCode();
     let photoPieceUrl = null;
 
-    if (photoFile) {
+    // L'upload du storage est impossible hors-ligne : on saute l'envoi de la pièce
+    // (le storage ne fait pas partie de la file de synchro). On en avertit l'agent.
+    if (photoFile && !offlineMode) {
       const { data: uploadedUrl, error: uploadError } = await uploadPaiementGainIdentityPhoto(photoFile, codeDemande);
 
       if (uploadError) {
@@ -734,6 +773,82 @@ const PaiementGrosGainPage = () => {
       commentaireDerniereAction: initialComment,
     };
 
+    // ── Hors-ligne : mise en file de la création, sans toucher au serveur ──
+    if (offlineMode) {
+      try {
+        // 1) Création de la demande (mise en file). L'événement d'audit est rejoué
+        //    à la synchro avec l'ID serveur de la demande (inconnu hors-ligne).
+        await enqueueOffline({
+          type: 'paiement_gros_gain',
+          table: 'demandes_paiement_gain',
+          payload,
+          event: {
+            table: 'paiement_gain_workflow_events',
+            demandeIdField: 'demandeId',
+            idSelect: 'id',
+            payload: {
+              codeDemande,
+              actionType: waitingChefApproval ? 'creation_demande' : 'soumission_demande',
+              actorType: 'chef_agence',
+              actorId: normalizeBigIntIdentifier(chefInfo.id),
+              actorName: chefInfo.nomChef || 'Chef d’agence',
+              actorFunction: 'Chef d’agence',
+              statusBefore: null,
+              statusAfter: payload.statutGlobal,
+              commentaire: initialComment,
+            },
+          },
+        });
+
+        // 2) Photo de la pièce d'identité : upload différé. Le fichier est stocké
+        //    localement (base64) puis envoyé au storage à la synchro, et l'URL est
+        //    renseignée sur la demande (retrouvée par codeDemande). Mis en file APRÈS
+        //    l'insert pour que la ligne existe quand l'upload renseigne l'URL.
+        if (photoFile) {
+          const extension = photoFile.name.split('.').pop() || 'png';
+          const path = `paiement_gros_gain/identites/${codeDemande}_${Date.now()}.${extension}`;
+          const fileBase64 = await fileToDataUrl(photoFile);
+          await enqueueOffline({
+            type: 'paiement_gros_gain_photo',
+            op: 'upload',
+            table: 'demandes_paiement_gain',
+            match: { codeDemande },
+            upload: {
+              bucket: STORAGE_BUCKET,
+              path,
+              fileBase64,
+              contentType: photoFile.type || 'image/png',
+              urlField: 'photoPieceUrl',
+            },
+          });
+        }
+
+        // Patch du cache local pour que la demande apparaisse immédiatement dans la
+        // liste (elle sera remplacée par la version serveur après synchronisation).
+        try {
+          const cacheKey = `paiement:demandes:${chefInfo.id}`;
+          const cached = await getCache(cacheKey);
+          const rows = Array.isArray(cached?.data) ? cached.data : [];
+          const nowIso = new Date().toISOString();
+          const localDemande = { ...payload, id: `offline-${codeDemande}`, created_at: nowIso, updated_at: nowIso, __offline: true };
+          await putCache(cacheKey, [localDemande, ...rows]);
+        } catch { /* patch best-effort */ }
+
+        toast({
+          title: 'Demande enregistrée hors-ligne',
+          description: `La demande ${codeDemande}${photoFile ? ' et sa pièce d’identité seront transmises' : ' sera transmise'} automatiquement au retour de la connexion.`,
+          className: 'bg-blue-600 text-white',
+        });
+
+        resetForm();
+        await loadData();
+      } catch (e) {
+        toast({ title: 'Erreur', description: 'Impossible d’enregistrer la demande hors-ligne.', variant: 'destructive' });
+      }
+      setIsSubmitting(false);
+      return;
+    }
+
     const { data: insertedDemande, error: insertError } = await supabase
       .from('demandes_paiement_gain')
       .insert(payload)
@@ -805,6 +920,16 @@ const PaiementGrosGainPage = () => {
   const handleChefDecision = async (decision) => {
     const demandeToHandle = isChefAgenceWorkspace ? selectedChefActionDemande : selectedOwnDemande;
     if (!demandeToHandle || !chefInfo?.id) return;
+
+    // Validation/refus : interdit hors-ligne — la décision dépend de l'état serveur à jour.
+    if (!isOnline()) {
+      toast({
+        title: 'Indisponible hors-ligne',
+        description: 'La validation ou le refus d’une demande nécessite une connexion active.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setIsChefDecisionLoading(true);
 
@@ -889,6 +1014,16 @@ const PaiementGrosGainPage = () => {
   const handleConfirmPayment = async () => {
     const demandeToPay = isChefAgenceWorkspace ? selectedChefActionDemande : selectedPaymentDemande;
     if (!demandeToPay || !chefInfo?.id) return;
+
+    // Confirmation de paiement : interdite hors-ligne (opération financière sur état serveur).
+    if (!isOnline()) {
+      toast({
+        title: 'Indisponible hors-ligne',
+        description: 'La confirmation de paiement nécessite une connexion active.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setIsPaymentSubmitting(true);
 
