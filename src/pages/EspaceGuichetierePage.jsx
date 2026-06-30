@@ -25,6 +25,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/lib/supabaseClient';
 import { GUICHETIERE_AUTH_KEY, buildGuichetiereDisplayName } from '@/lib/guichetiereSpace';
 import { useFeature } from '@/hooks/useFeatureFlags';
+import { useSyncHealthHeartbeat } from '@/hooks/useSyncHealthHeartbeat';
+import RemonteeDialog from '@/components/RemonteeDialog';
+import EnablePushButton from '@/components/EnablePushButton';
 import { isGuichetiereAgenceVisible } from '@/lib/orgStructureConfig';
 import { smartSignIn, fetchAuthLinkedProfile, fetchOrLinkAuthProfile } from '@/lib/smartAuth';
 import { useActivityTracker } from '@/hooks/useActivityTracker';
@@ -256,6 +259,23 @@ const EspaceGuichetierePage = () => {
   const moduleFeatureEnabled = {
     'tickets-incidents': useFeature('tickets-incidents'),
     'demandes-absence': useFeature('demandes-absence'),
+  };
+  const offlineEnabled = useFeature('offline_mode');
+  // Télémétrie santé synchro (best-effort) quand l'usage hors-ligne est actif.
+  useSyncHealthHeartbeat(
+    {
+      userId: guichetiereDetails?.id || guichetiereInfo?.id,
+      nom: [guichetiereDetails?.prenom, guichetiereDetails?.nom].filter(Boolean).join(' ') || guichetiereInfo?.matricule,
+      role: 'guichetiere',
+      agence: guichetiereInfo?.nomAgence || guichetiereDetails?.agenceAssigne,
+    },
+    isAuthenticated && offlineEnabled
+  );
+  const notifReader = {
+    id: guichetiereDetails?.id || guichetiereInfo?.id,
+    role: 'guichetiere',
+    nom: [guichetiereDetails?.prenom, guichetiereDetails?.nom].filter(Boolean).join(' ') || guichetiereInfo?.matricule,
+    agence: guichetiereInfo?.nomAgence || guichetiereDetails?.agenceAssigne,
   };
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [spaceTabFunctionalities, setSpaceTabFunctionalities] = useState(() => {
@@ -552,8 +572,11 @@ const EspaceGuichetierePage = () => {
             notifications={guichetiereNotifications}
             totalCount={guichetiereNotifCount}
             onNavigate={() => setIsMobileMenuOpen(false)}
+            reader={notifReader}
             storageKey={guichetiereInfo?.matricule ? `g_${guichetiereInfo.matricule}` : null}
           />
+          <RemonteeDialog sender={notifReader} iconOnly className="ml-1" />
+          <EnablePushButton reader={notifReader} iconOnly className="ml-1" />
           <button
             type="button"
             aria-label={isMobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
@@ -606,6 +629,7 @@ const EspaceGuichetierePage = () => {
                     notifications={guichetiereNotifications}
                     totalCount={guichetiereNotifCount}
                     onNavigate={() => setIsMobileMenuOpen(false)}
+                    reader={notifReader}
                     storageKey={guichetiereInfo?.matricule ? `g_${guichetiereInfo.matricule}` : null}
                   />
                 </div>

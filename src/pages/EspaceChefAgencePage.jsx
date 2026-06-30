@@ -28,6 +28,9 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 import { useActivityTracker } from '@/hooks/useActivityTracker';
+import { useSyncHealthHeartbeat } from '@/hooks/useSyncHealthHeartbeat';
+import RemonteeDialog from '@/components/RemonteeDialog';
+import EnablePushButton from '@/components/EnablePushButton';
 import {
   APP_SPACE_SETTINGS_KEY,
   APP_SPACE_TAB_SETTINGS_KEY,
@@ -657,6 +660,23 @@ const EspaceChefAgencePage = () => {
     identity: chefAgenceInfo,
   });
 
+  // Télémétrie santé synchro (best-effort) quand l'usage hors-ligne est actif.
+  useSyncHealthHeartbeat(
+    {
+      userId: chefDetails?.id || chefAgenceInfo?.id,
+      nom: chefAgenceInfo?.nomChef || [chefDetails?.prenom, chefDetails?.nom].filter(Boolean).join(' '),
+      role: 'chef_agence',
+      agence: chefAgenceInfo?.nomAgence,
+    },
+    isAuthenticated && spaceFunctionalities['offline_mode'] !== false
+  );
+  const notifReader = {
+    id: chefDetails?.id || chefAgenceInfo?.id,
+    role: 'chef_agence',
+    nom: chefAgenceInfo?.nomChef || [chefDetails?.prenom, chefDetails?.nom].filter(Boolean).join(' '),
+    agence: chefAgenceInfo?.nomAgence,
+  };
+
   const { notifications: chefNotifications, totalCount: chefNotifCount } = useSpaceNotifications({
     spaceKey: 'espace-chef-agence',
     enabled: isAuthenticated,
@@ -1011,7 +1031,10 @@ const EspaceChefAgencePage = () => {
             notifications={chefNotifications}
             totalCount={chefNotifCount}
             onNavigate={() => setIsMobileMenuOpen(false)}
+            reader={notifReader}
           />
+          <RemonteeDialog sender={notifReader} iconOnly className="ml-1" />
+          <EnablePushButton reader={notifReader} iconOnly className="ml-1" />
           <button
             type="button"
             aria-label={isMobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
@@ -1059,6 +1082,7 @@ const EspaceChefAgencePage = () => {
                   notifications={chefNotifications}
                   totalCount={chefNotifCount}
                   onNavigate={() => setIsMobileMenuOpen(false)}
+                  reader={notifReader}
                 />
               </div>
             </CardContent>

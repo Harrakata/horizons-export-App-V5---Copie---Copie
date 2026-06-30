@@ -97,12 +97,27 @@ export const subscribeQueue = (listener) => { listeners.add(listener); return ()
  */
 export async function enqueueOffline({ type, table = null, payload = null, op = 'insert', match = null, upload = null }) {
   const db = await openDB();
-  const rec = { id: newId(), op, type, table, payload, match, upload, createdAt: nextTs() };
+  const rec = { id: newId(), op, type, table, payload, match, upload, createdAt: nextTs(), retries: 0, lastError: null };
   const t = db.transaction(QUEUE_STORE, 'readwrite');
   t.objectStore(QUEUE_STORE).put(rec);
   await txDone(t);
   notifyChange();
   return rec;
+}
+
+/** Met à jour partiellement un item de file (ex. compteur de tentatives / dernière erreur). */
+export async function updateQueued(id, patch) {
+  try {
+    const db = await openDB();
+    const t = db.transaction(QUEUE_STORE, 'readwrite');
+    const store = t.objectStore(QUEUE_STORE);
+    const existing = await reqToPromise(store.get(id));
+    if (existing) store.put({ ...existing, ...patch });
+    await txDone(t);
+    notifyChange();
+  } catch {
+    /* best-effort */
+  }
 }
 
 export async function getQueued() {

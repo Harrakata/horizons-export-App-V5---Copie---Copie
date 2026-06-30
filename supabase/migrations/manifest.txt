@@ -24,3 +24,7 @@ add_demandes_absence.sql
 add_tickets_incidents.sql
 add_tickets_intervention_link.sql
 add_demandes_absence_creneau.sql
+add_sync_health.sql
+add_message_lectures.sql
+add_messages_remontee.sql
+add_push_subscriptions.sql

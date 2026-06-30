@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useFeature } from '@/hooks/useFeatureFlags';
+import { markMessagesRead } from '@/lib/messaging';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -58,7 +59,7 @@ const saveReadIds = (storageKey, ids) => {
  * @param {Function} [onNavigate]   callback avant navigation
  * @param {string}   [storageKey]   clé unique par utilisateur pour persister les IDs lus
  */
-const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, storageKey = null }) => {
+const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, storageKey = null, reader = null }) => {
   const navigate = useNavigate();
   const notificationsEnabled = useFeature('notifications');
   const [open, setOpen]             = useState(false);
@@ -98,11 +99,15 @@ const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, stor
   const isUnread = (msgId) => !readIds.has(msgId);
 
   const markAllRead = (messages) => {
-    if (!storageKey || !messages?.length) return;
-    const next = new Set(readIds);
-    messages.forEach((m) => next.add(m.id));
-    setReadIds(next);
-    saveReadIds(storageKey, next);
+    if (!messages?.length) return;
+    if (storageKey) {
+      const next = new Set(readIds);
+      messages.forEach((m) => next.add(m.id));
+      setReadIds(next);
+      saveReadIds(storageKey, next);
+    }
+    // Accusé de lecture serveur (messages de l'exploitation = ids numériques).
+    if (reader?.id) markMessagesRead(messages.map((m) => m.id), reader);
   };
 
   // Badge : pour les notifications avec messages, on compte les non-lus uniquement

@@ -340,6 +340,34 @@ const ticketsReport = {
   },
 };
 
+// ── Rapport : Santé synchro (instantané) ────────────────────────────────────────
+const dateTime = (v) => (v ? String(v).slice(0, 16).replace('T', ' ') : '');
+const syncHealthReport = {
+  key: 'sante-synchro',
+  label: 'Santé synchro (instantané)',
+  scopes: [REPORT_SCOPES.EXPLOITATION],
+  columns: [
+    { key: 'agence_nom', label: 'Agence' },
+    { key: 'user_nom', label: 'Utilisateur' },
+    { key: 'role', label: 'Rôle' },
+    { key: 'pending_count', label: 'En attente' },
+    { key: 'failed_count', label: 'Échecs' },
+    { key: 'oldest_pending_at', label: 'Plus ancien', format: dateTime },
+    { key: 'last_sync_at', label: 'Dernière synchro', format: dateTime },
+    { key: 'last_seen_at', label: 'Vu', format: dateTime },
+  ],
+  async run({ agenceNames }) {
+    let query = supabase
+      .from('sync_health')
+      .select('agence_nom, user_nom, role, pending_count, failed_count, oldest_pending_at, last_sync_at, last_seen_at')
+      .order('pending_count', { ascending: false });
+    if (hasNames(agenceNames)) query = query.in('agence_nom', agenceNames);
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  },
+};
+
 export const REPORTS = [
   planningReport,
   pointagesReport,
@@ -347,6 +375,7 @@ export const REPORTS = [
   maintenanceReport,
   paiementGainReport,
   ticketsReport,
+  syncHealthReport,
   caReport,
 ];
 

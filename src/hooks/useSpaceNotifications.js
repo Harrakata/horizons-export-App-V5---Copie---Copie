@@ -8,6 +8,8 @@ import {
 import { DEMANDE_STATUSES } from '@/lib/paiementGainUtils';
 import { normalizeBigIntIdentifier } from '@/lib/paiementGainService';
 import { ticketOverdue } from '@/lib/tickets';
+import { countBlockedDevices } from '@/lib/syncHealth';
+import { countUntreatedRemontees } from '@/lib/messaging';
 
 const REFRESH_MS = 90 * 1000;
 
@@ -248,6 +250,10 @@ export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }
       ]);
       if (ticketsOpen > 0)     list.push({ key: 'tickets', count: ticketsOpen, title: 'Tickets à traiter', description: 'Incidents ouverts à assigner', to: '/espace-exploitation/tickets', severity: 'amber' });
       if (ticketsLate > 0)     list.push({ key: 'tickets-sla', count: ticketsLate, title: 'Tickets en retard (SLA)', description: 'Délai de résolution dépassé', to: '/espace-exploitation/tickets', severity: 'red' });
+      const syncBlocked = await countBlockedDevices();
+      if (syncBlocked > 0)     list.push({ key: 'sync-blocked', count: syncBlocked, title: 'Synchro bloquée', description: 'Appareils avec écritures en attente', to: '/espace-exploitation/sante-synchro', severity: 'red' });
+      const remontees = await countUntreatedRemontees();
+      if (remontees > 0)       list.push({ key: 'remontees', count: remontees, title: 'Remontées terrain', description: 'Messages des agents à traiter', to: '/espace-exploitation/notifications-exploitation', severity: 'blue' });
     }
 
     else if (spaceKey === 'espace-chef-agence') {

@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabaseClient';
-import { getQueued, removeQueued } from '@/lib/offlineQueue';
+import { getQueued, removeQueued, updateQueued } from '@/lib/offlineQueue';
 
 let syncing = false;
 
@@ -113,8 +113,10 @@ export async function flushQueue() {
         const { ok, drop } = await replayItem(item);
         if (ok) synced++;
         if (drop) await removeQueued(item.id);
-      } catch {
-        // Échec réseau → on garde l'élément en file.
+        else if (!ok) await updateQueued(item.id, { retries: (item.retries || 0) + 1, lastError: 'Rejeu non confirmé' });
+      } catch (e) {
+        // Échec (réseau / serveur) → on garde l'élément en file et on trace l'erreur.
+        await updateQueued(item.id, { retries: (item.retries || 0) + 1, lastError: String(e?.message || e).slice(0, 300) });
       }
     }
   } finally {

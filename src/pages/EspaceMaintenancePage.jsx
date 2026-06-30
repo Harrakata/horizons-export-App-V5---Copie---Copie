@@ -14,6 +14,9 @@ import MobileTabBar from '@/components/mobile/MobileTabBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
 import SwipeTabs from '@/components/mobile/SwipeTabs';
 import { useFeature } from '@/hooks/useFeatureFlags';
+import { useSyncHealthHeartbeat } from '@/hooks/useSyncHealthHeartbeat';
+import RemonteeDialog from '@/components/RemonteeDialog';
+import EnablePushButton from '@/components/EnablePushButton';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
@@ -321,6 +324,20 @@ const EspaceMaintenancePage = () => {
     'tickets-incidents': useFeature('tickets-incidents'),
     'demandes-absence': useFeature('demandes-absence'),
   };
+  const offlineEnabled = useFeature('offline_mode');
+  useSyncHealthHeartbeat(
+    {
+      userId: userData?.id,
+      nom: [userData?.prenom, userData?.nom].filter(Boolean).join(' ') || userData?.matricule,
+      role: 'technicien',
+    },
+    isAuthenticated && offlineEnabled
+  );
+  const notifReader = {
+    id: userData?.id,
+    role: 'technicien',
+    nom: [userData?.prenom, userData?.nom].filter(Boolean).join(' ') || userData?.matricule,
+  };
 
   const baseMenuItems = [
     { key: 'maintenance', label: 'Maintenance', icon: <CalendarDays className="h-5 w-5" /> },
@@ -399,8 +416,11 @@ const EspaceMaintenancePage = () => {
             notifications={technicienNotifications}
             totalCount={technicienNotifCount}
             onNavigate={() => setIsMobileMenuOpen(false)}
+            reader={notifReader}
             storageKey={userData?.id ? `t_${userData.id}` : null}
           />
+          <RemonteeDialog sender={notifReader} iconOnly className="ml-1" />
+          <EnablePushButton reader={notifReader} iconOnly className="ml-1" />
           <button
             type="button"
             aria-label={isMobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
@@ -451,6 +471,7 @@ const EspaceMaintenancePage = () => {
                     notifications={technicienNotifications}
                     totalCount={technicienNotifCount}
                     onNavigate={() => setIsMobileMenuOpen(false)}
+                    reader={notifReader}
                     storageKey={userData?.id ? `t_${userData.id}` : null}
                   />
                 </div>

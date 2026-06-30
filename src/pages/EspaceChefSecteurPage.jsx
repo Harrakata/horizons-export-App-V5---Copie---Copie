@@ -50,6 +50,8 @@ import MobileTabBar from '@/components/mobile/MobileTabBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
 import SwipeTabs from '@/components/mobile/SwipeTabs';
 import NotificationBell from '@/components/NotificationBell';
+import RemonteeDialog from '@/components/RemonteeDialog';
+import EnablePushButton from '@/components/EnablePushButton';
 import useSpaceNotifications from '@/hooks/useSpaceNotifications';
 
 const SECTEUR_TAB_LABELS = { agences: 'Agences', pointages: 'Pointages', maintenance: 'Maint.', paiements: 'Paiements' };
@@ -338,7 +340,9 @@ const EspaceChefSecteurPage = () => {
             <p className="text-[0.6rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground/70">Espace Chef de Secteur</p>
             <p className="truncate text-sm font-bold text-foreground leading-tight">{chef.prenom} {chef.nom}</p>
           </div>
-          <NotificationBell notifications={chefNotifications} totalCount={chefNotifCount} onRefresh={refreshChefNotifs} />
+          <NotificationBell notifications={chefNotifications} totalCount={chefNotifCount} onRefresh={refreshChefNotifs} reader={{ id: chef?.id, role: 'chef_secteur', nom: [chef?.prenom, chef?.nom].filter(Boolean).join(' '), agence: null }} />
+          <RemonteeDialog sender={{ id: chef?.id, role: 'chef_secteur', nom: [chef?.prenom, chef?.nom].filter(Boolean).join(' ') }} iconOnly className="ml-1" />
+          <EnablePushButton reader={{ id: chef?.id, role: 'chef_secteur', nom: [chef?.prenom, chef?.nom].filter(Boolean).join(' '), agence: null }} iconOnly className="ml-1" />
           <button
             type="button"
             aria-label={isMobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}

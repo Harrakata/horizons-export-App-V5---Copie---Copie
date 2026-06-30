@@ -230,6 +230,8 @@ export default defineConfig({
 				navigateFallbackDenylist: [/^\/pbi-viewer/],
 				globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2}'],
 				maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+				// Handlers Web Push (push / notificationclick) injectés dans le SW généré.
+				importScripts: ['push-sw.js'],
 			},
 		}),
 	],

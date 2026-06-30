@@ -68,6 +68,8 @@ const NotificationsExploitationPage         = lazy(() => import('@/pages/exploit
 const RapportsPage                          = lazy(() => import('@/pages/exploitation/RapportsPage'));
 const AbsencesExploitationPage              = lazy(() => import('@/pages/exploitation/AbsencesExploitationPage'));
 const TicketsExploitationPage               = lazy(() => import('@/pages/exploitation/TicketsExploitationPage'));
+const SyncHealthPage                        = lazy(() => import('@/pages/exploitation/SyncHealthPage'));
+const PerformancePage                       = lazy(() => import('@/pages/exploitation/PerformancePage'));
 
 // Chef d'agence
 const MesGuichetieresPage                   = lazy(() => import('@/pages/chef_agence/MesGuichetieresPage'));
@@ -170,6 +172,8 @@ const App = () => (
             <Route path="rapports"                          element={<LazyRoute><RapportsPage /></LazyRoute>} />
             <Route path="absences"                          element={<LazyRoute><AbsencesExploitationPage /></LazyRoute>} />
             <Route path="tickets"                           element={<LazyRoute><TicketsExploitationPage /></LazyRoute>} />
+            <Route path="sante-synchro"                     element={<LazyRoute><SyncHealthPage /></LazyRoute>} />
+            <Route path="performance"                       element={<LazyRoute><PerformancePage /></LazyRoute>} />
           </Route>
 
           <Route path="/espace-chef-agence" element={<LazyRoute><EspaceChefAgencePage /></LazyRoute>}>
