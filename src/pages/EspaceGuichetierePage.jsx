@@ -576,7 +576,6 @@ const EspaceGuichetierePage = () => {
             storageKey={guichetiereInfo?.matricule ? `g_${guichetiereInfo.matricule}` : null}
           />
           <RemonteeDialog sender={notifReader} iconOnly className="ml-1" />
-          <EnablePushButton reader={notifReader} iconOnly className="ml-1" />
           <button
             type="button"
             aria-label={isMobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
@@ -633,7 +632,6 @@ const EspaceGuichetierePage = () => {
                     storageKey={guichetiereInfo?.matricule ? `g_${guichetiereInfo.matricule}` : null}
                   />
                   <RemonteeDialog sender={notifReader} iconOnly className="ml-1" />
-                  <EnablePushButton reader={notifReader} iconOnly className="ml-1" />
                 </div>
               </CardContent>
             </Card>
@@ -679,6 +677,7 @@ const EspaceGuichetierePage = () => {
                     <UserCog className="h-5 w-5" />
                     <span className="text-[0.6rem] font-semibold">Profil</span>
                   </button>
+                  <EnablePushButton reader={notifReader} asNavButton />
                   <button
                     type="button"
                     onClick={handleLogout}

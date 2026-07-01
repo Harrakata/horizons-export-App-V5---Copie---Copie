@@ -342,7 +342,6 @@ const EspaceChefSecteurPage = () => {
           </div>
           <NotificationBell notifications={chefNotifications} totalCount={chefNotifCount} onRefresh={refreshChefNotifs} reader={{ id: chef?.id, role: 'chef_secteur', nom: [chef?.prenom, chef?.nom].filter(Boolean).join(' '), agence: null }} />
           <RemonteeDialog sender={{ id: chef?.id, role: 'chef_secteur', nom: [chef?.prenom, chef?.nom].filter(Boolean).join(' ') }} iconOnly className="ml-1" />
-          <EnablePushButton reader={{ id: chef?.id, role: 'chef_secteur', nom: [chef?.prenom, chef?.nom].filter(Boolean).join(' '), agence: null }} iconOnly className="ml-1" />
           <button
             type="button"
             aria-label={isMobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
@@ -428,6 +427,7 @@ const EspaceChefSecteurPage = () => {
                   <UserCog className="h-5 w-5" />
                   <span className="text-[0.6rem] font-semibold">Profil</span>
                 </button>
+                <EnablePushButton reader={{ id: chef?.id, role: 'chef_secteur', nom: [chef?.prenom, chef?.nom].filter(Boolean).join(' '), agence: null }} asNavButton />
                 <button
                   type="button"
                   onClick={handleLogout}

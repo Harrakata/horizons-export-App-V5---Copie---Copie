@@ -2,21 +2,19 @@
 -- Remontée terrain → exploitation (messagerie ascendante)
 -- À exécuter dans Supabase SQL Editor (ou via migrate.sh)
 -- ============================================================
---  Réutilise messages_exploitation comme inbox unique. `sens` distingue les
---  messages descendants (exploitation → terrain, défaut) des remontées
---  (terrain → exploitation). Champs expéditeur + indicateur « traité ».
---  (Migration ALTER idempotente — requiert la table messages_exploitation.)
+--  Une remontée réutilise messages_exploitation avec destinataires='exploitation'
+--  (les espaces terrain ne lisent que leur rôle / 'tous' → elles ne fuient pas).
+--  L'état « traité » = actif=false. AUCUNE nouvelle colonne : il suffit d'ÉLARGIR
+--  la contrainte CHECK sur `destinataires` pour accepter la valeur 'exploitation'.
+--  (Migration idempotente.)
 -- ============================================================
 
 ALTER TABLE public.messages_exploitation
-  ADD COLUMN IF NOT EXISTS sens TEXT NOT NULL DEFAULT 'descendant';
+  DROP CONSTRAINT IF EXISTS messages_exploitation_destinataires_check;
 
-ALTER TABLE public.messages_exploitation DROP CONSTRAINT IF EXISTS messages_exploitation_sens_check;
 ALTER TABLE public.messages_exploitation
-  ADD CONSTRAINT messages_exploitation_sens_check CHECK (sens IN ('descendant', 'remontee'));
-
-ALTER TABLE public.messages_exploitation ADD COLUMN IF NOT EXISTS envoye_par_role TEXT;
-ALTER TABLE public.messages_exploitation ADD COLUMN IF NOT EXISTS envoye_par_id   TEXT;
-ALTER TABLE public.messages_exploitation ADD COLUMN IF NOT EXISTS traite          BOOLEAN NOT NULL DEFAULT false;
-
-CREATE INDEX IF NOT EXISTS messages_exploitation_sens_idx ON public.messages_exploitation(sens);
+  ADD CONSTRAINT messages_exploitation_destinataires_check
+  CHECK (destinataires IN (
+    'guichetiere', 'technicien', 'chef_agence', 'chef_secteur',
+    'directeur_regional', 'directeur_general', 'tous', 'exploitation'
+  ));

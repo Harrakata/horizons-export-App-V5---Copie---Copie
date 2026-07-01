@@ -41,8 +41,9 @@ test('Notifications locales — activation + notif de test', async ({ page, cont
   await settle(page, 800);
   await assertNoCrash(page);
 
-  const btn = page.getByRole('button', { name: /Activer les notifications/i }).first();
-  await expect(btn, 'Le bouton « Activer les notifications » doit être visible').toBeVisible({ timeout: 10000 });
+  // Le bouton est dans la barre du bas (après « Profil ») : libellé « Notifs ».
+  const btn = page.getByRole('button', { name: /Notifs/i }).first();
+  await expect(btn, 'Le bouton « Notifs » doit être visible').toBeVisible({ timeout: 10000 });
   await btn.click();
   await settle(page, 1500);
 

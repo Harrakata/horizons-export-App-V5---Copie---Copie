@@ -22,17 +22,29 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || '/';
+  // url peut être absente : dans ce cas on ne navigue PAS (on garde l'utilisateur
+  // sur sa page actuelle) au lieu de le renvoyer à l'accueil.
+  const url = event.notification.data && event.notification.data.url;
+  const hasTarget = url && url !== '/';
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if ('focus' in client) {
           client.focus();
-          if ('navigate' in client && url) client.navigate(url).catch(() => {});
+          if (hasTarget && 'navigate' in client) {
+            try {
+              const current = new URL(client.url).pathname;
+              if (current !== url) client.navigate(url).catch(() => {});
+            } catch (e) { client.navigate(url).catch(() => {}); }
+          } else if (!hasTarget && 'postMessage' in client) {
+            // Message sans page dédiée → on demande à l'app d'ouvrir la cloche.
+            client.postMessage({ type: 'open-notifications' });
+          }
           return undefined;
         }
       }
-      if (self.clients.openWindow) return self.clients.openWindow(url);
+      // Aucune fenêtre ouverte : on ouvre la cible si précise, sinon l'accueil.
+      if (self.clients.openWindow) return self.clients.openWindow(hasTarget ? url : '/');
       return undefined;
     })
   );

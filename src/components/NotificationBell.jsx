@@ -69,6 +69,14 @@ const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, stor
   // Recharge les IDs lus quand l'utilisateur change (login/logout)
   useEffect(() => { setReadIds(loadReadIds(storageKey)); }, [storageKey]);
 
+  // Ouvre la cloche quand le service worker le demande (clic sur une notif « message »).
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined;
+    const onSwMessage = (event) => { if (event.data?.type === 'open-notifications') setOpen(true); };
+    navigator.serviceWorker.addEventListener('message', onSwMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onSwMessage);
+  }, []);
+
   // ── Détection mobile ────────────────────────────────────────────────────────
   // Sur mobile, on n'utilise PAS le positionnement de Radix (qui décale le popover
   // hors écran dans l'en-tête sticky) : on rend un panneau fixe centré via portal.

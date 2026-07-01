@@ -420,7 +420,6 @@ const EspaceMaintenancePage = () => {
             storageKey={userData?.id ? `t_${userData.id}` : null}
           />
           <RemonteeDialog sender={notifReader} iconOnly className="ml-1" />
-          <EnablePushButton reader={notifReader} iconOnly className="ml-1" />
           <button
             type="button"
             aria-label={isMobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
@@ -475,7 +474,6 @@ const EspaceMaintenancePage = () => {
                     storageKey={userData?.id ? `t_${userData.id}` : null}
                   />
                   <RemonteeDialog sender={notifReader} iconOnly className="ml-1" />
-                  <EnablePushButton reader={notifReader} iconOnly className="ml-1" />
                 </div>
               </CardContent>
             </Card>
@@ -522,6 +520,7 @@ const EspaceMaintenancePage = () => {
                     <UserCog className="h-5 w-5" />
                     <span className="text-[0.6rem] font-semibold">Profil</span>
                   </button>
+                  <EnablePushButton reader={notifReader} asNavButton />
                   <button
                     type="button"
                     onClick={handleLogout}

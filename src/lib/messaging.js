@@ -52,55 +52,61 @@ export const fetchReadStats = async (messageIds) => {
 };
 
 // ── Remontée terrain → exploitation ─────────────────────────────────────────────
+//  Réutilise messages_exploitation SANS nouvelle colonne : une remontée =
+//  destinataires='exploitation' (colonne existante) ; l'état « traité » = actif=false.
 const MESSAGES_TABLE = 'messages_exploitation';
+export const REMONTEE_DESTINATAIRE = 'exploitation';
+
+const REMONTEE_ROLE_LABELS = {
+  guichetiere: 'Guichetière', technicien: 'Technicien',
+  chef_agence: "Chef d'agence", chef_secteur: 'Chef de secteur',
+};
 
 /**
  * Envoie une remontée d'un agent vers l'exploitation.
  * @param sender { id, role, nom, agence }
  */
 export const sendRemontee = async ({ titre, corps, categorie = 'info', sender = {} }) => {
+  const nom = sender.nom || null;
+  const label = REMONTEE_ROLE_LABELS[sender.role];
   const { error } = await supabase.from(MESSAGES_TABLE).insert({
-    sens: 'remontee',
-    destinataires: 'exploitation',
+    destinataires: REMONTEE_DESTINATAIRE,
     titre: (titre || '').trim(),
-    corps: (corps || '').trim() || null,
+    corps: (corps || '').trim(), // NOT NULL en base → chaîne vide plutôt que null
     categorie,
     agence_nom: sender.agence || null,
-    envoye_par_nom: sender.nom || null,
-    envoye_par_role: sender.role || null,
-    envoye_par_id: sender.id != null ? String(sender.id) : null,
-    actif: true,
-    traite: false,
+    envoye_par_nom: nom && label ? `${nom} — ${label}` : (nom || label || null),
+    actif: true, // actif = à traiter ; devient false une fois traité
   });
   return { error };
 };
 
-/** Remontées (exploitation). Renvoie [] si la colonne `sens` n'existe pas encore. */
+/** Remontées (exploitation). `traite` dérivé de actif (=false → traité). */
 export const fetchRemontees = async () => {
   const { data, error } = await supabase
     .from(MESSAGES_TABLE)
-    .select('id, titre, corps, categorie, agence_nom, envoye_par_nom, envoye_par_role, traite, created_at')
-    .eq('sens', 'remontee')
+    .select('id, titre, corps, categorie, agence_nom, envoye_par_nom, actif, created_at')
+    .eq('destinataires', REMONTEE_DESTINATAIRE)
     .order('created_at', { ascending: false })
     .limit(200);
   if (error) return [];
-  return data || [];
+  return (data || []).map((r) => ({ ...r, traite: r.actif === false }));
 };
 
-/** Marque une remontée comme traitée / non traitée. */
+/** Marque une remontée traitée (actif=false) ou rouverte (actif=true). */
 export const setRemonteeTraitee = async (id, traite = true) => {
-  const { error } = await supabase.from(MESSAGES_TABLE).update({ traite }).eq('id', id);
+  const { error } = await supabase.from(MESSAGES_TABLE).update({ actif: !traite }).eq('id', id);
   return { error };
 };
 
-/** Compte les remontées non traitées (pour l'alerte exploitation). 0 si indisponible. */
+/** Compte les remontées non traitées (actif=true). 0 si indisponible. */
 export const countUntreatedRemontees = async () => {
   try {
     const { count, error } = await supabase
       .from(MESSAGES_TABLE)
       .select('id', { count: 'exact', head: true })
-      .eq('sens', 'remontee')
-      .eq('traite', false);
+      .eq('destinataires', REMONTEE_DESTINATAIRE)
+      .eq('actif', true);
     if (error) return 0;
     return count || 0;
   } catch {

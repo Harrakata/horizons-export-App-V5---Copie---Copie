@@ -18,7 +18,7 @@ import {
  * S'affiche dès que le navigateur supporte les notifications.
  * @param reader { id, role, nom, agence, region }
  */
-const EnablePushButton = ({ reader = {}, className = '', iconOnly = false }) => {
+const EnablePushButton = ({ reader = {}, className = '', iconOnly = false, asNavButton = false }) => {
   const { toast } = useToast();
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -43,12 +43,14 @@ const EnablePushButton = ({ reader = {}, className = '', iconOnly = false }) => 
     // Toujours activer les notifications locales (affichage app ouverte, fiable).
     setLocalNotifEnabled(true);
     // En plus : vrai Web Push si configuré (alerte même app fermée), best-effort.
+    let pushOk = false;
     if (isPushSupported() && isPushConfigured()) {
-      await subscribeToPush(reader);
+      const res = await subscribeToPush(reader);
+      pushOk = !!res.ok;
     }
     // Notification de test immédiate pour confirmer que ça fonctionne.
     await notifyLocal('Notifications activées', { body: 'Vous serez alerté des nouveautés.', tag: 'notif-test' });
-    return true;
+    return { ok: true, pushOk };
   };
 
   const disable = async () => {
@@ -59,9 +61,34 @@ const EnablePushButton = ({ reader = {}, className = '', iconOnly = false }) => 
   const toggle = async () => {
     setBusy(true);
     if (enabled) { await disable(); setEnabled(false); toast({ title: 'Notifications désactivées' }); }
-    else { const ok = await enable(); if (ok) { setEnabled(true); toast({ title: 'Notifications activées' }); } }
+    else {
+      const res = await enable();
+      if (res && res.ok) {
+        setEnabled(true);
+        toast({
+          title: 'Notifications activées',
+          description: res.pushOk
+            ? 'Y compris quand l’application est fermée (push).'
+            : 'Quand l’application est ouverte. (Push serveur non configuré → app fermée indisponible.)',
+        });
+      }
+    }
     setBusy(false);
   };
+
+  // Mode « bouton de barre de navigation » (footer Accueil/Profil/Déconn).
+  if (asNavButton) {
+    return (
+      <button
+        type="button" onClick={toggle} disabled={busy}
+        className="flex flex-1 flex-col items-center gap-1 rounded-2xl py-2.5 text-muted-foreground/70 transition-colors hover:bg-primary/8 hover:text-primary disabled:opacity-60"
+        title={enabled ? 'Désactiver les notifications' : 'Activer les notifications'}
+      >
+        {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : enabled ? <BellRing className="h-5 w-5 text-primary" /> : <BellOff className="h-5 w-5" />}
+        <span className="text-[0.6rem] font-semibold">{enabled ? 'Notifs ✓' : 'Notifs'}</span>
+      </button>
+    );
+  }
 
   return (
     <Button
