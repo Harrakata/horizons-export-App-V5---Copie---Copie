@@ -28,3 +28,4 @@ add_sync_health.sql
 add_message_lectures.sql
 add_messages_remontee.sql
 add_push_subscriptions.sql
+enable_realtime_notifications.sql

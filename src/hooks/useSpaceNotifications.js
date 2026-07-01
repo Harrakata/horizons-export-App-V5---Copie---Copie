@@ -16,7 +16,19 @@ import { isLocalNotifEnabled, notifyLocal } from '@/lib/localNotifications';
 const notifSignatures = (n) =>
   n.messages?.length ? n.messages.map((m) => `m:${m.id}`) : [`${n.key}:${n.count}`];
 
-const REFRESH_MS = 90 * 1000;
+// Persistance des signatures « déjà vues » (survit aux refresh/navigations) → permet
+// de déclencher une notif OS pour ce qui est apparu pendant l'absence.
+const SEEN_PREFIX = 'notif_seen_';
+const loadSeen = (spaceKey) => {
+  try { const raw = localStorage.getItem(SEEN_PREFIX + spaceKey); return raw ? new Set(JSON.parse(raw)) : null; }
+  catch { return null; }
+};
+const saveSeen = (spaceKey, set) => {
+  try { localStorage.setItem(SEEN_PREFIX + spaceKey, JSON.stringify([...set].slice(-200))); }
+  catch { /* quota */ }
+};
+
+const REFRESH_MS = 30 * 1000;
 
 // Formatte une date ISO en jj/mm/aaaa (fr), ou null si vide/invalide.
 const fmtDate = (value) => {
@@ -376,16 +388,21 @@ export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }
   // Déclenche une notification OS (locale) pour chaque groupe contenant une nouveauté.
   const fireLocalForNew = useCallback((list) => {
     const sigs = new Set(list.flatMap(notifSignatures));
-    const prev = seenSigsRef.current;
+    // prev vient de la mémoire, sinon du stockage (survit au refresh). null = 1re fois → baseline.
+    const prev = seenSigsRef.current ?? loadSeen(spaceKey);
     if (prev && isLocalNotifEnabled()) {
-      list.forEach((n) => {
+      let fired = 0;
+      for (const n of list) {
+        if (fired >= 3) break; // évite les rafales
         if (notifSignatures(n).some((s) => !prev.has(s))) {
           notifyLocal(n.title, { body: n.description || '', url: n.to || undefined, tag: n.key });
+          fired++;
         }
-      });
+      }
     }
     seenSigsRef.current = sigs;
-  }, []);
+    saveSeen(spaceKey, sigs);
+  }, [spaceKey]);
 
   const refresh = useCallback(() => {
     if (!enabled || !spaceKey) return;
@@ -397,9 +414,39 @@ export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }
       setNotifications([]);
       return undefined;
     }
+    seenSigsRef.current = null; // repart de l'état persisté du bon espace
     refresh();
     const interval = setInterval(refresh, REFRESH_MS);
-    return () => clearInterval(interval);
+    // Rafraîchit immédiatement au retour sur l'onglet / reconnexion (quasi temps réel).
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('online', refresh);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, spaceKey, ctxKey]);
+
+  // ── Temps réel (Supabase Realtime) ────────────────────────────────────────────
+  // Sur tout changement d'une table source, on rafraîchit (débouncé) → notification
+  // quasi immédiate. Repli automatique sur le sondage 30 s si Realtime indisponible.
+  useEffect(() => {
+    if (!enabled || !spaceKey) return undefined;
+    let timer;
+    const debounced = () => { clearTimeout(timer); timer = setTimeout(() => refresh(), 800); };
+    const tables = [
+      'messages_exploitation', 'tickets_incidents', 'demandes_absence',
+      'planning_modification_requests', 'planning_maintenance_modification_requests',
+      'demandes_paiement_gain', 'points_vente_mobi_change_requests', 'sync_health',
+    ];
+    const channel = supabase.channel(`notif-${spaceKey}-${Math.random().toString(36).slice(2, 8)}`);
+    tables.forEach((table) => channel.on('postgres_changes', { event: '*', schema: 'public', table }, debounced));
+    channel.subscribe();
+    return () => { clearTimeout(timer); supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, spaceKey, ctxKey]);
 
