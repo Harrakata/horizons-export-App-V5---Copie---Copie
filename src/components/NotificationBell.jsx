@@ -77,6 +77,19 @@ const NotificationBell = ({ notifications = [], totalCount = 0, onNavigate, stor
     return () => navigator.serviceWorker.removeEventListener('message', onSwMessage);
   }, []);
 
+  // Ouvre la cloche si l'app a été ré-ouverte via une notif « message » (?openNotifs=1).
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('openNotifs') === '1') {
+        setOpen(true);
+        params.delete('openNotifs');
+        const qs = params.toString();
+        window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   // ── Détection mobile ────────────────────────────────────────────────────────
   // Sur mobile, on n'utilise PAS le positionnement de Radix (qui décale le popover
   // hors écran dans l'en-tête sticky) : on rend un panneau fixe centré via portal.

@@ -12,6 +12,17 @@ import { countBlockedDevices } from '@/lib/syncHealth';
 import { countUntreatedRemontees } from '@/lib/messaging';
 import { isLocalNotifEnabled, notifyLocal } from '@/lib/localNotifications';
 
+// Racine de chaque espace (pour ouvrir la cloche à la ré-ouverture depuis une notif message).
+const SPACE_ROOTS = {
+  'espace-guichetiere': '/espace-guichetiere',
+  'espace-technicien': '/espace-technicien',
+  'espace-chef-agence': '/espace-chef-agence',
+  'espace-chef-secteur': '/espace-chef-secteur',
+  'espace-directeur-regional': '/espace-validation-paiement-gain',
+  'espace-directeur-general': '/espace-directeur-general',
+  'espace-exploitation': '/espace-exploitation',
+};
+
 // Signature d'une notification (pour détecter les nouveautés entre deux rafraîchissements).
 const notifSignatures = (n) =>
   n.messages?.length ? n.messages.map((m) => `m:${m.id}`) : [`${n.key}:${n.count}`];
@@ -395,7 +406,14 @@ export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }
       for (const n of list) {
         if (fired >= 3) break; // évite les rafales
         if (notifSignatures(n).some((s) => !prev.has(s))) {
-          notifyLocal(n.title, { body: n.description || '', url: n.to || undefined, tag: n.key });
+          // Message sans page dédiée → ouvrir la cloche (racine d'espace + marqueur).
+          const isMsg = n.messages?.length > 0 && !n.to;
+          notifyLocal(n.title, {
+            body: n.description || '',
+            url: isMsg ? SPACE_ROOTS[spaceKey] : (n.to || undefined),
+            openBell: isMsg,
+            tag: n.key,
+          });
           fired++;
         }
       }

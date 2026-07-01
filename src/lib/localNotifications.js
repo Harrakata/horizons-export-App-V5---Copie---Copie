@@ -31,10 +31,11 @@ export const isLocalNotifEnabled = () => {
 };
 
 /** Affiche une notification OS (via le SW s'il est déjà enregistré, sinon API directe). */
-export const notifyLocal = async (title, { body = '', url = null, tag } = {}) => {
+export const notifyLocal = async (title, { body = '', url = null, tag, openBell = false } = {}) => {
   if (getNotifPermission() !== 'granted') return false;
   // url null → au clic, on reste sur la page courante (pas de renvoi à l'accueil).
-  const options = { body, tag, icon: '/pwa-192x192.png', badge: '/pwa-192x192.png', data: { url: url || null } };
+  // openBell → au clic, ouvre la cloche (message sans page dédiée).
+  const options = { body, tag, icon: '/pwa-192x192.png', badge: '/pwa-192x192.png', data: { url: url || null, openBell } };
   // On utilise getRegistration() (résolution immédiate) et NON .ready (qui peut
   // ne jamais se résoudre s'il n'y a pas de SW actif → notification jamais affichée).
   try {

@@ -22,29 +22,33 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  // url peut être absente : dans ce cas on ne navigue PAS (on garde l'utilisateur
-  // sur sa page actuelle) au lieu de le renvoyer à l'accueil.
-  const url = event.notification.data && event.notification.data.url;
+  const data = event.notification.data || {};
+  const url = data.url;
+  const openBell = !!data.openBell;         // message → ouvrir la cloche
   const hasTarget = url && url !== '/';
+  // URL d'ouverture quand aucune fenêtre n'est ouverte : cible précise, ou racine
+  // d'espace + marqueur pour ouvrir la cloche, sinon accueil.
+  const openUrl = openBell ? `${url || '/'}?openNotifs=1` : (hasTarget ? url : '/');
+
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if ('focus' in client) {
           client.focus();
-          if (hasTarget && 'navigate' in client) {
+          if (openBell && 'postMessage' in client) {
+            // App déjà ouverte → on demande d'ouvrir la cloche là où on est.
+            client.postMessage({ type: 'open-notifications' });
+          } else if (hasTarget && 'navigate' in client) {
             try {
               const current = new URL(client.url).pathname;
               if (current !== url) client.navigate(url).catch(() => {});
             } catch (e) { client.navigate(url).catch(() => {}); }
-          } else if (!hasTarget && 'postMessage' in client) {
-            // Message sans page dédiée → on demande à l'app d'ouvrir la cloche.
-            client.postMessage({ type: 'open-notifications' });
           }
           return undefined;
         }
       }
-      // Aucune fenêtre ouverte : on ouvre la cible si précise, sinon l'accueil.
-      if (self.clients.openWindow) return self.clients.openWindow(hasTarget ? url : '/');
+      // Aucune fenêtre ouverte.
+      if (self.clients.openWindow) return self.clients.openWindow(openUrl);
       return undefined;
     })
   );
