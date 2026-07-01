@@ -10,6 +10,11 @@ import { normalizeBigIntIdentifier } from '@/lib/paiementGainService';
 import { ticketOverdue } from '@/lib/tickets';
 import { countBlockedDevices } from '@/lib/syncHealth';
 import { countUntreatedRemontees } from '@/lib/messaging';
+import { isLocalNotifEnabled, notifyLocal } from '@/lib/localNotifications';
+
+// Signature d'une notification (pour détecter les nouveautés entre deux rafraîchissements).
+const notifSignatures = (n) =>
+  n.messages?.length ? n.messages.map((m) => `m:${m.id}`) : [`${n.key}:${n.count}`];
 
 const REFRESH_MS = 90 * 1000;
 
@@ -201,6 +206,7 @@ export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }
   const [notifications, setNotifications] = useState([]);
   const ctxRef = useRef(context);
   ctxRef.current = context;
+  const seenSigsRef = useRef(null); // signatures déjà vues (évite de re-notifier)
 
   // Clé stable pour relancer le calcul quand le contexte significatif change.
   const ctxKey = JSON.stringify(context || {});
@@ -367,10 +373,24 @@ export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }
     return list;
   }, [spaceKey]);
 
+  // Déclenche une notification OS (locale) pour chaque groupe contenant une nouveauté.
+  const fireLocalForNew = useCallback((list) => {
+    const sigs = new Set(list.flatMap(notifSignatures));
+    const prev = seenSigsRef.current;
+    if (prev && isLocalNotifEnabled()) {
+      list.forEach((n) => {
+        if (notifSignatures(n).some((s) => !prev.has(s))) {
+          notifyLocal(n.title, { body: n.description || '', url: n.to || undefined, tag: n.key });
+        }
+      });
+    }
+    seenSigsRef.current = sigs;
+  }, []);
+
   const refresh = useCallback(() => {
     if (!enabled || !spaceKey) return;
-    compute().then((list) => setNotifications(list)).catch(() => {});
-  }, [enabled, spaceKey, compute]);
+    compute().then((list) => { fireLocalForNew(list); setNotifications(list); }).catch(() => {});
+  }, [enabled, spaceKey, compute, fireLocalForNew]);
 
   useEffect(() => {
     if (!enabled || !spaceKey) {

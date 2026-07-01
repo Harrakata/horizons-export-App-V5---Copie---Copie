@@ -99,7 +99,7 @@ Chaque projet étant isolé, il faut créer le bucket dans le nouveau projet :
 
 ### Étape 1.6 — Déployer les Edge Functions
 
-8 fonctions vivent dans `supabase/functions/`. Déployer celles utiles au client
+Les fonctions vivent dans `supabase/functions/`. Déployer celles utiles au client
 (certaines sont liées à des fonctionnalités optionnelles) :
 
 | Fonction | Utilité | À déployer si… |
@@ -110,6 +110,7 @@ Chaque projet étant isolé, il faut créer le bucket dans le nouveau projet :
 | `sync-suivi-trm-mobi` | synchro PDV mobi | flag `point-de-vente-mobi` actif |
 | `notify-parieur-sms` | SMS parieur (Twilio) | notifications SMS utilisées |
 | `resolve-map-link` | résolution liens carte/GPS | flag GPS utilisé |
+| `send-push` | envoi des notifications push (Web Push) | notifications push souhaitées |
 
 ⚠ **Sans déploiement, la création de comptes/profils échoue** avec
 « Failed to send a request to the Edge Function » (la fonction `admin-manage-user`
@@ -145,6 +146,10 @@ La CLI doit afficher `Using workdir …/<dépôt>` (et non le dossier home).
 - SMS (Twilio) : `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` ou
   `TWILIO_MESSAGING_SID`, `SMS_DEFAULT_COUNTRY_CODE` (optionnel, défaut `+226`).
   Procédure détaillée : voir `docs/TWILIO-SMS-PAIEMENT-GAIN.md`.
+- **Notifications push** (`send-push`) : `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
+  `VAPID_SUBJECT` (ex. `mailto:contact@client.com`). Générer **une paire VAPID par
+  client** : `npx web-push generate-vapid-keys`. La clé **publique** va AUSSI côté
+  front (`VITE_VAPID_PUBLIC_KEY`, étape 2.2) ; la **privée** reste un secret serveur.
 
 ### Étape 1.7 — Configurer l'authentification
 
@@ -178,6 +183,7 @@ si besoin). Voir `.env.example` pour la liste de référence.
 | `VITE_SUPABASE_URL` | Project URL (étape 1.2) | ✅ |
 | `VITE_SUPABASE_ANON_KEY` | clé anon (étape 1.2) | ✅ |
 | `VITE_AZURE_TENANT_ID` / `VITE_AZURE_CLIENT_ID` | identifiants Azure AD (Power BI) | si `powerbi` actif |
+| `VITE_VAPID_PUBLIC_KEY` | clé **publique** VAPID (= celle du secret `send-push`) | si notifications push |
 | `VITE_SENTRY_DSN` | DSN Sentry | optionnel |
 | `VITE_FEATURES_DISABLED` | ex. `ccope,powerbi` (kill-switch) | optionnel |
 | `VITE_FEATURES_ENABLED` | forçage inverse | optionnel |
@@ -212,7 +218,15 @@ Espace Exploitation → **Profil et Fonctionnalité** → carte **« Identité c
 
 Même page → section **« Espaces & Fonctionnalités »** : cocher/décocher les
 modules selon le périmètre vendu au client (CCOPE, Power BI, Audit, Notifications,
-Planning, Maintenance, PDV mobi, Pointage, Paiement gros gain, espaces…).
+Planning, Maintenance, PDV mobi, Pointage, Paiement gros gain, **Tickets / Incidents**,
+**Demandes d'absence**, espaces…).
+
+> Nouveaux onglets exploitation livrés (gérés via **« Profil et Fonctionnalité »**
+> → droits par profil) : **Rapports**, **Tickets / Incidents**, **Demandes d'absence**,
+> **Santé synchro** (visible si « Usage hors-ligne » actif), **Performance**. Activés
+> par défaut pour l'admin ; à accorder aux autres profils si nécessaire. Les tables
+> associées (absences, tickets, sync_health, message_lectures, push_subscriptions…)
+> sont créées automatiquement par les migrations (manifest, étape 1.4).
 
 ### Étape 3.4 — Données de référence & paramètres
 
@@ -296,9 +310,14 @@ npx supabase link --project-ref <ref-niger>
 npx supabase functions deploy admin-manage-user
 #   … + fonctions selon features ; puis secrets (Power BI / Twilio)
 
+# 3bis. (si notifications push) paire VAPID PAR CLIENT + déploiement send-push
+npx web-push generate-vapid-keys
+npx supabase functions deploy send-push
+npx supabase secrets set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT=mailto:...
+
 # 4. Dashboard : bucket "pmu-mali-storage" + policies, Auth (Site URL/redirects)
 
-# 5. Vercel : nouveau projet + variables VITE_* ; déployer
+# 5. Vercel : nouveau projet + variables VITE_* (dont VITE_VAPID_PUBLIC_KEY si push) ; déployer
 
 # 6. Dans l'app : bootstrap admin → Identité client → Fonctionnalités → paramètres
 ```

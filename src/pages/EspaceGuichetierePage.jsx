@@ -632,6 +632,8 @@ const EspaceGuichetierePage = () => {
                     reader={notifReader}
                     storageKey={guichetiereInfo?.matricule ? `g_${guichetiereInfo.matricule}` : null}
                   />
+                  <RemonteeDialog sender={notifReader} iconOnly className="ml-1" />
+                  <EnablePushButton reader={notifReader} iconOnly className="ml-1" />
                 </div>
               </CardContent>
             </Card>

@@ -474,6 +474,8 @@ const EspaceMaintenancePage = () => {
                     reader={notifReader}
                     storageKey={userData?.id ? `t_${userData.id}` : null}
                   />
+                  <RemonteeDialog sender={notifReader} iconOnly className="ml-1" />
+                  <EnablePushButton reader={notifReader} iconOnly className="ml-1" />
                 </div>
               </CardContent>
             </Card>

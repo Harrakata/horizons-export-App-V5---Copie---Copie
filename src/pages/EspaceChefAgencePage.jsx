@@ -1084,6 +1084,8 @@ const EspaceChefAgencePage = () => {
                   onNavigate={() => setIsMobileMenuOpen(false)}
                   reader={notifReader}
                 />
+                <RemonteeDialog sender={notifReader} iconOnly className="ml-1" />
+                <EnablePushButton reader={notifReader} iconOnly className="ml-1" />
               </div>
             </CardContent>
           </Card>
