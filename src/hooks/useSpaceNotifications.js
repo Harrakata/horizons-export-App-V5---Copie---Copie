@@ -216,28 +216,25 @@ const countActiveTickets = async (filters = []) => {
   }
 };
 
+// Tables sources écoutées en temps réel (Supabase Realtime) → rafraîchissement quasi immédiat.
+const REALTIME_TABLES = [
+  'messages_exploitation', 'tickets_incidents', 'demandes_absence',
+  'planning_modification_requests', 'planning_maintenance_modification_requests',
+  'demandes_paiement_gain', 'points_vente_mobi_change_requests', 'sync_health',
+];
+
 /**
- * Construit la liste des alertes (notifications) pertinentes selon l'espace/rôle,
- * dérivées en direct des données existantes. Pas de table dédiée.
+ * Calcule la liste des alertes (notifications) pertinentes pour un espace/rôle,
+ * dérivées en direct des données existantes. Fonction PURE (pas de hook) → réutilisable
+ * par le hook par-page ET par la surveillance globale (Layout).
  *
- * @param {object}  params
- * @param {string}  params.spaceKey   ex. 'espace-exploitation'
- * @param {boolean} params.enabled
- * @param {object}  params.context    données de rôle (agence, ids, matricule…)
+ * @param {string} spaceKey   ex. 'espace-exploitation'
+ * @param {object} ctx        données de rôle (agence, ids, matricule…)
  */
-export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }) {
-  const [notifications, setNotifications] = useState([]);
-  const ctxRef = useRef(context);
-  ctxRef.current = context;
-  const seenSigsRef = useRef(null); // signatures déjà vues (évite de re-notifier)
+export async function computeSpaceNotifications(spaceKey, ctx = {}) {
+  const list = [];
 
-  // Clé stable pour relancer le calcul quand le contexte significatif change.
-  const ctxKey = JSON.stringify(context || {});
-
-  const compute = useCallback(async () => {
-    const ctx = ctxRef.current || {};
-    const list = [];
-
+  {
     if (spaceKey === 'espace-exploitation') {
       const [pdvMsgs, maintMsgs, pay] = await Promise.all([
         fetchDemandMessages('points_vente_mobi_change_requests', {
@@ -393,46 +390,105 @@ export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }
       if (ticketsAssignes > 0)    list.push({ key: 'tickets',    count: ticketsAssignes,    title: 'Tickets assignés',                description: 'Incidents à prendre en charge', to: '/espace-technicien',                         severity: 'amber' });
     }
 
-    return list;
-  }, [spaceKey]);
+  }
 
-  // Déclenche une notification OS (locale) pour chaque groupe contenant une nouveauté.
-  const fireLocalForNew = useCallback((list) => {
-    const sigs = new Set(list.flatMap(notifSignatures));
-    // prev vient de la mémoire, sinon du stockage (survit au refresh). null = 1re fois → baseline.
-    const prev = seenSigsRef.current ?? loadSeen(spaceKey);
-    if (prev && isLocalNotifEnabled()) {
-      let fired = 0;
-      for (const n of list) {
-        if (fired >= 3) break; // évite les rafales
-        if (notifSignatures(n).some((s) => !prev.has(s))) {
-          // Message sans page dédiée → ouvrir la cloche (racine d'espace + marqueur).
-          const isMsg = n.messages?.length > 0 && !n.to;
-          notifyLocal(n.title, {
-            body: n.description || '',
-            url: isMsg ? SPACE_ROOTS[spaceKey] : (n.to || undefined),
-            openBell: isMsg,
-            tag: n.key,
-          });
-          fired++;
-        }
+  return list;
+}
+
+// Déclenche une notification OS (locale) pour chaque groupe contenant une nouveauté.
+// Fonction PURE : la déduplication s'appuie sur l'état persisté (loadSeen/saveSeen),
+// partagé entre le hook par-page et la surveillance globale → jamais de double notif
+// (le `tag` fait de toute façon fusionner deux notifs identiques côté OS).
+export function fireLocalForNew(spaceKey, list) {
+  const sigs = new Set(list.flatMap(notifSignatures));
+  const prev = loadSeen(spaceKey); // null = 1re fois sur cet appareil → baseline (pas de rafale)
+  if (prev && isLocalNotifEnabled()) {
+    let fired = 0;
+    for (const n of list) {
+      if (fired >= 3) break; // évite les rafales
+      if (notifSignatures(n).some((s) => !prev.has(s))) {
+        // Message sans page dédiée → ouvrir la cloche (racine d'espace + marqueur).
+        const isMsg = n.messages?.length > 0 && !n.to;
+        notifyLocal(n.title, {
+          body: n.description || '',
+          url: isMsg ? SPACE_ROOTS[spaceKey] : (n.to || undefined),
+          openBell: isMsg,
+          tag: n.key,
+        });
+        fired++;
       }
     }
-    seenSigsRef.current = sigs;
-    saveSeen(spaceKey, sigs);
-  }, [spaceKey]);
+  }
+  saveSeen(spaceKey, sigs);
+}
+
+// ── Descripteurs de surveillance (permet de continuer à notifier hors de la page) ──
+// Chaque espace enregistre { context, ts } pendant qu'il est ouvert. La surveillance
+// globale (Layout) rejoue ces descripteurs → notifications même sur l'accueil / un autre
+// espace. TTL de sécurité : au-delà, on cesse (ex. session oubliée). La déconnexion
+// appelle clearNotifWatch pour couper immédiatement.
+const WATCH_KEY = 'notif_watch';
+const WATCH_TTL_MS = 12 * 60 * 60 * 1000;
+
+export const writeNotifWatch = (spaceKey, context = {}) => {
+  if (!spaceKey) return;
+  try {
+    const map = JSON.parse(localStorage.getItem(WATCH_KEY) || '{}');
+    map[spaceKey] = { context: context || {}, ts: Date.now() };
+    localStorage.setItem(WATCH_KEY, JSON.stringify(map));
+  } catch { /* quota / indisponible */ }
+};
+
+export const clearNotifWatch = (spaceKey) => {
+  try {
+    const map = JSON.parse(localStorage.getItem(WATCH_KEY) || '{}');
+    if (map[spaceKey]) { delete map[spaceKey]; localStorage.setItem(WATCH_KEY, JSON.stringify(map)); }
+  } catch { /* ignore */ }
+};
+
+const readNotifWatches = () => {
+  try {
+    const map = JSON.parse(localStorage.getItem(WATCH_KEY) || '{}');
+    const now = Date.now();
+    return Object.entries(map)
+      .filter(([, v]) => v && now - (v.ts || 0) < WATCH_TTL_MS)
+      .map(([spaceKey, v]) => ({ spaceKey, context: v.context || {} }));
+  } catch { return []; }
+};
+
+/**
+ * Hook par-espace : alimente la cloche (état `notifications`) ET maintient à jour le
+ * descripteur de surveillance globale. Le déclenchement des notifs OS est mutualisé
+ * avec la surveillance globale via fireLocalForNew (dédup persistée partagée).
+ *
+ * @param {object}  params
+ * @param {string}  params.spaceKey   ex. 'espace-exploitation'
+ * @param {boolean} params.enabled
+ * @param {object}  params.context    données de rôle (agence, ids, matricule…)
+ */
+export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }) {
+  const [notifications, setNotifications] = useState([]);
+  const ctxRef = useRef(context);
+  ctxRef.current = context;
+
+  // Clé stable pour relancer le calcul quand le contexte significatif change.
+  const ctxKey = JSON.stringify(context || {});
 
   const refresh = useCallback(() => {
     if (!enabled || !spaceKey) return;
-    compute().then((list) => { fireLocalForNew(list); setNotifications(list); }).catch(() => {});
-  }, [enabled, spaceKey, compute, fireLocalForNew]);
+    computeSpaceNotifications(spaceKey, ctxRef.current).then((list) => {
+      fireLocalForNew(spaceKey, list);
+      // Maintient vivant le descripteur de surveillance globale (ts rafraîchi).
+      writeNotifWatch(spaceKey, ctxRef.current);
+      setNotifications(list);
+    }).catch(() => {});
+  }, [enabled, spaceKey]);
 
   useEffect(() => {
     if (!enabled || !spaceKey) {
       setNotifications([]);
       return undefined;
     }
-    seenSigsRef.current = null; // repart de l'état persisté du bon espace
     refresh();
     const interval = setInterval(refresh, REFRESH_MS);
     // Rafraîchit immédiatement au retour sur l'onglet / reconnexion (quasi temps réel).
@@ -456,13 +512,8 @@ export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }
     if (!enabled || !spaceKey) return undefined;
     let timer;
     const debounced = () => { clearTimeout(timer); timer = setTimeout(() => refresh(), 800); };
-    const tables = [
-      'messages_exploitation', 'tickets_incidents', 'demandes_absence',
-      'planning_modification_requests', 'planning_maintenance_modification_requests',
-      'demandes_paiement_gain', 'points_vente_mobi_change_requests', 'sync_health',
-    ];
     const channel = supabase.channel(`notif-${spaceKey}-${Math.random().toString(36).slice(2, 8)}`);
-    tables.forEach((table) => channel.on('postgres_changes', { event: '*', schema: 'public', table }, debounced));
+    REALTIME_TABLES.forEach((table) => channel.on('postgres_changes', { event: '*', schema: 'public', table }, debounced));
     channel.subscribe();
     return () => { clearTimeout(timer); supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -474,6 +525,54 @@ export function useSpaceNotifications({ spaceKey, enabled = true, context = {} }
   );
 
   return { notifications, totalCount, refresh };
+}
+
+/**
+ * Surveillance GLOBALE (à monter UNE fois dans Layout).
+ * Rejoue les descripteurs de surveillance persistés par chaque espace ouvert → les
+ * notifications OS continuent de se déclencher sur l'accueil, dans un autre espace, ou
+ * onglet en arrière-plan (tant que l'app tourne). ⚠ App totalement fermée = Web Push requis.
+ */
+export function useGlobalNotificationWatcher() {
+  useEffect(() => {
+    // Rien à faire si le navigateur ne gère pas les notifications.
+    if (typeof window === 'undefined' || !('Notification' in window)) return undefined;
+    let cancelled = false;
+    let timer;
+
+    const runOnce = async () => {
+      if (!isLocalNotifEnabled()) return;
+      const watches = readNotifWatches();
+      for (const { spaceKey, context } of watches) {
+        try {
+          const list = await computeSpaceNotifications(spaceKey, context);
+          if (cancelled) return;
+          fireLocalForNew(spaceKey, list);
+        } catch { /* espace ignoré */ }
+      }
+    };
+
+    runOnce();
+    const interval = setInterval(runOnce, REFRESH_MS);
+    const debounced = () => { clearTimeout(timer); timer = setTimeout(runOnce, 800); };
+    const channel = supabase.channel(`notif-global-${Math.random().toString(36).slice(2, 8)}`);
+    REALTIME_TABLES.forEach((table) => channel.on('postgres_changes', { event: '*', schema: 'public', table }, debounced));
+    channel.subscribe();
+
+    const onVisible = () => { if (document.visibilityState === 'visible') runOnce(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', runOnce);
+    window.addEventListener('online', runOnce);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      clearTimeout(timer);
+      supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', runOnce);
+      window.removeEventListener('online', runOnce);
+    };
+  }, []);
 }
 
 export default useSpaceNotifications;

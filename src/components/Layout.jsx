@@ -16,6 +16,7 @@ import { Home, Briefcase, Users, Settings, BarChart3, LogIn, Sun, Moon, Menu, Wr
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
 import { useClient, useSecteurEnabled } from '@/hooks/useFeatureFlags';
+import { useGlobalNotificationWatcher } from '@/hooks/useSpaceNotifications';
 import { supabase } from '@/lib/supabaseClient';
 import {
   APP_SPACE_SETTINGS_KEY,
@@ -30,6 +31,10 @@ const Layout = () => {
   const { toast } = useToast();
   const client = useClient();
   const secteurEnabled = useSecteurEnabled();
+  // Surveillance globale des notifications : continue de déclencher les notifs OS même
+  // hors de l'espace concerné (accueil, autre espace, onglet en arrière-plan) tant que
+  // l'app tourne. App totalement fermée = Web Push requis (VITE_VAPID_PUBLIC_KEY).
+  useGlobalNotificationWatcher();
   const [isDarkMode, setIsDarkMode] = React.useState(() => {
     // Lire le mode sombre depuis le cache thème pour éviter un flash au rechargement
     try {

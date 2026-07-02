@@ -19,7 +19,8 @@ DECLARE
     'planning_maintenance_modification_requests',
     'demandes_paiement_gain',
     'points_vente_mobi_change_requests',
-    'sync_health'
+    'sync_health',
+    'message_lectures'
   ];
 BEGIN
   -- La publication supabase_realtime existe par défaut sur les projets Supabase.

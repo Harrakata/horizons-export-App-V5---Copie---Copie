@@ -35,7 +35,7 @@ import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 import MobileTabBar from '@/components/mobile/MobileTabBar';
 import SwipeTabs from '@/components/mobile/SwipeTabs';
 import NotificationBell from '@/components/NotificationBell';
-import { useSpaceNotifications } from '@/hooks/useSpaceNotifications';
+import { useSpaceNotifications, clearNotifWatch } from '@/hooks/useSpaceNotifications';
 import { logAudit, AUDIT_ACTIONS, AUDIT_ENTITIES } from '@/lib/auditLog';
 import RegionalMaintenanceSection from '@/components/directeur_regional/RegionalMaintenanceSection';
 import RegionalPointageSection from '@/components/directeur_regional/RegionalPointageSection';
@@ -438,6 +438,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
     setDemandes([]);
     setEvents([]);
     setActiveSection('paiement');
+    clearNotifWatch(currentSpaceKey);
     localStorage.removeItem(spaceConfig.storageKey);
     navigate('/');
   };

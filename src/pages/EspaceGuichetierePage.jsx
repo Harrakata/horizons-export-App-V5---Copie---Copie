@@ -5,7 +5,7 @@ import { CalendarDays, LogOut, MapPin, FileText, ShieldCheck, Wallet, AtSign, Lo
 import EditProfileDialog from '@/components/EditProfileDialog';
 import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 import NotificationBell from '@/components/NotificationBell';
-import { useSpaceNotifications } from '@/hooks/useSpaceNotifications';
+import { useSpaceNotifications, clearNotifWatch } from '@/hooks/useSpaceNotifications';
 import MobileTabBar from '@/components/mobile/MobileTabBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
 import SwipeTabs from '@/components/mobile/SwipeTabs';
@@ -406,6 +406,7 @@ const EspaceGuichetierePage = () => {
     setIsAuthenticated(false);
     setGuichetiereInfo(null);
     setGuichetiereDetails(null);
+    clearNotifWatch('espace-guichetiere');
     localStorage.removeItem(GUICHETIERE_AUTH_KEY);
     toast({
       title: 'Déconnexion',

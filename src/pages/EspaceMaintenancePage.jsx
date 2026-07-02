@@ -9,7 +9,7 @@ import { Wrench, Loader2, LogOut, CalendarDays, AtSign, UserCog, Menu, X, Home, 
 import EditProfileDialog from '@/components/EditProfileDialog';
 import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 import NotificationBell from '@/components/NotificationBell';
-import { useSpaceNotifications } from '@/hooks/useSpaceNotifications';
+import { useSpaceNotifications, clearNotifWatch } from '@/hooks/useSpaceNotifications';
 import MobileTabBar from '@/components/mobile/MobileTabBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
 import SwipeTabs from '@/components/mobile/SwipeTabs';
@@ -282,6 +282,7 @@ const EspaceMaintenancePage = () => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     // Nettoyage des anciens vestiges localStorage (migration douce)
+    clearNotifWatch('espace-technicien');
     try { localStorage.removeItem('pmuTechnicienAuth'); } catch {}
     setIsAuthenticated(false);
     setUserData(null);

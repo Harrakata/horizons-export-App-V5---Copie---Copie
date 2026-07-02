@@ -6,7 +6,7 @@ import { UserCog, CalendarDays, ShieldCheck, LogOut, Loader2, Camera, RotateCcw,
 import EditProfileDialog from '@/components/EditProfileDialog';
 import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 import NotificationBell from '@/components/NotificationBell';
-import { useSpaceNotifications } from '@/hooks/useSpaceNotifications';
+import { useSpaceNotifications, clearNotifWatch } from '@/hooks/useSpaceNotifications';
 import MobileTabBar from '@/components/mobile/MobileTabBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
 import SwipeTabs from '@/components/mobile/SwipeTabs';
@@ -842,6 +842,7 @@ const EspaceChefAgencePage = () => {
     setIsAuthenticated(false);
     setChefAgenceInfo(null);
     setChefDetails(null);
+    clearNotifWatch('espace-chef-agence');
     localStorage.removeItem('pmuChefAuth');
     toast({ title: "Déconnexion", description: "Vous avez été déconnecté.", className: "bg-blue-500 text-white" });
     navigate('/');

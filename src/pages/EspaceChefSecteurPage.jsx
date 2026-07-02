@@ -52,7 +52,7 @@ import SwipeTabs from '@/components/mobile/SwipeTabs';
 import NotificationBell from '@/components/NotificationBell';
 import RemonteeDialog from '@/components/RemonteeDialog';
 import EnablePushButton from '@/components/EnablePushButton';
-import useSpaceNotifications from '@/hooks/useSpaceNotifications';
+import useSpaceNotifications, { clearNotifWatch } from '@/hooks/useSpaceNotifications';
 
 const SECTEUR_TAB_LABELS = { agences: 'Agences', pointages: 'Pointages', maintenance: 'Maint.', paiements: 'Paiements' };
 
@@ -301,6 +301,7 @@ const EspaceChefSecteurPage = () => {
 
   const handleLogout = useCallback(async () => {
     await supabase.auth.signOut().catch(() => {});
+    clearNotifWatch(SPACE_KEY);
     localStorage.removeItem(AUTH_KEY);
     setIsAuthenticated(false);
     setChef(null);
