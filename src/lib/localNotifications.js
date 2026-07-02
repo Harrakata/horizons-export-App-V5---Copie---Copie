@@ -9,6 +9,18 @@
 
 const FLAG = 'local_notif_enabled';
 
+/** Version du service worker push actif (diagnostic). null si indéterminable. */
+export const getSwVersion = () => new Promise((resolve) => {
+  try {
+    const ctrl = navigator.serviceWorker && navigator.serviceWorker.controller;
+    if (!ctrl) return resolve(null);
+    const ch = new MessageChannel();
+    const timer = setTimeout(() => resolve(null), 1000);
+    ch.port1.onmessage = (e) => { clearTimeout(timer); resolve((e.data && e.data.version) || null); };
+    ctrl.postMessage({ type: 'get-push-sw-version' }, [ch.port2]);
+  } catch { resolve(null); }
+});
+
 export const notificationsSupported = () =>
   typeof window !== 'undefined' && 'Notification' in window;
 

@@ -8,7 +8,7 @@ import {
 } from '@/lib/pushNotifications';
 import {
   notificationsSupported, getNotifPermission, requestNotifPermission,
-  setLocalNotifEnabled, isLocalNotifEnabled, notifyLocal,
+  setLocalNotifEnabled, isLocalNotifEnabled, notifyLocal, getSwVersion,
 } from '@/lib/localNotifications';
 
 /**
@@ -48,9 +48,11 @@ const EnablePushButton = ({ reader = {}, className = '', iconOnly = false, asNav
       const res = await subscribeToPush(reader);
       pushOk = !!res.ok;
     }
+    // Diagnostic : version du service worker réellement active.
+    const swVersion = await getSwVersion();
     // Notification de test immédiate pour confirmer que ça fonctionne.
-    await notifyLocal('Notifications activées', { body: 'Vous serez alerté des nouveautés.', tag: 'notif-test' });
-    return { ok: true, pushOk };
+    await notifyLocal('Notifications activées', { body: `Vous serez alerté des nouveautés.${swVersion ? ` (SW ${swVersion})` : ''}`, tag: 'notif-test' });
+    return { ok: true, pushOk, swVersion };
   };
 
   const disable = async () => {
@@ -65,11 +67,12 @@ const EnablePushButton = ({ reader = {}, className = '', iconOnly = false, asNav
       const res = await enable();
       if (res && res.ok) {
         setEnabled(true);
+        const mode = res.pushOk
+          ? 'Y compris quand l’application est fermée (push).'
+          : 'Quand l’application est ouverte. (Push serveur non configuré → app fermée indisponible.)';
         toast({
           title: 'Notifications activées',
-          description: res.pushOk
-            ? 'Y compris quand l’application est fermée (push).'
-            : 'Quand l’application est ouverte. (Push serveur non configuré → app fermée indisponible.)',
+          description: `${mode}${res.swVersion ? ` · SW ${res.swVersion}` : ' · SW non détecté'}`,
         });
       }
     }

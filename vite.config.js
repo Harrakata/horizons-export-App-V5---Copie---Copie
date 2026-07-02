@@ -237,7 +237,7 @@ export default defineConfig({
 				// Handlers Web Push (push / notificationclick) injectés dans le SW généré.
 				// ⚠ Le suffixe ?v=N contourne le cache HTTP d'importScripts : À INCRÉMENTER
 				//    à chaque modification de public/push-sw.js pour forcer sa prise en compte.
-				importScripts: ['push-sw.js?v=3'],
+				importScripts: ['push-sw.js?v=5'],
 			},
 		}),
 	],
