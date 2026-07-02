@@ -230,8 +230,14 @@ export default defineConfig({
 				navigateFallbackDenylist: [/^\/pbi-viewer/],
 				globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2}'],
 				maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+				// Le nouveau SW prend la main immédiatement (sinon l'ancien reste actif tant
+				// que des onglets/PWA sont ouverts → ancien comportement de clic conservé).
+				skipWaiting: true,
+				clientsClaim: true,
 				// Handlers Web Push (push / notificationclick) injectés dans le SW généré.
-				importScripts: ['push-sw.js'],
+				// ⚠ Le suffixe ?v=N contourne le cache HTTP d'importScripts : À INCRÉMENTER
+				//    à chaque modification de public/push-sw.js pour forcer sa prise en compte.
+				importScripts: ['push-sw.js?v=3'],
 			},
 		}),
 	],
