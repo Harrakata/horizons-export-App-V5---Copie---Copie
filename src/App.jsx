@@ -68,7 +68,6 @@ const NotificationsExploitationPage         = lazy(() => import('@/pages/exploit
 const RapportsPage                          = lazy(() => import('@/pages/exploitation/RapportsPage'));
 const AbsencesExploitationPage              = lazy(() => import('@/pages/exploitation/AbsencesExploitationPage'));
 const TicketsExploitationPage               = lazy(() => import('@/pages/exploitation/TicketsExploitationPage'));
-const SyncHealthPage                        = lazy(() => import('@/pages/exploitation/SyncHealthPage'));
 const PerformancePage                       = lazy(() => import('@/pages/exploitation/PerformancePage'));
 
 // Chef d'agence
@@ -172,7 +171,9 @@ const App = () => (
             <Route path="rapports"                          element={<LazyRoute><RapportsPage /></LazyRoute>} />
             <Route path="absences"                          element={<LazyRoute><AbsencesExploitationPage /></LazyRoute>} />
             <Route path="tickets"                           element={<LazyRoute><TicketsExploitationPage /></LazyRoute>} />
-            <Route path="sante-synchro"                     element={<LazyRoute><SyncHealthPage /></LazyRoute>} />
+            {/* Santé synchro est désormais un sous-onglet d'Activités et Audit.
+                On redirige l'ancienne URL (liens de notification, favoris) vers le sous-onglet. */}
+            <Route path="sante-synchro"                     element={<Navigate to="/espace-exploitation/activites-et-audit?tab=sante-synchro" replace />} />
             <Route path="performance"                       element={<LazyRoute><PerformancePage /></LazyRoute>} />
           </Route>
 

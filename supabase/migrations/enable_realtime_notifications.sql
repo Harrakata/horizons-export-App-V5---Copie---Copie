@@ -30,12 +30,18 @@ BEGIN
   END IF;
 
   FOREACH t IN ARRAY tables LOOP
-    IF to_regclass('public.' || t) IS NOT NULL
-       AND NOT EXISTS (
-         SELECT 1 FROM pg_publication_tables
-         WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = t
-       ) THEN
-      EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I', t);
+    IF to_regclass('public.' || t) IS NOT NULL THEN
+      -- 1) Ajout à la publication (si absent).
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = t
+      ) THEN
+        EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I', t);
+      END IF;
+      -- 2) REPLICA IDENTITY FULL : indispensable pour que Realtime délivre les
+      --    événements UPDATE/DELETE sur les tables protégées par RLS (sinon seuls
+      --    les INSERT passent). Idempotent.
+      EXECUTE format('ALTER TABLE public.%I REPLICA IDENTITY FULL', t);
     END IF;
   END LOOP;
 END $$;

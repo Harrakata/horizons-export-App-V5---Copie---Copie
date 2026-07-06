@@ -8,7 +8,7 @@ import {
 } from '@/lib/pushNotifications';
 import {
   notificationsSupported, getNotifPermission, requestNotifPermission,
-  setLocalNotifEnabled, isLocalNotifEnabled, notifyLocal, getSwVersion,
+  setLocalNotifEnabled, isLocalNotifEnabled, notifyLocal,
 } from '@/lib/localNotifications';
 
 /**
@@ -44,15 +44,20 @@ const EnablePushButton = ({ reader = {}, className = '', iconOnly = false, asNav
     setLocalNotifEnabled(true);
     // En plus : vrai Web Push si configuré (alerte même app fermée), best-effort.
     let pushOk = false;
+    let pushReason = 'not-configured';
     if (isPushSupported() && isPushConfigured()) {
       const res = await subscribeToPush(reader);
       pushOk = !!res.ok;
+      pushReason = res.reason || null;
+      // Le ré-abonnement peut échouer de façon transitoire (SW pas encore prêt) alors
+      // qu'un abonnement existe déjà → dans ce cas le push fonctionne quand même.
+      if (!pushOk) {
+        try { if (await hasPushSubscription()) { pushOk = true; pushReason = null; } } catch { /* ignore */ }
+      }
     }
-    // Diagnostic : version du service worker réellement active.
-    const swVersion = await getSwVersion();
     // Notification de test immédiate pour confirmer que ça fonctionne.
-    await notifyLocal('Notifications activées', { body: `Vous serez alerté des nouveautés.${swVersion ? ` (SW ${swVersion})` : ''}`, tag: 'notif-test' });
-    return { ok: true, pushOk, swVersion };
+    await notifyLocal('Notifications activées', { body: 'Vous serez alerté des nouveautés.', tag: 'notif-test' });
+    return { ok: true, pushOk, pushReason };
   };
 
   const disable = async () => {
@@ -67,13 +72,17 @@ const EnablePushButton = ({ reader = {}, className = '', iconOnly = false, asNav
       const res = await enable();
       if (res && res.ok) {
         setEnabled(true);
-        const mode = res.pushOk
-          ? 'Y compris quand l’application est fermée (push).'
-          : 'Quand l’application est ouverte. (Push serveur non configuré → app fermée indisponible.)';
-        toast({
-          title: 'Notifications activées',
-          description: `${mode}${res.swVersion ? ` · SW ${res.swVersion}` : ' · SW non détecté'}`,
-        });
+        let description;
+        if (res.pushOk) {
+          description = 'Y compris quand l’application est fermée (push).';
+        } else if (res.pushReason === 'no-sw') {
+          description = 'Actives quand l’application est ouverte. (Service worker pas encore prêt — rechargez la page puis réessayez pour le mode app fermée.)';
+        } else if (res.pushReason === 'not-configured') {
+          description = 'Actives quand l’application est ouverte. (Push serveur non configuré → app fermée indisponible.)';
+        } else {
+          description = 'Actives quand l’application est ouverte.';
+        }
+        toast({ title: 'Notifications activées', description });
       }
     }
     setBusy(false);

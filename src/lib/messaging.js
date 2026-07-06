@@ -67,18 +67,48 @@ const REMONTEE_ROLE_LABELS = {
  * @param sender { id, role, nom, agence }
  */
 export const sendRemontee = async ({ titre, corps, categorie = 'info', sender = {} }) => {
-  const nom = sender.nom || null;
-  const label = REMONTEE_ROLE_LABELS[sender.role];
   const { error } = await supabase.from(MESSAGES_TABLE).insert({
     destinataires: REMONTEE_DESTINATAIRE,
     titre: (titre || '').trim(),
     corps: (corps || '').trim(), // NOT NULL en base → chaîne vide plutôt que null
     categorie,
     agence_nom: sender.agence || null,
-    envoye_par_nom: nom && label ? `${nom} — ${label}` : (nom || label || null),
+    envoye_par_nom: buildEnvoyeParNom(sender),
     actif: true, // actif = à traiter ; devient false une fois traité
   });
   return { error };
+};
+
+/** Chaîne d'identification de l'émetteur telle que stockée (`envoye_par_nom`). */
+const buildEnvoyeParNom = (sender = {}) => {
+  const nom = sender.nom || null;
+  const label = REMONTEE_ROLE_LABELS[sender.role];
+  return nom && label ? `${nom} — ${label}` : (nom || label || null);
+};
+
+/**
+ * Remontées déjà envoyées par un agent donné (son historique personnel).
+ * Filtre sur `envoye_par_nom` (nom + rôle) — resserré par agence si disponible.
+ * `traite` dérivé de actif (=false → traité).
+ */
+export const fetchMyRemontees = async (sender = {}) => {
+  const envoyeParNom = buildEnvoyeParNom(sender);
+  if (!envoyeParNom) return [];
+  try {
+    let query = supabase
+      .from(MESSAGES_TABLE)
+      .select('id, titre, corps, categorie, agence_nom, envoye_par_nom, actif, created_at')
+      .eq('destinataires', REMONTEE_DESTINATAIRE)
+      .eq('envoye_par_nom', envoyeParNom)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (sender.agence) query = query.eq('agence_nom', sender.agence);
+    const { data, error } = await query;
+    if (error) return [];
+    return (data || []).map((r) => ({ ...r, traite: r.actif === false }));
+  } catch {
+    return [];
+  }
 };
 
 /** Remontées (exploitation). `traite` dérivé de actif (=false → traité). */
