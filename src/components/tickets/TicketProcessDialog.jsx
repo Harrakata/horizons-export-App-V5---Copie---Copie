@@ -12,6 +12,8 @@ import {
   TICKET_STATUSES, ticketLabel, getTicketStatusBadgeClass, getTicketPriorityBadgeClass,
 } from '@/lib/tickets';
 import { logAudit, AUDIT_ACTIONS, AUDIT_ENTITIES } from '@/lib/auditLog';
+import { triggerPush } from '@/lib/pushNotifications';
+import { isNotifTypeEnabled } from '@/lib/notificationSettings';
 
 const UNASSIGNED = '__none__';
 
@@ -83,6 +85,22 @@ const TicketProcessDialog = ({ open, onOpenChange, ticket, mode, actor, spaceKey
     setSaving(false);
     if (error) { toast({ title: 'Erreur', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Ticket mis à jour', description: interventionMsg ? interventionMsg.replace(/^ · /, '') : undefined });
+
+    // Push au technicien nouvellement (ré)assigné — avec le « sous-ensemble » à réparer
+    // (terminal + priorité). Best-effort, respecte le réglage global « Assignation de ticket ».
+    const wasAssignedTo = ticket.assigne_a_id ? String(ticket.assigne_a_id) : UNASSIGNED;
+    if (isTraitement && assigneId !== UNASSIGNED && assigneId !== wasAssignedTo && isNotifTypeEnabled('ticket_assigne')) {
+      const body = [
+        ticket.titre,
+        ticket.terminal_reference ? `Terminal ${ticket.terminal_reference}` : null,
+        ticket.agence_nom || null,
+        ticket.priorite ? `Priorité ${ticket.priorite}` : null,
+      ].filter(Boolean).join(' · ');
+      triggerPush(
+        { role: 'technicien', user_id: assigneId },
+        { title: `Ticket assigné : ${ticket.code || ticket.titre}`, body, url: '/espace-technicien' },
+      );
+    }
     logAudit({
       space: spaceKey,
       actorId: actor?.id, actorName: actor?.name, actorRole: actor?.role,

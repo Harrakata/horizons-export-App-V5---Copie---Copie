@@ -17,6 +17,7 @@ import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
 import { useClient, useSecteurEnabled } from '@/hooks/useFeatureFlags';
 import { useGlobalNotificationWatcher } from '@/hooks/useSpaceNotifications';
+import { loadNotificationSettings } from '@/lib/notificationSettings';
 import { supabase } from '@/lib/supabaseClient';
 import {
   APP_SPACE_SETTINGS_KEY,
@@ -35,6 +36,15 @@ const Layout = () => {
   // hors de l'espace concerné (accueil, autre espace, onglet en arrière-plan) tant que
   // l'app tourne. App totalement fermée = Web Push requis (VITE_VAPID_PUBLIC_KEY).
   useGlobalNotificationWatcher();
+
+  // Réglages globaux des notifications (activer/désactiver par type) → cache localStorage
+  // lu par le pipeline de notifications. Rechargé au boot + sur mise à jour.
+  React.useEffect(() => {
+    loadNotificationSettings();
+    const onUpdate = () => loadNotificationSettings();
+    window.addEventListener('app-notification-settings-updated', onUpdate);
+    return () => window.removeEventListener('app-notification-settings-updated', onUpdate);
+  }, []);
   const [isDarkMode, setIsDarkMode] = React.useState(() => {
     // Lire le mode sombre depuis le cache thème pour éviter un flash au rechargement
     try {

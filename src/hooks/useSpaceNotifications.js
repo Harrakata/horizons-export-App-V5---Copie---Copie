@@ -11,6 +11,8 @@ import { ticketOverdue } from '@/lib/tickets';
 import { countBlockedDevices } from '@/lib/syncHealth';
 import { countUntreatedRemontees } from '@/lib/messaging';
 import { isLocalNotifEnabled, notifyLocal } from '@/lib/localNotifications';
+import { hasPushSubscription } from '@/lib/pushNotifications';
+import { isNotifTypeEnabled } from '@/lib/notificationSettings';
 
 // Racine de chaque espace (pour ouvrir la cloche à la ré-ouverture depuis une notif message).
 const SPACE_ROOTS = {
@@ -395,28 +397,48 @@ export async function computeSpaceNotifications(spaceKey, ctx = {}) {
   return list;
 }
 
+// Un « type poussé » = notification aussi envoyée en Web Push (message de l'exploitation,
+// remontée terrain). Si un abonnement push existe sur l'appareil, le service worker l'affiche
+// déjà (app ouverte OU fermée) → on NE refait PAS de notif locale, sinon doublon.
+const isPushedType = (n, spaceKey) =>
+  (n.messages?.length > 0 && !n.to) ||                              // messages de l'exploitation
+  (spaceKey === 'espace-exploitation' && n.key === 'remontees');   // remontées terrain
+
+// Type de réglage global (activer/désactiver) associé à une notification, ou null.
+const notifSettingKey = (n, spaceKey) => {
+  if (n.messages?.length > 0 && !n.to) return 'message';                          // messages exploitation
+  if (spaceKey === 'espace-technicien' && n.key === 'tickets') return 'ticket_assigne';
+  return null;
+};
+
 // Déclenche une notification OS (locale) pour chaque groupe contenant une nouveauté.
 // Fonction PURE : la déduplication s'appuie sur l'état persisté (loadSeen/saveSeen),
-// partagé entre le hook par-page et la surveillance globale → jamais de double notif
-// (le `tag` fait de toute façon fusionner deux notifs identiques côté OS).
-export function fireLocalForNew(spaceKey, list) {
+// partagé entre le hook par-page et la surveillance globale.
+export async function fireLocalForNew(spaceKey, list) {
   const sigs = new Set(list.flatMap(notifSignatures));
   const prev = loadSeen(spaceKey); // null = 1re fois sur cet appareil → baseline (pas de rafale)
   if (prev && isLocalNotifEnabled()) {
+    // Abonnement push actif ? → le push couvre déjà messages/remontées (ouvert comme fermé).
+    let pushActive = false;
+    try { pushActive = await hasPushSubscription(); } catch { /* pas de SW / pas d'abonnement */ }
     let fired = 0;
     for (const n of list) {
       if (fired >= 3) break; // évite les rafales
-      if (notifSignatures(n).some((s) => !prev.has(s))) {
-        // Message sans page dédiée → ouvrir la cloche (racine d'espace + marqueur).
-        const isMsg = n.messages?.length > 0 && !n.to;
-        notifyLocal(n.title, {
-          body: n.description || '',
-          url: isMsg ? SPACE_ROOTS[spaceKey] : (n.to || undefined),
-          openBell: isMsg,
-          tag: n.key,
-        });
-        fired++;
-      }
+      if (!notifSignatures(n).some((s) => !prev.has(s))) continue; // rien de nouveau ici
+      // Type désactivé globalement (Exploitation → Notifications) → on n'alerte pas.
+      const settingKey = notifSettingKey(n, spaceKey);
+      if (settingKey && !isNotifTypeEnabled(settingKey)) continue;
+      // Déjà couvert par le Web Push → pas de notif locale (évite le doublon push + local).
+      if (pushActive && isPushedType(n, spaceKey)) continue;
+      // Message sans page dédiée → ouvrir la cloche (racine d'espace + marqueur).
+      const isMsg = n.messages?.length > 0 && !n.to;
+      notifyLocal(n.title, {
+        body: n.description || '',
+        url: isMsg ? SPACE_ROOTS[spaceKey] : (n.to || undefined),
+        openBell: isMsg,
+        tag: n.key,
+      });
+      fired++;
     }
   }
   saveSeen(spaceKey, sigs);
@@ -547,7 +569,7 @@ export function useGlobalNotificationWatcher() {
         try {
           const list = await computeSpaceNotifications(spaceKey, context);
           if (cancelled) return;
-          fireLocalForNew(spaceKey, list);
+          await fireLocalForNew(spaceKey, list);
         } catch { /* espace ignoré */ }
       }
     };

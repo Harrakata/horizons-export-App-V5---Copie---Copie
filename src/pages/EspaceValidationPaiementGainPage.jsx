@@ -35,6 +35,8 @@ import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 import MobileTabBar from '@/components/mobile/MobileTabBar';
 import SwipeTabs from '@/components/mobile/SwipeTabs';
 import NotificationBell from '@/components/NotificationBell';
+import EnablePushButton from '@/components/EnablePushButton';
+import NotifEnableBanner from '@/components/NotifEnableBanner';
 import { useSpaceNotifications, clearNotifWatch } from '@/hooks/useSpaceNotifications';
 import { logAudit, AUDIT_ACTIONS, AUDIT_ENTITIES } from '@/lib/auditLog';
 import RegionalMaintenanceSection from '@/components/directeur_regional/RegionalMaintenanceSection';
@@ -426,6 +428,15 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
     enabled: Boolean(validator),
     context: { validatorId: validator?.id, regionNom: validator?.regionAssignee },
   });
+
+  // Identité pour la cloche + l'abonnement push (ciblage par rôle directeur).
+  const notifReader = {
+    id: validator?.id,
+    role: currentSpaceKey === 'espace-directeur-general' ? 'directeur_general' : 'directeur_regional',
+    nom: [validator?.prenom, validator?.nom].filter(Boolean).join(' '),
+    agence: null,
+    region: validator?.regionAssignee || null,
+  };
 
   const handleLogin = (userData) => {
     setValidator(userData);
@@ -1120,6 +1131,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
             totalCount={spaceNotifCount}
             onRefresh={refreshSpaceNotifs}
             onNavigate={() => setIsMobileMenuOpen(false)}
+            reader={notifReader}
           />
           <button
             type="button"
@@ -1166,6 +1178,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
                   totalCount={spaceNotifCount}
                   onRefresh={refreshSpaceNotifs}
                   onNavigate={() => setIsMobileMenuOpen(false)}
+                  reader={notifReader}
                 />
               </div>
             </CardContent>
@@ -1216,6 +1229,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
                     <UserCog className="h-5 w-5" />
                     <span className="text-[0.6rem] font-semibold">Profil</span>
                   </button>
+                  <EnablePushButton reader={notifReader} asNavButton />
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -1253,6 +1267,7 @@ const EspaceValidationPaiementGainPage = ({ spaceMode = 'regional' }) => {
       />
 
       <main className="app-space-main has-tabbar flex-1 min-w-0 overflow-visible md:overflow-x-hidden">
+        <NotifEnableBanner reader={notifReader} className="mx-3 mt-3 sm:mx-4" />
         <SwipeTabs items={menuItems.map((item) => ({ key: item.key, active: activeSection === item.key, onClick: () => !item.disabled && setActiveSection(item.key) }))}>
         <motion.div
           key={activeSection}

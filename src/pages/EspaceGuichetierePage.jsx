@@ -28,6 +28,7 @@ import { useFeature } from '@/hooks/useFeatureFlags';
 import { useSyncHealthHeartbeat } from '@/hooks/useSyncHealthHeartbeat';
 import RemonteeDialog from '@/components/RemonteeDialog';
 import EnablePushButton from '@/components/EnablePushButton';
+import NotifEnableBanner from '@/components/NotifEnableBanner';
 import { isGuichetiereAgenceVisible } from '@/lib/orgStructureConfig';
 import { smartSignIn, fetchAuthLinkedProfile, fetchOrLinkAuthProfile } from '@/lib/smartAuth';
 import { useActivityTracker } from '@/hooks/useActivityTracker';
@@ -719,6 +720,7 @@ const EspaceGuichetierePage = () => {
       </motion.aside>
 
       <main className="app-space-main has-tabbar flex-1 min-w-0 overflow-visible md:overflow-hidden">
+        <NotifEnableBanner reader={notifReader} className="mx-3 mt-3 sm:mx-4" />
         <SwipeTabs items={menuItems.map((item) => ({ key: item.path, active: isMenuItemActive(item.path), onClick: () => navigate(`/espace-guichetiere/${item.path}`) }))}>
         <PullToRefresh onRefresh={handlePullRefresh}>
         <motion.div

@@ -31,6 +31,7 @@ import { useActivityTracker } from '@/hooks/useActivityTracker';
 import { useSyncHealthHeartbeat } from '@/hooks/useSyncHealthHeartbeat';
 import RemonteeDialog from '@/components/RemonteeDialog';
 import EnablePushButton from '@/components/EnablePushButton';
+import NotifEnableBanner from '@/components/NotifEnableBanner';
 import {
   APP_SPACE_SETTINGS_KEY,
   APP_SPACE_TAB_SETTINGS_KEY,
@@ -1178,6 +1179,7 @@ const EspaceChefAgencePage = () => {
         </div>
       </motion.aside>
       <main className="app-space-main has-tabbar flex-1 min-w-0 overflow-visible md:overflow-x-hidden">
+        <NotifEnableBanner reader={notifReader} className="mx-3 mt-3 sm:mx-4" />
         <SwipeTabs items={menuItems.map((item) => ({ key: item.path, active: isMenuItemActive(item.path), onClick: () => navigate(`/espace-chef-agence/${item.path}`) }))}>
         <PullToRefresh onRefresh={handlePullRefresh}>
         <motion.div

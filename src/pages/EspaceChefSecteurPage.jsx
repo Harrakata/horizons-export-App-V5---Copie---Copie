@@ -52,6 +52,7 @@ import SwipeTabs from '@/components/mobile/SwipeTabs';
 import NotificationBell from '@/components/NotificationBell';
 import RemonteeDialog from '@/components/RemonteeDialog';
 import EnablePushButton from '@/components/EnablePushButton';
+import NotifEnableBanner from '@/components/NotifEnableBanner';
 import useSpaceNotifications, { clearNotifWatch } from '@/hooks/useSpaceNotifications';
 
 const SECTEUR_TAB_LABELS = { agences: 'Agences', pointages: 'Pointages', maintenance: 'Maint.', paiements: 'Paiements' };
@@ -444,6 +445,10 @@ const EspaceChefSecteurPage = () => {
       </motion.aside>
 
       <main className="app-space-main has-tabbar min-w-0 flex-1 overflow-visible">
+        <NotifEnableBanner
+          reader={{ id: chef?.id, role: 'chef_secteur', nom: [chef?.prenom, chef?.nom].filter(Boolean).join(' '), agence: null }}
+          className="mx-3 mt-3 sm:mx-4"
+        />
         <SwipeTabs items={visibleNavItems.map((item) => ({ key: item.key, active: activeSection === item.key, onClick: () => setActiveSection(item.key) }))}>
         <PullToRefresh onRefresh={handlePullRefresh}>
         <motion.div

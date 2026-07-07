@@ -17,6 +17,7 @@ import { useFeature } from '@/hooks/useFeatureFlags';
 import { useSyncHealthHeartbeat } from '@/hooks/useSyncHealthHeartbeat';
 import RemonteeDialog from '@/components/RemonteeDialog';
 import EnablePushButton from '@/components/EnablePushButton';
+import NotifEnableBanner from '@/components/NotifEnableBanner';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
@@ -550,6 +551,7 @@ const EspaceMaintenancePage = () => {
       />
 
       <main className="app-space-main has-tabbar min-w-0 flex-1 overflow-visible">
+        <NotifEnableBanner reader={notifReader} className="mx-3 mt-3 sm:mx-4" />
         <SwipeTabs items={menuItems.map((item) => ({ key: item.key, active: activeSection === item.key, onClick: () => setActiveSection(item.key) }))}>
         <PullToRefresh onRefresh={handlePullRefresh}>
         <motion.div
